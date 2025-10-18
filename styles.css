@@ -485,36 +485,52 @@ canvas {
         font-weight: bold;
     }
 
-/* Touch Controls UI */
-#joystick-area { /* Movement - Bottom Center */
-    position: absolute;
-    width: 120px; /* Default width for landscape/larger screens */
-    height: 120px;
-    border: 2px solid rgba(255, 255, 255, 0.2);
+#joystick-area {
+    position: fixed; /* Use 'fixed' to overlay on the canvas anywhere on the screen */
     border-radius: 50%;
-    z-index: 100;
-    pointer-events: auto;
-    display: none; /* Managed by JS */
-    transition: opacity 0.2s ease-out, left 0.1s ease-out, bottom 0.1s ease-out; /* Smooth transitions if position changes */
-    opacity: 0.8;
-    box-shadow: 0 0 10px rgba(150, 150, 200, 0.1);
-    /* --- POSITIONING FOR SINGLE JOYSTICK --- */
-    bottom: 20px; /* Slightly more space from bottom edge */
-    left: 50%;
-    transform: translateX(-50%); /* Center horizontally */
+    pointer-events: none; /* The area itself doesn't need to capture events */
+    z-index: 1000;
+
+    /* 1. Hide the joystick by default */
+    opacity: 0;
+
+    /* 2. This is the centering trick. JS sets left/top to the touch point,
+       and this transform moves the div so its CENTER is at that point. */
+    transform: translate(-50%, -50%);
+
+    transition: opacity 0.15s ease-out; /* Smooth fade-out */
+
+    /* Visual styling for the joystick area */
+    background: radial-gradient(circle, rgba(20, 35, 55, 0.2) 0%, rgba(20, 35, 55, 0.1) 70%, transparent 100%);
+    border: 2px solid rgba(140, 180, 230, 0.15);
+
+    /* Performance hint for the browser */
+    will-change: opacity, left, top;
+}
+
+/* This class is added by JS to make the joystick visible */
+#joystick-area.active {
+    opacity: 1;
+    transition: opacity 0.05s ease-in; /* Appear faster than it fades */
 }
 
 #joystick-knob {
     position: absolute;
-    width: 55px; /* Default knob width */
-    height: 55px;
-    background: radial-gradient(circle, rgba(220,220,255,0.5) 0%, rgba(150,150,200,0.4) 70%);
     border-radius: 50%;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%); /* Center knob within joystick-area */
     pointer-events: none;
-    border: 1px solid rgba(255, 255, 255, 0.3);
+
+    /* Visual styling for the knob */
+    background: radial-gradient(circle, rgba(200, 220, 255, 0.8) 0%, rgba(150, 180, 220, 0.7) 100%);
+    border: 1px solid rgba(220, 240, 255, 0.5);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.3);
+
+    /* 3. The JS will now control the knob's movement ONLY with the transform property.
+       This is very smooth and performant. */
+    transform: translate(0, 0);
+
+    /* We don't want a CSS transition on the transform, as JS updates it every frame.
+       A transition here would make it feel laggy. */
+    will-change: transform;
 }
 
 /* Ensure aim joystick area is always hidden */
