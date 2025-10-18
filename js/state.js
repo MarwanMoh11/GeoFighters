@@ -112,6 +112,55 @@ export let state = {
     nextBossTime: 300,
 };
 
+export function resetGameState() {
+    // Core Gameplay State
+    state.gameTime = 0;
+    state.isPaused = false;
+    state.score = 0;
+
+    // Player Stats
+    state.playerLevel = 1;
+    state.currentXP = 0;
+    state.xpToNextLevel = 60; // Or your initial value
+    state.playerShield = state.MAX_PLAYER_SHIELD; // Start with full shield
+
+    // Clear dynamic arrays
+    // We need to be careful here to not just clear the array, but also remove objects from the scene
+    // and return them to pools. This will be handled by a separate "cleanup" function.
+    state.shapes.forEach(shape => {
+        // A simple removal for now. A full cleanup would return to pool.
+        if (shape.parent) state.scene.remove(shape);
+    });
+
+    // Reset arrays to be empty
+    state.shapes = [];
+    state.projectiles = [];
+    state.dataFragments = [];
+    state.megaDataFragments = [];
+    state.geometricCaches = [];
+    state.repairNodes = [];
+    state.energyCores = [];
+    state.effectsToUpdate = [];
+
+    // --- THE FIX FOR YOUR HORDE PROBLEM ---
+    // Reset Spawner State
+    state.spawnerState = 'CALM';
+    state.hordeTimer = 5; // Give player 5 seconds before first wave starts
+    state.hordeIndex = 0;
+    state.currentHordeEnemyType = null;
+    state.isBossWave = false;
+    state.shapeSpawnTimer = 0;
+    state.eliteSpawnTimer = 0;
+    state.pickupSpawnTimer = 0;
+
+    // Reset player position
+    if (state.player) {
+        state.player.position.set(0, CONSTANTS.PLAYER_HEIGHT / 2, 0);
+    }
+
+    console.log("Game state has been reset for a new run.");
+}
+
 // --- Game Constants ---
 export const CONSTANTS = {
     WORLD_BOUNDARY: 70,

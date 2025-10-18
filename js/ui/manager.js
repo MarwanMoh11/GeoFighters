@@ -1,4 +1,4 @@
-import { state, GameState, CONSTANTS } from '../state.js';
+import { state, GameState, CONSTANTS, resetGameState } from '../state.js';
 import { ui } from './dom.js';
 import { gameLevels } from '../config/levels.js';
 import { ITEMS, GENERIC_UPGRADES, metaUpgrades } from '../config/items.js';
@@ -32,6 +32,7 @@ export function bindUIEvents() {
 // --- Game Flow & State Management ---
 
 export function startGame(levelId) {
+    resetGameState();
     initializeAudio();
 
     const selectedLevelData = gameLevels.find(l => l.id === levelId);
