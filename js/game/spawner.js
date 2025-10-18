@@ -118,7 +118,7 @@ function spawnShapeWave() {
 function selectEnemyTypeForHorde(budget) {
     // Gentler enemy introduction curve
     const timeThresholds = {
-        TETRA_SWARMER: 1000,      // Later start (was 20)
+        TETRA_SWARMER: 30,      // Later start (was 20)
         ICOSAHEDRON_INVADER: 90,  // Later (was 75)
         SPHERE_SPLITTER: 180,    // Later (was 150)
         PRISM_DASHER: 270,       // Later (was 240)
@@ -341,7 +341,7 @@ export function spawnSplitterOffspring(position, generation) {
     const newRadius = Math.max(0.2, (typeData.size[0] / (generation + 1)));
     // Reduced offspring health
     const health = Math.max(2, (4 + state.playerLevel * 1.2 + state.gameTime * 0.015) * (typeData.healthMultiplier || 1) / (generation * 1.8 + 1));
-    const xp = Math.max(1, (3 + state.playerLevel * 1.0 + state.gameTime * 0.005) * typeData.xpMultiplier / (generation * 1.5 + 1));
+    const xp = Math.max(1, (3 + state.playerLevel + state.gameTime * 0.005) * typeData.xpMultiplier / (generation * 1.5 + 1));
     const speed = typeData.speed * (1 + generation * 0.15);
     const geometry = new THREE.SphereGeometry(newRadius, 8, 6);
     const material = new THREE.MeshStandardMaterial({
