@@ -1,3 +1,5 @@
+import * as THREE from 'three';
+
 // Game States Enum
 export const GameState = { MainMenu: 'MainMenu', LevelSelect: 'LevelSelect', UpgradeMenu: 'UpgradeMenu', Playing: 'Playing', Paused: 'Paused', LevelUp: 'LevelUp', Settings: 'Settings', GameOver: 'GameOver', Win: 'Win', EvolutionBook: 'EvolutionBook' };
 
@@ -74,22 +76,24 @@ export let state = {
     joystickPointerId: null,
     joystickRadius: 75,
     knobRadius: 30,
+    movePointerId: null,
+    aimPointerId: null,
+    joystickCenter: new THREE.Vector2(),
+    aimStart: new THREE.Vector2(),
 
-    movePointerId: null,      // Tracks the finger controlling movement
-    aimPointerId: null,       // Tracks the finger controlling aiming
-    joystickCenter: new THREE.Vector2(), // Center of the movement joystick
-    aimStart: new THREE.Vector2(),       // Start position of the aim touch
-
-    // Game Element Arrays
+    // --- Game Element Arrays ---
+    // --- THIS IS THE FIX ---
+    effectsToUpdate: [], // The animation engine's "to-do" list
+    // -----------------------
     shapes: [],
     projectiles: [],
     dataFragments: [],
     megaDataFragments: [],
-    hitEffects: [],
+    hitEffects: [], // You had this in objectPools but not here, added for consistency
     geometricCaches: [],
     repairNodes: [],
     energyCores: [],
-    particles: [],
+    particles: [], // Note: This might be redundant if effectsToUpdate handles all particles
     persistentWeaponMeshes: {},
     staticLevelObjects: [],
     backgroundPattern: null,
@@ -99,7 +103,7 @@ export let state = {
 
     // Boss state
     isBossWave: false,
-    nextBossTime: 300, // 5 minutes (changed from 540)
+    nextBossTime: 300,
 };
 
 // --- Game Constants ---

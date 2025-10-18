@@ -95,11 +95,11 @@ function selectEnemyTypeForHorde(budget) {
     const timeThresholds = {
         TETRA_SWARMER: 30,      // Later start (was 20)
         ICOSAHEDRON_INVADER: 90,  // Later (was 75)
-        SPHERE_SPLITTER: 180,    // Later (was 150)
-        PRISM_DASHER: 270,       // Later (was 240)
-        CYLINDER_CORRUPTER: 360, // Much later (was 330)
-        CONE_CASTER: 450,        // Much later (was 420)
-        DODECAHEDRON_DRIFTER: 540 // Much later (was 510)
+        SPHERE_SPLITTER: 120,    // Later (was 150)
+        PRISM_DASHER: 180,       // Later (was 240)
+        CYLINDER_CORRUPTER: 220, // Much later (was 330)
+        CONE_CASTER: 240,        // Much later (was 420)
+        DODECAHEDRON_DRIFTER: 240 // Much later (was 510)
     };
     const available = Object.keys(timeThresholds).filter(typeId =>
         state.gameTime >= timeThresholds[typeId] && ENEMY_TYPES[typeId].cost <= budget
