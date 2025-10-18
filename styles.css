@@ -68,7 +68,7 @@ canvas {
 }
 
 #xpBarFill {
-    width: 0%;
+    width: 0;
     height: 100%;
     background-color: #00ffff;
     transition: width 0.2s ease-out;
@@ -151,7 +151,6 @@ canvas {
     width: 100%;
     height: 100%;
     background-color: rgba(0, 0, 0, 0.85);
-    display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
@@ -522,6 +521,40 @@ canvas {
 #aim-joystick-area {
     display: none !important;
 }
+
+/*
+  --- DAMAGE NUMBER ANIMATION ---
+  This is the required animation for the pooled damage numbers.
+*/
+.damage-number {
+    position: absolute; /* Handled by JS */
+    font-size: 16px;
+    font-weight: bold;
+    color: white;
+    text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+    pointer-events: none;
+    z-index: 10;
+    transform-origin: bottom;
+    /* JS will trigger the animation */
+}
+
+.damage-number.critical {
+    color: #ffd700;
+    font-size: 20px;
+    transform: scale(1.1);
+}
+
+@keyframes damage-anim {
+    0% {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(-60px) scale(0.7);
+        opacity: 0;
+    }
+}
+
 
 #fullscreen-button { /* No change needed here based on joystick type */
     position: absolute;
