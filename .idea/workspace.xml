@@ -4,13 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="524ebcd6-9740-4e55-8050-730dc68fef7d" name="Changes" comment="Attempting to fix creatburstanimation">
-      <change beforePath="$PROJECT_DIR$/.idea/GeoFighters.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/GeoFighters.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/js/game/spawner.js" beforeDir="false" afterPath="$PROJECT_DIR$/js/game/spawner.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/js/main.js" beforeDir="false" afterPath="$PROJECT_DIR$/js/main.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/js/state.js" beforeDir="false" afterPath="$PROJECT_DIR$/js/state.js" afterDir="false" />
-    </list>
+    <list default="true" id="524ebcd6-9740-4e55-8050-730dc68fef7d" name="Changes" comment="attempting to fix touch conrtols" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -95,7 +89,7 @@
       <workItem from="1760697558311" duration="5598000" />
       <workItem from="1760703187956" duration="5158000" />
       <workItem from="1760711120397" duration="2144000" />
-      <workItem from="1760797027279" duration="4360000" />
+      <workItem from="1760797027279" duration="4733000" />
     </task>
     <task id="LOCAL-00001" summary="attempting addition of tetra">
       <option name="closed" value="true" />
@@ -137,7 +131,31 @@
       <option name="project" value="LOCAL" />
       <updated>1760798678099</updated>
     </task>
-    <option name="localTasksCounter" value="6" />
+    <task id="LOCAL-00006" summary="reimagined the horde mode">
+      <option name="closed" value="true" />
+      <created>1760801501301</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1760801501301</updated>
+    </task>
+    <task id="LOCAL-00007" summary="reimagined the horde mode">
+      <option name="closed" value="true" />
+      <created>1760801522974</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1760801522974</updated>
+    </task>
+    <task id="LOCAL-00008" summary="attempting to fix touch conrtols">
+      <option name="closed" value="true" />
+      <created>1760801678295</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1760801678295</updated>
+    </task>
+    <option name="localTasksCounter" value="9" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -146,6 +164,8 @@
   <component name="VcsManagerConfiguration">
     <MESSAGE value="attempting addition of tetra" />
     <MESSAGE value="Attempting to fix creatburstanimation" />
-    <option name="LAST_COMMIT_MESSAGE" value="Attempting to fix creatburstanimation" />
+    <MESSAGE value="reimagined the horde mode" />
+    <MESSAGE value="attempting to fix touch conrtols" />
+    <option name="LAST_COMMIT_MESSAGE" value="attempting to fix touch conrtols" />
   </component>
 </project>
