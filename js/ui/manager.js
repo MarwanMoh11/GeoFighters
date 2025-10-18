@@ -50,7 +50,7 @@ export function startGame(levelId) {
     state.playerItems = [];
     state.gameTime = 0;
     state.isBossWave = false;
-    state.nextBossTime = 300;
+    state.nextBossTime = 600;
 
     clearDynamicSceneObjects();
 
@@ -348,7 +348,7 @@ function presentUpgradeOptions(count = 3) {
     optionsToShow.forEach(optionWrapper => {
         const option = optionWrapper.data;
         const button = document.createElement('button');
-        let description = '';
+        let description;
         if(optionWrapper.type.includes('weapon')) description = defaultGetUpgradeDescription.call(option);
         else if(optionWrapper.type.includes('item')) description = defaultItemGetUpgradeDescription.call(option);
         else description = `${option.name} ${option.icon || ''}`;

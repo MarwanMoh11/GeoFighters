@@ -20,7 +20,7 @@ const HORDE_TIMELINE = [
     // Objective: Introduce special abilities and armor.
     { startTime: 150, duration: 10, type: 'SPHERE_SPLITTER', calmDuration: 25 }, // Short, intense wave to manage performance. Ends at 3:35.
     { startTime: 150,   duration: 100, type: 'CUBE_CRUSHER',  calmDuration: 15 },
-    { startTime: 215, duration: 60, type: 'ICOSAHEDRON_INVADER', calmDuration: 25 }, // Introduce the "Tough" enemy type. Ends at 4:20.
+    { startTime: 215, duration: 60, type: 'TETRA_SWARMER', calmDuration: 25 }, // Introduce the "Tough" enemy type. Ends at 4:20.
 
     // === PHASE 3: The Gauntlet (4:30 - 7:00) ===
     // Objective: Combine hordes to test player prioritization.
