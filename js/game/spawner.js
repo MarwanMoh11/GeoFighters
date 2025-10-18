@@ -587,58 +587,83 @@ export function createTemporaryVisualEffect(position, radius, color, duration, w
     mat.wireframe = wireframe;
     mat.opacity = 1.0;
 
+    // 3. Create a unique "brain" (update function) for the effect's animation
+    const effect = {
+        mesh: effectMesh,
+        life: duration,
+        totalLife: duration,
+        targetRadius: radius,
+        update: (eff, deltaTime) => {
+            eff.life -= deltaTime;
 
-    export function getScreenEdgesInWorldSpace() {
-        // Guard clause: Ensure all necessary Three.js objects are initialized.
-        if (!state.camera || !state.raycaster || !state.groundPlane) {
-            console.error("getScreenEdgesInWorldSpace requires camera, raycaster, and groundPlane to be initialized in the state.");
-            return {valid: false};
-        }
+            // Calculate progress (from 0 to 1)
+            const progress = 1.0 - (eff.life / eff.totalLife);
 
-        // These are the four corners of the screen in Normalized Device Coordinates (NDC),
-        // which range from -1 to 1 on both axes.
-        const ndcCorners = [
-            new THREE.Vector2(-1, 1), // Top-left
-            new THREE.Vector2(1, 1),  // Top-right
-            new THREE.Vector2(1, -1), // Bottom-right
-            new THREE.Vector2(-1, -1) // Bottom-left
-        ];
+            // Animate scale and opacity
+            const currentScale = eff.targetRadius * progress;
+            eff.mesh.scale.set(currentScale, currentScale, currentScale);
+            eff.mesh.material.opacity = 1.0 - progress;
 
-        const worldCorners = [];
-
-        // Project each screen corner into the 3D world.
-        for (const corner of ndcCorners) {
-            // Set the raycaster to shoot a ray from the camera through the screen corner.
-            state.raycaster.setFromCamera(corner, state.camera);
-
-            const intersectPoint = new THREE.Vector3();
-
-            // Find the point where this ray intersects the infinite ground plane.
-            if (state.raycaster.ray.intersectPlane(state.groundPlane, intersectPoint)) {
-                worldCorners.push(intersectPoint);
+            // 4. When life is over, return to pool
+            if (eff.life <= 0) {
+                eff.update = null; // Signal for removal from the update loop
+                returnToPool('tempVisualEffects', eff.mesh);
             }
         }
-
-        // If we couldn't find all four intersection points, the result is invalid.
-        if (worldCorners.length < 4) {
-            return {valid: false};
-        }
-
-        // Now, find the minimum and maximum X and Z values from the four world corners.
-        // This gives us a 2D bounding box in world space that represents the screen.
-        let minX = Infinity;
-        let maxX = -Infinity;
-        let minZ = Infinity;
-        let maxZ = -Infinity;
-
-        worldCorners.forEach(point => {
-            minX = Math.min(minX, point.x);
-            maxX = Math.max(maxX, point.x);
-            minZ = Math.min(minZ, point.z);
-            maxZ = Math.max(maxZ, point.z);
-        });
-
-        // Return the complete, valid bounding box.
-        return {minX, maxX, minZ, maxZ, valid: true};
-    }
+    };
 }
+
+export function getScreenEdgesInWorldSpace() {
+    // Guard clause: Ensure all necessary Three.js objects are initialized.
+    if (!state.camera || !state.raycaster || !state.groundPlane) {
+        console.error("getScreenEdgesInWorldSpace requires camera, raycaster, and groundPlane to be initialized in the state.");
+        return { valid: false };
+    }
+
+    // These are the four corners of the screen in Normalized Device Coordinates (NDC),
+    // which range from -1 to 1 on both axes.
+    const ndcCorners = [
+        new THREE.Vector2(-1, 1), // Top-left
+        new THREE.Vector2(1, 1),  // Top-right
+        new THREE.Vector2(1, -1), // Bottom-right
+        new THREE.Vector2(-1, -1) // Bottom-left
+    ];
+
+    const worldCorners = [];
+
+    // Project each screen corner into the 3D world.
+    for (const corner of ndcCorners) {
+        // Set the raycaster to shoot a ray from the camera through the screen corner.
+        state.raycaster.setFromCamera(corner, state.camera);
+
+        const intersectPoint = new THREE.Vector3();
+
+        // Find the point where this ray intersects the infinite ground plane.
+        if (state.raycaster.ray.intersectPlane(state.groundPlane, intersectPoint)) {
+            worldCorners.push(intersectPoint);
+        }
+    }
+
+    // If we couldn't find all four intersection points, the result is invalid.
+    if (worldCorners.length < 4) {
+        return { valid: false };
+    }
+
+    // Now, find the minimum and maximum X and Z values from the four world corners.
+    // This gives us a 2D bounding box in world space that represents the screen.
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minZ = Infinity;
+    let maxZ = -Infinity;
+
+    worldCorners.forEach(point => {
+        minX = Math.min(minX, point.x);
+        maxX = Math.max(maxX, point.x);
+        minZ = Math.min(minZ, point.z);
+        maxZ = Math.max(maxZ, point.z);
+    });
+
+    // Return the complete, valid bounding box.
+    return { minX, maxX, minZ, maxZ, valid: true };
+}
+
