@@ -4,10 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="524ebcd6-9740-4e55-8050-730dc68fef7d" name="Changes" comment="attempting addition of tetra">
-      <change beforePath="$PROJECT_DIR$/js/game/spawner.js" beforeDir="false" afterPath="$PROJECT_DIR$/js/game/spawner.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/js/main.js" beforeDir="false" afterPath="$PROJECT_DIR$/js/main.js" afterDir="false" />
-    </list>
+    <list default="true" id="524ebcd6-9740-4e55-8050-730dc68fef7d" name="Changes" comment="Attempting to fix creatburstanimation" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -92,7 +89,7 @@
       <workItem from="1760697558311" duration="5598000" />
       <workItem from="1760703187956" duration="5158000" />
       <workItem from="1760711120397" duration="2144000" />
-      <workItem from="1760797027279" duration="728000" />
+      <workItem from="1760797027279" duration="1110000" />
     </task>
     <task id="LOCAL-00001" summary="attempting addition of tetra">
       <option name="closed" value="true" />
@@ -102,7 +99,23 @@
       <option name="project" value="LOCAL" />
       <updated>1760797511038</updated>
     </task>
-    <option name="localTasksCounter" value="2" />
+    <task id="LOCAL-00002" summary="Attempting to fix creatburstanimation">
+      <option name="closed" value="true" />
+      <created>1760797957307</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1760797957307</updated>
+    </task>
+    <task id="LOCAL-00003" summary="Attempting to fix creatburstanimation">
+      <option name="closed" value="true" />
+      <created>1760798137487</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1760798137487</updated>
+    </task>
+    <option name="localTasksCounter" value="4" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -110,6 +123,7 @@
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="attempting addition of tetra" />
-    <option name="LAST_COMMIT_MESSAGE" value="attempting addition of tetra" />
+    <MESSAGE value="Attempting to fix creatburstanimation" />
+    <option name="LAST_COMMIT_MESSAGE" value="Attempting to fix creatburstanimation" />
   </component>
 </project>

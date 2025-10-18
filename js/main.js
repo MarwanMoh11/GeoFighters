@@ -6,7 +6,7 @@ import { loadGameData } from './utils/saveLoad.js';
 import { initializeAudio } from './utils/audio.js';
 import { bindUIEvents } from './ui/manager.js';
 // --- FIX: Import the initializers for your object pools ---
-import { initializeEffectPools, initializeDamageNumberPool } from './game/spawner';
+import { initializeEffectPools, initializeDamageNumberPool } from './game/spawner.js';
 
 function init() {
     state.isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
