@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Geometry Fighters</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="ui-container">
+    <div id="gameUi" style="display: none;">
+        <div id="info">
+            Shield: <span id="shield">100</span><br>
+            Score: <span id="score">0</span><br>
+            Shapes: <span id="shapeCount">0</span>
+        </div>
+        <div id="timer">00:00</div>
+        <div id="levelText">Level: <span id="level">1</span></div>
+        <div id="xpBar"><div id="xpBarFill"></div></div>
+        <div class="indicator-container">
+            <div id="weaponIndicator"></div>
+            <div id="itemIndicator"></div>
+        </div>
+        <button id="fullscreen-button">Fullscreen</button>
+        <div id="damage-numbers-container" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: hidden; pointer-events: none;"></div>
+    </div>
+
+    <div id="mainMenu" class="menu-overlay" style="display: flex;">
+        <div class="menu-box">
+            <h1>Geometry Fighters</h1>
+            <button id="start-simulation-button">Start Simulation</button>
+            <button id="meta-upgrades-button">Meta Upgrades</button>
+            <button id="settings-button-main">Settings</button>
+        </div>
+    </div>
+    <div id="upgradeMenu" class="menu-overlay">
+        <div class="menu-box">
+            <h2>Meta Upgrades</h2>
+            <div id="currencyDisplay">Data Cores: <span id="coresAmount">0</span></div>
+            <div id="metaUpgradeList"></div>
+            <button id="apply-meta-upgrades-button">Apply & Back</button>
+        </div>
+    </div>
+    <div id="levelSelectMenu" class="menu-overlay">
+        <div class="menu-box">
+            <h2>Select Level</h2>
+            <div id="levelList"></div>
+            <button id="level-select-back-button">Back to Main Menu</button>
+        </div>
+    </div>
+    <div id="pauseMenu" class="menu-overlay">
+        <div class="menu-box">
+            <h2>Paused</h2>
+            <button id="resume-button">Resume</button>
+            <button id="evolutions-button">Evolutions</button>
+            <button id="settings-button-paused">Settings</button>
+            <button id="exit-simulation-button">Exit Simulation</button>
+        </div>
+    </div>
+    <div id="settingsMenu" class="menu-overlay">
+        <div class="menu-box">
+            <h2>Settings</h2>
+            <div class="settings-content">
+                <strong>Controls:</strong><br>
+                WASD / Arrow Keys: Move Fighter<br>
+                P / Escape: Pause Simulation<br><br>
+                <strong>Touch Controls (Mobile):</strong><br>
+                Left Screen: Virtual Joystick for Movement<br>
+            </div>
+            <button id="settings-back-button">Back</button>
+        </div>
+    </div>
+    <div id="evolutionBookMenu" class="menu-overlay">
+        <div class="menu-box">
+            <h2>Evolution Guide</h2>
+            <div id="evolutionList"></div>
+            <button id="evolution-book-back-button">Back to Pause Menu</button>
+        </div>
+    </div>
+    <div id="gameOver" class="popup-overlay">
+        SIMULATION FAILED!<br>
+        Final Score: <span id="finalScore">0</span><br>
+        <button id="game-over-return-button">Return to Menu</button>
+    </div>
+    <div id="winScreen" class="popup-overlay">
+        SIMULATION COMPLETE!<br>
+        You Survived!<br>
+        Final Score: <span id="winFinalScore">0</span><br>
+        <button id="win-screen-return-button">Return to Menu</button>
+    </div>
+    <div id="levelUpScreen" class="popup-overlay">
+        <h2>Upgrade Available!</h2>
+        <div id="upgradeOptions"></div>
+    </div>
+    <div id="cacheRewardPopup">
+        <h3>Cache Opened!</h3>
+        <div id="cacheRewardsList"></div>
+    </div>
+</div>
+<div id="joystick-area"><div id="joystick-knob"></div></div>
+<div id="aim-joystick-area"><div id="aim-joystick-knob"></div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
