@@ -3,31 +3,6 @@ import { ENEMY_TYPES } from '../config/enemies.js';
 import { playSoundSynth } from '../utils/audio.js';
 import { ui } from '../ui/dom.js';
 
-// --- Object Pooling ---
-export function getFromPool(poolName, createFunc) {
-    if (state.objectPools[poolName] && state.objectPools[poolName].length > 0) {
-        return state.objectPools[poolName].pop();
-    }
-    return createFunc();
-}
-
-export function returnToPool(poolName, object, resetFunc) {
-    if (!state.objectPools[poolName]) return;
-    if (resetFunc) resetFunc(object);
-
-    if (state.objectPools[poolName].length < CONSTANTS.MAX_POOL_SIZE[poolName]) {
-        state.objectPools[poolName].push(object);
-    } else {
-        object.geometry?.dispose();
-        if (object.material) {
-            if (Array.isArray(object.material)) {
-                object.material.forEach(m => m?.dispose());
-            } else {
-                object.material.dispose();
-            }
-        }
-    }
-}
 
 // --- Spawning Orchestration ---
 export function handleSpawning(deltaTime) {
@@ -388,32 +363,94 @@ export function createHitEffect(targetMesh, hitColor = 0xffffff, duration = 0.15
     state.hitEffects.push({ target: targetMesh, originalColor, timer: duration, isEmissive });
 }
 
-export function createBurstEffect(position, count = 20, color = 0xffffff, speed = 3, duration = 0.5) {
-    const particleSystem = getFromPool('particles', () => {
-        const geo = new THREE.BufferGeometry();
-        geo.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(count * 3), 3));
-        const mat = new THREE.PointsMaterial({
-            color,
-            size: 0.15,
-            transparent: true,
-            blending: THREE.AdditiveBlending,
-            depthWrite: false
-        });
-        return new THREE.Points(geo, mat);
-    });
-    const positions = particleSystem.geometry.attributes.position;
-    for (let i = 0; i < count; i++) positions.setXYZ(i, position.x, position.y, position.z);
-    positions.needsUpdate = true;
-    if (!particleSystem.parent) state.scene.add(particleSystem);
-    const velocities = [];
-    for (let i = 0; i < count; i++) {
-        velocities.push(
-            new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5)
-                .normalize()
-                .multiplyScalar(speed * (0.5 + Math.random()))
-        );
+// --- OBJECT POOL SETUP ---
+// This is a more robust way to handle pooling setup
+function initializePool(poolName, createFunc, initialSize) {
+    if (!state.objectPools[poolName]) {
+        state.objectPools[poolName] = [];
+        for (let i = 0; i < initialSize; i++) {
+            const obj = createFunc();
+            obj.visible = false;
+            state.objectPools[poolName].push(obj);
+        }
     }
-    state.particles.push({ mesh: particleSystem, velocities, life: duration });
+}
+
+// You should call this ONCE when your game starts, e.g., in main.js
+export function initializeEffectPools() {
+    // A single, shared geometry and material is extremely efficient
+    const particleGeometry = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+
+    initializePool('burstParticles', () => {
+        // All particles can share the same geometry
+        const particleMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        const mesh = new THREE.Mesh(particleGeometry, particleMaterial);
+        state.scene.add(mesh); // Add to scene ONCE, then we just show/hide it
+        return mesh;
+    }, 200); // Pre-warm the pool with 200 particles
+}
+
+/**
+ * HIGH-PERFORMANCE, POOLED version of createBurstEffect.
+ * This function now gets pre-made meshes from a pool instead of creating new systems.
+ */
+export function createBurstEffect(position, count = 10, color = 0xffffff, speed = 4, duration = 0.5) {
+    for (let i = 0; i < count; i++) {
+        // 1. GET a particle from the pool
+        const particle = getFromPool('burstParticles', () => null); // Fallback to null if pool is empty
+        if (!particle) continue; // If pool is empty, just skip creating more particles
+
+        // 2. CONFIGURE the reused particle
+        particle.material.color.setHex(color);
+        particle.position.copy(position);
+        particle.visible = true;
+
+        const life = duration * (0.7 + Math.random() * 0.6);
+        const velocity = new THREE.Vector3(
+            (Math.random() - 0.5),
+            (Math.random() - 0.5),
+            (Math.random() - 0.5)
+        ).normalize().multiplyScalar(speed * (0.8 + Math.random() * 0.4));
+
+        // 3. ATTACH a "brain" (update function) to the particle
+        particle.userData.life = life;
+        particle.userData.update = (p, deltaTime) => {
+            p.position.addScaledVector(velocity, deltaTime);
+            p.userData.life -= deltaTime;
+
+            // 4. DEFINE what happens when its life is over
+            if (p.userData.life <= 0) {
+                p.userData.update = null; // Remove the brain
+                returnToPool('burstParticles', p); // Return to the pool for reuse
+            }
+        };
+
+        // 5. ADD it to the list of things that need updating
+        state.effectsToUpdate.push(particle);
+    }
+}
+
+// Make sure your getFromPool and returnToPool functions are in this file or imported
+// And that they handle the `visible` property correctly.
+export function getFromPool(poolName, createFunc) {
+    const pool = state.objectPools[poolName];
+    if (pool && pool.length > 0) {
+        const obj = pool.pop();
+        obj.visible = true;
+        return obj;
+    }
+    return createFunc(); // Fallback
+}
+
+export function returnToPool(poolName, object) {
+    const pool = state.objectPools[poolName];
+    if (!pool) return;
+
+    object.visible = false;
+
+    if (pool.length < (CONSTANTS.MAX_POOL_SIZE[poolName] || 300)) {
+        pool.push(object);
+    }
 }
 
 export function createTemporaryVisualEffect(position, radius, color, duration, wireframe = false, geometry = null) {
@@ -435,6 +472,30 @@ export function createTemporaryVisualEffect(position, radius, color, duration, w
         requestAnimationFrame(animate);
     }
     animate();
+}
+
+export function initializeDamageNumberPool() {
+    // Failsafe in case the UI element isn't in the DOM yet
+    if (!ui.damageNumbersContainer) {
+        console.error("Damage numbers container not found in the DOM!");
+        return;
+    }
+    const poolName = 'damageNumbers';
+    state.objectPools[poolName] = []; // Initialize the pool array
+    const initialSize = 30; // Create 30 reusable div elements
+
+    for (let i = 0; i < initialSize; i++) {
+        const el = document.createElement('div');
+        el.style.position = 'absolute'; // Critical for positioning
+        el.style.display = 'none';      // Start hidden
+
+        // Add it to the container in the DOM
+        ui.damageNumbersContainer.appendChild(el);
+
+        // Add the ready-to-use element to our pool
+        state.objectPools[poolName].push(el);
+    }
+    console.log(`Damage number pool initialized with ${initialSize} elements.`);
 }
 
 export function createDamageNumber(position, amount, isCritical = false) {
