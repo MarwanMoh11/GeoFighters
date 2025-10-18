@@ -13,6 +13,12 @@ export let state = {
     gameTime: 0,
     currentLevelId: 1,
 
+    //horde
+    spawnerState: 'CALM', // Can be 'CALM' or 'HORDE_ACTIVE'
+    hordeTimer: 0,
+    hordeIndex: 0,
+    currentHordeEnemyType: null,
+
     // Performance & Core THREE objects
     objectPools: { projectiles: [], particles: [], hitEffects: [], dataFragments: [] },
     frustum: new THREE.Frustum(),
