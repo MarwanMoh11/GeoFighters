@@ -326,25 +326,63 @@ function levelUp() {
     state.currentXP -= state.xpToNextLevel;
     state.playerLevel++;
     state.xpToNextLevel = Math.floor(60 * Math.pow(state.playerLevel, 1.15));
+
+    // --- MODIFICATION START ---
+
+    // First, check if any permanent upgrades are even possible
+    const permanentUpgrades = getAvailableUpgrades();
+
+    if (permanentUpgrades.length === 0) {
+        // All weapons/items are maxed. Grant a default reward and skip the menu.
+
+        // You can change GENERIC_UPGRADES.SHIELD_REPAIR to GENERIC_UPGRADES.SPEED_BOOST
+        // or add logic to alternate between them.
+        const defaultReward = GENERIC_UPGRADES.SHIELD_REPAIR;
+
+        if (defaultReward) {
+            applyUpgradeLogic({ type: 'generic_upgrade', data: defaultReward });
+        }
+
+        playSoundSynth('level_up', 0.6);
+
+        // IMPORTANT: Check if we have enough XP for *another* level-up
+        if (state.currentXP >= state.xpToNextLevel) {
+            levelUp(); // Call recursively to handle multi-levels
+        }
+
+        return; // Exit the function *before* pausing or showing the screen
+    }
+
+    // --- MODIFICATION END ---
+
+    // If we are here, it means permanent upgrades *are* available.
+    // Proceed to show the level-up screen as normal.
     state.previousGameState = state.currentGameState;
     state.currentGameState = GameState.LevelUp;
     state.isPaused = true;
-    presentUpgradeOptions();
+
+    // Pass the list of upgrades we already found
+    presentUpgradeOptions(permanentUpgrades);
+
     ui.levelUpScreen.style.display = 'block';
     updateJoystickVisibility();
     playSoundSynth('level_up', 0.6);
 }
 
-function presentUpgradeOptions(count = 3) {
-    ui.upgradeOptions.innerHTML = '';
-    const availableUpgrades = [];
-    state.playerWeapons.forEach(w => { if (!w.isEvolved && w.level < w.maxLevel) availableUpgrades.push({ type: 'weapon_upgrade', data: w }); });
-    state.playerItems.forEach(i => { if (i.level < i.maxLevel) availableUpgrades.push({ type: 'item_upgrade', data: i }); });
-    if (state.playerWeapons.length < CONSTANTS.MAX_WEAPONS) Object.values(WEAPONS).forEach(w => { if (w.level === 0) availableUpgrades.push({ type: 'weapon_unlock', data: w }); });
-    if (state.playerItems.length < CONSTANTS.MAX_ITEMS) Object.values(ITEMS).forEach(i => { if (i.level === 0) availableUpgrades.push({ type: 'item_unlock', data: i }); });
-    Object.values(GENERIC_UPGRADES).forEach(u => availableUpgrades.push({ type: 'generic_upgrade', data: u }));
 
-    const optionsToShow = availableUpgrades.sort(() => 0.5 - Math.random()).slice(0, count);
+// Change the function signature to accept the list
+function presentUpgradeOptions(permanentUpgrades, count = 3) {
+    ui.upgradeOptions.innerHTML = '';
+
+    // --- MODIFICATION START ---
+    // We already have the permanent upgrades.
+    // We just need to add the generic ones back into the pool for selection.
+    const allAvailableUpgrades = [...permanentUpgrades];
+    Object.values(GENERIC_UPGRADES).forEach(u => allAvailableUpgrades.push({ type: 'generic_upgrade', data: u }));
+    // --- MODIFICATION END ---
+
+    // The rest of the function is the same, but uses `allAvailableUpgrades`
+    const optionsToShow = allAvailableUpgrades.sort(() => 0.5 - Math.random()).slice(0, count);
 
     optionsToShow.forEach(optionWrapper => {
         const option = optionWrapper.data;
@@ -364,6 +402,7 @@ function presentUpgradeOptions(count = 3) {
         ui.upgradeOptions.appendChild(optionDiv);
     });
 }
+
 
 function selectUpgrade(selectedOptionWrapper) {
     applyUpgradeLogic(selectedOptionWrapper);
@@ -441,7 +480,7 @@ export function openGeometricCache(cacheMesh) {
 
 export function grantCacheRewards() {
     const rewards = [];
-    const numRewards = 1 + Math.floor(Math.random() * 2);
+    // const numRewards = 1 + Math.floor(Math.random() * 2);
     const potentialRewards = [];
     state.playerItems.forEach(i => { if (i.level < i.maxLevel) potentialRewards.push({ type: 'item_upgrade', data: i }); });
     if(potentialRewards.length > 0) rewards.push(potentialRewards[Math.floor(Math.random() * potentialRewards.length)]);
@@ -495,6 +534,48 @@ function populateUpgradeMenu() {
     ui.metaUpgradeList.querySelectorAll('button').forEach(button => {
         button.onclick = () => buyMetaUpgrade(button.dataset.key);
     });
+}
+
+/**
+ * Checks for all available permanent upgrades (weapons/items).
+ * @returns {Array} A list of available upgrade wrapper objects.
+ */
+function getAvailableUpgrades() {
+    const availableUpgrades = [];
+
+    // Check for weapon upgrades
+    state.playerWeapons.forEach(w => {
+        if (!w.isEvolved && w.level < w.maxLevel) {
+            availableUpgrades.push({ type: 'weapon_upgrade', data: w });
+        }
+    });
+
+    // Check for item upgrades
+    state.playerItems.forEach(i => {
+        if (i.level < i.maxLevel) {
+            availableUpgrades.push({ type: 'item_upgrade', data: i });
+        }
+    });
+
+    // Check for new weapon unlocks
+    if (state.playerWeapons.length < CONSTANTS.MAX_WEAPONS) {
+        Object.values(WEAPONS).forEach(w => {
+            if (w.level === 0) {
+                availableUpgrades.push({ type: 'weapon_unlock', data: w });
+            }
+        });
+    }
+
+    // Check for new item unlocks
+    if (state.playerItems.length < CONSTANTS.MAX_ITEMS) {
+        Object.values(ITEMS).forEach(i => {
+            if (i.level === 0) {
+                availableUpgrades.push({ type: 'item_unlock', data: i });
+            }
+        });
+    }
+
+    return availableUpgrades;
 }
 
 function calculateMetaUpgradeCost(upgradeKey) {

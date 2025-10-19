@@ -24,15 +24,16 @@ const HORDE_TIMELINE = [
 
     // === PHASE 3: The Gauntlet (4:30 - 7:00) ===
     // Objective: Combine hordes to test player prioritization.
-    { startTime: 275, duration: 65, type: 'PRISM_DASHER',  calmDuration: 20 }, // A full wave of dangerous dashers. Ends at 5:40.
+    { startTime: 275, duration: 65, type: 'SPHERE_SPLITTER',  calmDuration: 20 }, // A full wave of easy enemies. Ends at 5:40.
     // ** OVERLAP! ** While dashers are still spawning, swarmers return.
-    { startTime: 315, duration: 40, type: 'TETRA_SWARMER', calmDuration: 0, isMiniHorde: true }, // Swarmers create chaos for the dashers.
+    { startTime: 275, duration: 80, type: 'TETRA_SWARMER', calmDuration: 0, isMiniHorde: true }, // Swarmers create chaos for the dashers.
 
     // === PHASE 4: The Corrupted Zone (7:00 - 9:45) ===
     // Objective: High-stakes survival with area denial and ranged threats.
     { startTime: 420, duration: 70, type: 'CYLINDER_CORRUPTER', calmDuration: 25 }, // Introduce area denial. Ends at 8:15.
     // ** OVERLAP! ** Ranged casters support the corrupters.
-    { startTime: 460, duration: 50, type: 'CONE_CASTER', calmDuration: 0, isMiniHorde: true }, // Forces movement while corrupters chase.
+    { startTime: 460, duration: 10, type: 'CONE_CASTER', calmDuration: 0, isMiniHorde: true }, // Forces movement while corrupters chase.
+    { startTime: 470, duration: 70, type: 'CYLINDER_CORRUPTER', calmDuration: 25 }, // continue with the area of denial
 
     // === FINAL CLIMAX (before the boss) ===
     { startTime: 535, duration: 45, type: 'DODECAHEDRON_DRIFTER', calmDuration: 20 }, // The final, tanky drifters. Ends at 9:40.
@@ -587,30 +588,6 @@ export function createTemporaryVisualEffect(position, radius, color, duration, w
     mat.wireframe = wireframe;
     mat.opacity = 1.0;
 
-    // 3. Create a unique "brain" (update function) for the effect's animation
-    const effect = {
-        mesh: effectMesh,
-        life: duration,
-        totalLife: duration,
-        targetRadius: radius,
-        update: (eff, deltaTime) => {
-            eff.life -= deltaTime;
-
-            // Calculate progress (from 0 to 1)
-            const progress = 1.0 - (eff.life / eff.totalLife);
-
-            // Animate scale and opacity
-            const currentScale = eff.targetRadius * progress;
-            eff.mesh.scale.set(currentScale, currentScale, currentScale);
-            eff.mesh.material.opacity = 1.0 - progress;
-
-            // 4. When life is over, return to pool
-            if (eff.life <= 0) {
-                eff.update = null; // Signal for removal from the update loop
-                returnToPool('tempVisualEffects', eff.mesh);
-            }
-        }
-    };
 }
 
 export function getScreenEdgesInWorldSpace() {

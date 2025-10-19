@@ -1,7 +1,7 @@
-import { state, GameState, CONSTANTS } from '../state.js';
+import { state, CONSTANTS } from '../state.js';
 import { updatePlayer, updateAimTarget } from '../game/player.js';
 import { checkCollisions } from '../game/collision.js';
-import { handleSpawning, handleXPOrbConsolidation, createTemporaryVisualEffect, createBurstEffect, createHitEffect, returnToPool, getFromPool, spawnEnemyByType, getScreenEdgesInWorldSpace } from '../game/spawner.js';
+import { handleSpawning, handleXPOrbConsolidation, createTemporaryVisualEffect, createHitEffect, returnToPool, spawnEnemyByType } from '../game/spawner.js';
 import { updateUI, gameOver, grantCacheRewards } from '../ui/manager.js';
 import { updateCamera } from './renderer.js';
 import { playSoundSynth } from '../utils/audio.js';
@@ -129,7 +129,7 @@ function updateShapes(deltaTime) {
                 const dirToPlayerCorrupt = new THREE.Vector3().subVectors(state.player.position, shape.position).normalize();
                 const perpendicularDir = new THREE.Vector3(-dirToPlayerCorrupt.z, 0, dirToPlayerCorrupt.x);
                 shape.userData.weaveTimer = (shape.userData.weaveTimer || 0) + deltaTime * 5;
-                const weaveOffset = perpendicularDir.multiplyScalar(Math.sin(shape.userData.weaveTimer) * 1.0);
+                const weaveOffset = perpendicularDir.multiplyScalar(Math.sin(shape.userData.weaveTimer));
                 targetPosition = state.player.position.clone().add(weaveOffset);
                 break;
             case 'SPHERE_SPLITTER':
@@ -222,7 +222,7 @@ function updateShapes(deltaTime) {
                             const fireDirBoss = new THREE.Vector3().subVectors(bossData.rapidFireTargetPos || state.player.position, shape.position).normalize();
                             const projMeshBoss = new THREE.Mesh(new THREE.SphereGeometry(CONSTANTS.PROJECTILE_RADIUS * 1.2, 6, 4), new THREE.MeshBasicMaterial({ color: 0xffff00 }));
                             projMeshBoss.position.copy(shape.position).add(fireDirBoss.clone().multiplyScalar((shape.radius || 1.5) + 0.2));
-                            state.projectiles.push({ mesh: projMeshBoss, velocity: fireDirBoss.multiplyScalar(CONSTANTS.BASE_PROJECTILE_SPEED * 1.5), damage: (bossParams.damageMultiplier || 1) * 15, isEnemyProjectile: true, radius: CONSTANTS.PROJECTILE_RADIUS * 1.2 });
+                            state.projectiles.push({ mesh: projMeshBoss, velocity: fireDirBoss.multiplyScalar(CONSTANTS.BASE_PROJECTILE_SPEED * 1.5), damage: bossParams.damageMultiplier || 1, isEnemyProjectile: true, radius: CONSTANTS.PROJECTILE_RADIUS * 1.2 });
                             state.scene.add(projMeshBoss);
                         }
                         if (bossData.rapidFireBursts <= 0) {

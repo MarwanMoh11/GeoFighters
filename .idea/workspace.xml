@@ -4,7 +4,13 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="524ebcd6-9740-4e55-8050-730dc68fef7d" name="Changes" comment="adjusted hordes and boss time" />
+    <list default="true" id="524ebcd6-9740-4e55-8050-730dc68fef7d" name="Changes" comment="fixed init horde states">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/js/config/enemies.js" beforeDir="false" afterPath="$PROJECT_DIR$/js/config/enemies.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/js/core/sceneUpdates.js" beforeDir="false" afterPath="$PROJECT_DIR$/js/core/sceneUpdates.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/js/game/spawner.js" beforeDir="false" afterPath="$PROJECT_DIR$/js/game/spawner.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/js/ui/manager.js" beforeDir="false" afterPath="$PROJECT_DIR$/js/ui/manager.js" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -22,18 +28,18 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
-  "lastFilter": {
-    "state": "OPEN",
-    "assignee": "MarwanMoh11"
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;MarwanMoh11&quot;
   }
-}]]></component>
-  <component name="GithubPullRequestsUISettings"><![CDATA[{
-  "selectedUrlAndAccountId": {
-    "url": "https://github.com/MarwanMoh11/GeoFighters.git",
-    "accountId": "e69364cc-50e5-4ae3-a394-ccb3bcd15f77"
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/MarwanMoh11/GeoFighters.git&quot;,
+    &quot;accountId&quot;: &quot;e69364cc-50e5-4ae3-a394-ccb3bcd15f77&quot;
   }
-}]]></component>
+}</component>
   <component name="ProblemsViewState">
     <option name="selectedTabId" value="AISelfReview" />
   </component>
@@ -52,6 +58,7 @@
     "ModuleVcsDetector.initialDetectionPerformed": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.git.unshallow": "true",
     "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
     "git-widget-placeholder": "master",
     "junie.onboarding.icon.badge.shown": "true",
@@ -89,7 +96,9 @@
       <workItem from="1760697558311" duration="5598000" />
       <workItem from="1760703187956" duration="5158000" />
       <workItem from="1760711120397" duration="2144000" />
-      <workItem from="1760797027279" duration="5891000" />
+      <workItem from="1760797027279" duration="6722000" />
+      <workItem from="1760818063623" duration="4000" />
+      <workItem from="1760862598864" duration="1587000" />
     </task>
     <task id="LOCAL-00001" summary="attempting addition of tetra">
       <option name="closed" value="true" />
@@ -187,7 +196,15 @@
       <option name="project" value="LOCAL" />
       <updated>1760802925347</updated>
     </task>
-    <option name="localTasksCounter" value="13" />
+    <task id="LOCAL-00013" summary="fixed init horde states">
+      <option name="closed" value="true" />
+      <created>1760803195148</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1760803195148</updated>
+    </task>
+    <option name="localTasksCounter" value="14" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -199,6 +216,7 @@
     <MESSAGE value="reimagined the horde mode" />
     <MESSAGE value="attempting to fix touch conrtols" />
     <MESSAGE value="adjusted hordes and boss time" />
-    <option name="LAST_COMMIT_MESSAGE" value="adjusted hordes and boss time" />
+    <MESSAGE value="fixed init horde states" />
+    <option name="LAST_COMMIT_MESSAGE" value="fixed init horde states" />
   </component>
 </project>
