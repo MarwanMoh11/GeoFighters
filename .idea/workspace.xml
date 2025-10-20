@@ -4,9 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="524ebcd6-9740-4e55-8050-730dc68fef7d" name="Changes" comment="Optimization">
+    <list default="true" id="524ebcd6-9740-4e55-8050-730dc68fef7d" name="Changes" comment="Easy mode for Noor">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/js/config/weapons.js" beforeDir="false" afterPath="$PROJECT_DIR$/js/config/weapons.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/js/config/enemies.js" beforeDir="false" afterPath="$PROJECT_DIR$/js/config/enemies.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/js/game/spawner.js" beforeDir="false" afterPath="$PROJECT_DIR$/js/game/spawner.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/js/main.js" beforeDir="false" afterPath="$PROJECT_DIR$/js/main.js" afterDir="false" />
     </list>
@@ -100,7 +100,7 @@
       <workItem from="1760862598864" duration="2364000" />
       <workItem from="1760944334482" duration="7028000" />
       <workItem from="1760957551009" duration="3085000" />
-      <workItem from="1760971032374" duration="2092000" />
+      <workItem from="1760971032374" duration="2707000" />
     </task>
     <task id="LOCAL-00001" summary="attempting addition of tetra">
       <option name="closed" value="true" />
@@ -238,7 +238,15 @@
       <option name="project" value="LOCAL" />
       <updated>1760972302349</updated>
     </task>
-    <option name="localTasksCounter" value="18" />
+    <task id="LOCAL-00018" summary="Easy mode for Noor">
+      <option name="closed" value="true" />
+      <created>1760973331495</created>
+      <option name="number" value="00018" />
+      <option name="presentableId" value="LOCAL-00018" />
+      <option name="project" value="LOCAL" />
+      <updated>1760973331495</updated>
+    </task>
+    <option name="localTasksCounter" value="19" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -254,6 +262,7 @@
     <MESSAGE value="attempting balance fixes and upgrade menu redundancy fix late game" />
     <MESSAGE value="More balance Changes" />
     <MESSAGE value="Optimization" />
-    <option name="LAST_COMMIT_MESSAGE" value="Optimization" />
+    <MESSAGE value="Easy mode for Noor" />
+    <option name="LAST_COMMIT_MESSAGE" value="Easy mode for Noor" />
   </component>
 </project>

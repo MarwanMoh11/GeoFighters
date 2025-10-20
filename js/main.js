@@ -7,7 +7,7 @@ import { initializeAudio } from './utils/audio.js';
 import { bindUIEvents } from './ui/manager.js';
 // Make sure this path is correct for your project structure!
 // It might be './systems/spawner.js'
-import { initializePools, initializeDamageNumberPool, resetDamageNumberCounter , initializeDataFragmentPool} from './game/spawner.js';
+import { initializePools, initializeDamageNumberPool, resetDamageNumberCounter } from './game/spawner.js';
 
 function init() {
     state.isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
@@ -18,7 +18,7 @@ function init() {
 
     initializePools();
     initializeDamageNumberPool();
-    initializeDataFragmentPool();
+
 
     setupEventListeners();
     bindUIEvents();
