@@ -120,8 +120,7 @@ function handleCalmPhase(deltaTime) {
     state.pickupSpawnTimer += deltaTime;
     if (state.pickupSpawnTimer > 8) { // Slower pickup spawn in calm
         state.pickupSpawnTimer = 0;
-        if (Math.random() < 0.65) spawnRepairNode();
-        else spawnEnergyCore();
+        if (Math.random() < 0.65) spawnRepairNode(); spawnEnergyCore();
     }
 
     state.eliteSpawnTimer += deltaTime;
@@ -138,7 +137,7 @@ function handleCalmPhase(deltaTime) {
 
 function spawnHordeWave() {
     let budget = Math.min(15 + Math.floor(state.gameTime / 20) + state.playerLevel * 2.5, 80);
-    const maxSpawns = 18;
+    const maxSpawns = 8;
     let spawnedCount = 0;
 
     // This can be a main horde type OR a mini-horde type
@@ -198,19 +197,76 @@ export function initializePools() {
     initializeEffectPools();
     initializeDamageNumberPool();
 
+    // Max number of one enemy type on screen at once.
+    // Adjust this based on your game's needs.
+    const MAX_INSTANCES_PER_TYPE = 250;
+
     Object.keys(ENEMY_TYPES).forEach(typeId => {
+        const typeData = ENEMY_TYPES[typeId];
+        if (!typeData) return;
+
+        // 1. Create the shared geometry
+        let geometry;
+        const size = typeData.size || [1];
+        switch (typeData.geometryType) {
+            case 'Box': geometry = new THREE.BoxGeometry(...size); break;
+            case 'Sphere': geometry = new THREE.SphereGeometry(...size); break;
+            case 'Cylinder': geometry = new THREE.CylinderGeometry(...size); break;
+            case 'Cone': geometry = new THREE.ConeGeometry(...size); break;
+            case 'Icosahedron': geometry = new THREE.IcosahedronGeometry(...size); break;
+            case 'Octahedron': geometry = new THREE.OctahedronGeometry(...size); break;
+            case 'Dodecahedron': geometry = new THREE.DodecahedronGeometry(...size); break;
+            case 'Tetrahedron': geometry = new THREE.TetrahedronGeometry(...size); break;
+            default: geometry = new THREE.BoxGeometry(1, 1, 1);
+        }
+        geometry.computeBoundingSphere();
+
+        // 2. Create the shared material
+        // We MUST enable vertexColors to allow for hit effects.
+        const material = new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            roughness: typeData.roughness ?? 0.5,
+            metalness: typeData.metalness ?? 0.0,
+            flatShading: typeData.flatShading ?? false,
+            vertexColors: true // CRITICAL for instanceColor
+        });
+        if (typeData.emissive) {
+            material.emissive = new THREE.Color(typeData.emissive);
+            material.emissiveIntensity = typeData.emissiveIntensity ?? 1.0;
+        }
+
+        // 3. Create the InstancedMesh
+        const instancedMesh = new THREE.InstancedMesh(geometry, material, MAX_INSTANCES_PER_TYPE);
+        instancedMesh.frustumCulled = false;
+        console.log(`[INIT] Created InstancedMesh for ${typeId}. frustumCulled = ${instancedMesh.frustumCulled}`);
+        instancedMesh.count = 0; // Start with 0 active instances
+        instancedMesh.userData.radius = geometry.boundingSphere.radius; // Store radius
+        instancedMesh.userData.baseColor = new THREE.Color(typeData.color || 0xffffff);
+
+        // 4. Add it to the scene ONCE and store it
+        state.scene.add(instancedMesh);
+        state.instancedMeshes[typeId] = instancedMesh;
+
+        // 5. Create the new pool. This pool stores INDICES (numbers), not meshes.
         const poolName = `pool_${typeId}`;
         state.objectPools[poolName] = [];
-        const initialSize = (typeId === 'TETRA_SWARMER' || typeId === 'CUBE_CRUSHER') ? 40 : 15;
-        for(let i = 0; i < initialSize; i++) {
-            const enemy = createEnemyFactory(typeId)();
-            if(enemy) {
-                enemy.visible = false;
-                state.objectPools[poolName].push(enemy);
-            }
+        for (let i = 0; i < MAX_INSTANCES_PER_TYPE; i++) {
+            // Pre-fill the pool with all available indices
+            state.objectPools[poolName].push(i);
         }
+        // Set all instances to scale 0 so they are invisible
+        const dummy = state.dummy;
+        dummy.scale.set(0, 0, 0);
+        dummy.updateMatrix();
+        for (let i = 0; i < MAX_INSTANCES_PER_TYPE; i++) {
+            instancedMesh.setMatrixAt(i, dummy.matrix);
+            instancedMesh.setColorAt(i, instancedMesh.userData.baseColor);
+        }
+        instancedMesh.instanceMatrix.needsUpdate = true;
+        instancedMesh.instanceColor.needsUpdate = true;
     });
-    console.log("All object pools initialized.");
+
+    console.log("All instanced meshes and index pools initialized.");
 }
 
 export function getFromPool(poolName, createFunc) {
@@ -294,12 +350,24 @@ export function spawnEnemyByType(typeId, forcedPosition = null) {
     const typeData = ENEMY_TYPES[typeId];
     if (!typeData) return;
 
+    // 1. Get the InstancedMesh and an available index from the pool
+    const instancedMesh = state.instancedMeshes[typeId];
     const poolName = `pool_${typeId}`;
-    const enemyMesh = getFromPool(poolName, createEnemyFactory(typeId));
-    if (!enemyMesh) return;
+    const pool = state.objectPools[poolName];
 
+    if (!instancedMesh || !pool || pool.length === 0) {
+        console.warn(`[SPAWN_FAIL] Pool empty for ${typeId}. Pool length: ${pool?.length}`);
+        // console.warn(`No available instances in pool for ${typeId}`);
+        return; // Pool is full, cannot spawn this enemy
+    }
+
+    const instanceId = pool.pop(); // Get an available index
+    instancedMesh.count = Math.max(instancedMesh.count, instanceId + 1);
+
+    // 2. Determine spawn position
+    let spawnPosition;
     if (forcedPosition) {
-        enemyMesh.position.copy(forcedPosition);
+        spawnPosition = forcedPosition;
     } else {
         const spawnRadius = 35;
         const angle = Math.random() * Math.PI * 2;
@@ -307,26 +375,42 @@ export function spawnEnemyByType(typeId, forcedPosition = null) {
         let z = state.player.position.z + Math.sin(angle) * spawnRadius;
         x = THREE.MathUtils.clamp(x, -CONSTANTS.WORLD_BOUNDARY, CONSTANTS.WORLD_BOUNDARY);
         z = THREE.MathUtils.clamp(z, -CONSTANTS.WORLD_BOUNDARY, CONSTANTS.WORLD_BOUNDARY);
-        enemyMesh.position.set(x, 0, z);
+        spawnPosition = new THREE.Vector3(x, 0, z);
     }
 
-    enemyMesh.position.y = enemyMesh.radius;
+    const baseRadius = instancedMesh.userData.radius;
+    spawnPosition.y = baseRadius;
 
+    // 3. Set the instance's transform
+    state.dummy.position.copy(spawnPosition);
+    state.dummy.scale.set(1, 1, 1); // Make it visible
+    state.dummy.updateMatrix();
+    instancedMesh.setMatrixAt(instanceId, state.dummy.matrix);
+    instancedMesh.instanceMatrix.needsUpdate = true;
+
+    // 4. Set the instance's color (reset to default)
+    instancedMesh.setColorAt(instanceId, instancedMesh.userData.baseColor);
+    instancedMesh.instanceColor.needsUpdate = true;
+
+    // 5. Create the ENEMY DATA object
     let finalHealth = (6 + (state.playerLevel * 2.0) + (state.gameTime * 0.020)) * (typeData.healthMultiplier || 1.0);
     let finalXp = (4 + state.playerLevel * 1.5 + state.gameTime * 0.012) * (typeData.xpMultiplier || 1.0);
 
-    enemyMesh.userData = {
+    const enemyData = {
         type: typeId,
+        instanceId: instanceId, // CRITICAL: Link to the instanced mesh
+        position: spawnPosition, // Store its logical position
+        radius: baseRadius,
         ...typeData,
         health: Math.max(1, finalHealth),
         xpValue: Math.max(1, Math.floor(finalXp)),
         currentSpeed: typeData.speed ?? 1.0,
         spawnTimestamp: state.gameTime,
-        poolName: poolName
     };
 
-    state.scene.add(enemyMesh);
-    state.shapes.push(enemyMesh);
+    // 6. Add the DATA to the main enemy list (replaces state.shapes.push)
+    state.shapes.push(enemyData); // Or state.enemies.push(enemyData) if you renamed it
+    console.log(`[SPAWN_SUCCESS] Spawned ${typeId} at [${spawnPosition.x.toFixed(1)}, ${spawnPosition.z.toFixed(1)}]. Assigned instanceId: ${instanceId}. New mesh count: ${instancedMesh.count}. state.shapes now: ${state.shapes.length}`);
 }
 
 export function spawnSplitterOffspring(position, generation) {
@@ -334,28 +418,50 @@ export function spawnSplitterOffspring(position, generation) {
 
     const typeId = 'SPHERE_SPLITTER';
     const typeData = ENEMY_TYPES[typeId];
+
+    // 1. Get InstancedMesh and index
+    const instancedMesh = state.instancedMeshes[typeId];
     const poolName = `pool_${typeId}`;
-    const offspringMesh = getFromPool(poolName, createEnemyFactory(typeId));
-    if (!offspringMesh) return;
+    const pool = state.objectPools[poolName];
 
+    if (!instancedMesh || !pool || pool.length === 0) {
+        return;
+    }
+
+    const instanceId = pool.pop();
+    instancedMesh.count = Math.max(instancedMesh.count, instanceId + 1);
+
+    // 2. Calculate new properties
     const newRadius = Math.max(0.2, (typeData.size[0] / (generation + 1)));
-
-    // We need to rescale the pooled mesh
-    const scale = newRadius / offspringMesh.geometry.parameters.radius;
-    offspringMesh.scale.set(scale, scale, scale);
+    const originalRadius = instancedMesh.userData.radius;
+    const scale = newRadius / originalRadius;
 
     const health = Math.max(2, (4 + state.playerLevel * 1.2 + state.gameTime * 0.015) * (typeData.healthMultiplier || 1) / (generation * 1.8 + 1));
     const xp = Math.max(1, (3 + state.playerLevel + state.gameTime * 0.005) * typeData.xpMultiplier / (generation * 1.5 + 1));
     const speed = typeData.speed * (1 + generation * 0.15);
 
-    offspringMesh.position.copy(position);
-    offspringMesh.position.y = newRadius;
-    offspringMesh.position.x += (Math.random() - 0.5) * 0.6;
-    offspringMesh.position.z += (Math.random() - 0.5) * 0.6;
-    offspringMesh.radius = newRadius;
+    // 3. Set transform with new scale
+    const spawnPosition = position.clone();
+    spawnPosition.y = newRadius;
+    spawnPosition.x += (Math.random() - 0.5) * 0.6;
+    spawnPosition.z += (Math.random() - 0.5) * 0.6;
 
-    offspringMesh.userData = {
+    state.dummy.position.copy(spawnPosition);
+    state.dummy.scale.set(scale, scale, scale);
+    state.dummy.updateMatrix();
+    instancedMesh.setMatrixAt(instanceId, state.dummy.matrix);
+    instancedMesh.instanceMatrix.needsUpdate = true;
+
+    // 4. Reset color
+    instancedMesh.setColorAt(instanceId, instancedMesh.userData.baseColor);
+    instancedMesh.instanceColor.needsUpdate = true;
+
+    // 5. Create data object
+    const enemyData = {
         type: typeId,
+        instanceId: instanceId,
+        position: spawnPosition,
+        radius: newRadius,
         health,
         xpValue: xp,
         speed,
@@ -364,11 +470,36 @@ export function spawnSplitterOffspring(position, generation) {
         generation: generation + 1,
         damageMultiplier: typeData.damageMultiplier * 0.7,
         spawnTimestamp: state.gameTime,
-        poolName: poolName
     };
 
-    state.scene.add(offspringMesh);
-    state.shapes.push(offspringMesh);
+    // 6. Add to main enemy list
+    state.shapes.push(enemyData); // Or state.enemies.push(enemyData)
+}
+
+// This function REPLACES the logic for returning enemies to a pool.
+// You must call this from your main game loop when an enemy's health <= 0.
+export function returnEnemyToPool(enemy) {
+    if (!enemy || enemy.instanceId === undefined) return;
+
+    const typeId = enemy.type;
+    const instanceId = enemy.instanceId;
+
+    const instancedMesh = state.instancedMeshes[typeId];
+    const pool = state.objectPools[`pool_${typeId}`];
+
+    if (!instancedMesh || !pool) return;
+
+    // 1. "Hide" the instance by setting its scale to 0
+    state.dummy.scale.set(0, 0, 0);
+    state.dummy.updateMatrix();
+    instancedMesh.setMatrixAt(instanceId, state.dummy.matrix);
+    instancedMesh.instanceMatrix.needsUpdate = true;
+
+    // 2. Return its index to the pool for reuse
+    pool.push(instanceId);
+
+    // 3. (Optional) You can shrink the 'count' but it's complex.
+    // For simplicity, we just leave the 'count' as the high-water mark.
 }
 
 export function spawnGeometricCache(position) {
@@ -443,17 +574,89 @@ export function spawnEnergyCore() {
 // --- POOLED VISUAL EFFECTS ---
 // =================================================================================
 
+// In src/game/spawner.js
+
+// ... (keep all your other imports and functions) ...
+
+// =================================================================================
+// --- POOLED VISUAL EFFECTS ---
+// =================================================================================
+
+// MODIFICATION: Add the 'tempVisualEffects' pool here
 export function initializeEffectPools() {
     const particleGeometry = new THREE.BoxGeometry(0.1, 0.1, 0.1);
-    const poolName = 'burstParticles';
-    state.objectPools[poolName] = [];
+
+    // Pool for burst particles
+    const burstPoolName = 'burstParticles';
+    state.objectPools[burstPoolName] = [];
     for (let i = 0; i < 300; i++) {
         const material = new THREE.MeshBasicMaterial({ color: 0xffffff });
         const mesh = new THREE.Mesh(particleGeometry, material);
         mesh.visible = false;
         state.scene.add(mesh);
-        state.objectPools[poolName].push(mesh);
+        state.objectPools[burstPoolName].push(mesh);
     }
+
+    // --- NEW POOL FOR TEMPORARY EFFECTS ---
+    // This pool will hold more generic meshes for things like boss shockwaves.
+    const tempEffectPoolName = 'tempVisualEffects';
+    state.objectPools[tempEffectPoolName] = [];
+    const tempEffectGeometry = new THREE.IcosahedronGeometry(1, 1);
+    for (let i = 0; i < 50; i++) {
+        const material = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, wireframe: true });
+        const mesh = new THREE.Mesh(tempEffectGeometry.clone(), material); // Clone geometry to be safe
+        mesh.visible = false;
+        state.scene.add(mesh);
+        state.objectPools[tempEffectPoolName].push(mesh);
+    }
+}
+
+
+// ... (keep createBurstEffect and other functions as they are) ...
+
+
+// --- FULLY REPLACED AND CORRECTED FUNCTION ---
+export function createTemporaryVisualEffect(position, radius, color, duration, wireframe = false, geometry = null) {
+    // 1. Get a reusable mesh from the pool.
+    const effectMesh = getFromPool('tempVisualEffects', () => null); // Don't create new ones if pool is empty
+    if (!effectMesh) return; // Fail gracefully if pool is exhausted
+
+    // 2. Configure the mesh for this specific effect.
+    if (geometry) {
+        // This is advanced, but allows for custom shapes like the evolved Repulsor Wave torus
+        // For now, we'll assume the default Icosahedron is sufficient for most cases.
+    }
+    effectMesh.position.copy(position);
+    effectMesh.scale.set(0.1, 0.1, 0.1); // Start small for a "pop-in" effect
+
+    // Configure material properties
+    const mat = effectMesh.material;
+    mat.color.setHex(color);
+    mat.wireframe = wireframe;
+    mat.opacity = 1.0;
+
+    // --- 3. THE CRITICAL FIX: Add self-destruction logic ---
+    const life = duration;
+    let elapsed = 0;
+
+    effectMesh.userData.update = (p, deltaTime) => {
+        elapsed += deltaTime;
+        const progress = Math.min(1.0, elapsed / life);
+
+        // Animate scale and opacity over the effect's lifetime
+        const currentScale = radius * progress;
+        p.scale.set(currentScale, currentScale, currentScale);
+        mat.opacity = 1.0 - progress;
+
+        if (progress >= 1.0) {
+            // Life is over. Remove the update function and return to the pool.
+            p.userData.update = null; // This stops it from being processed further
+            returnToPool('tempVisualEffects', p);
+        }
+    };
+
+    // 4. Add the effect to the main update loop so its brain can run.
+    state.effectsToUpdate.push(effectMesh);
 }
 
 export function createBurstEffect(position, count = 10, color = 0xffffff, speed = 4, duration = 0.5) {
@@ -516,30 +719,33 @@ export function createDamageNumber(position, amount, isCritical = false) {
     }, 800);
 }
 
-export function createHitEffect(targetMesh, hitColor = 0xffffff, duration = 0.15) {
-    if (!targetMesh || !targetMesh.material) return;
-    const mat = Array.isArray(targetMesh.material) ? targetMesh.material[0] : targetMesh.material;
-    if (!mat || mat.userData.isHit) return;
-    mat.userData.isHit = true;
-    let originalColor, isEmissive = false;
-    if (mat.emissive && mat.emissive.isColor) {
-        isEmissive = true;
-        originalColor = mat.userData.originalEmissiveHex ?? mat.emissive.getHex();
-        mat.userData.originalEmissiveHex = originalColor;
-        mat.emissive.setHex(hitColor);
-    } else if (mat.color?.isColor) {
-        originalColor = mat.userData.originalColorHex ?? mat.color.getHex();
-        mat.userData.originalColorHex = originalColor;
-        mat.color.setHex(hitColor);
-    } else { return; }
+export function createHitEffect(enemyData, hitColor = 0xffffff, duration = 0.15) {
+    // We now pass the ENEMY DATA object, not the mesh
+    if (!enemyData || enemyData.instanceId === undefined || enemyData.isHit) return;
+
+    const instancedMesh = state.instancedMeshes[enemyData.type];
+    if (!instancedMesh) return;
+
+    enemyData.isHit = true; // Flag on the data object
+    const instanceId = enemyData.instanceId;
+
+    // Get the instance's original base color
+    const originalColor = instancedMesh.userData.baseColor;
+
+    // Set the hit color
+    state.tempColor.setHex(hitColor);
+    instancedMesh.setColorAt(instanceId, state.tempColor);
+    instancedMesh.instanceColor.needsUpdate = true;
+
     const effect = {
         life: duration,
         update: (eff, deltaTime) => {
             eff.life -= deltaTime;
             if (eff.life <= 0) {
-                if (isEmissive) mat.emissive.setHex(originalColor);
-                else mat.color.setHex(originalColor);
-                mat.userData.isHit = false;
+                // Restore original color
+                instancedMesh.setColorAt(instanceId, originalColor);
+                instancedMesh.instanceColor.needsUpdate = true;
+                enemyData.isHit = false;
                 eff.update = null;
             }
         }
@@ -562,29 +768,6 @@ function worldToScreen(position) {
         x: (vector.x * (canvas.clientWidth / 2)) + (canvas.clientWidth / 2),
         y: -(vector.y * (canvas.clientHeight / 2)) + (canvas.clientHeight / 2)
     };
-}
-
-export function createTemporaryVisualEffect(position, radius, color, duration, wireframe = false) {
-    // 1. Get a reusable mesh from the pool
-    const effectMesh = getFromPool('tempVisualEffects', () => {
-        // Fallback in case the pool is empty (shouldn't happen often)
-        const geometry = new THREE.IcosahedronGeometry(1, 1);
-        const material = new THREE.MeshBasicMaterial({color: 0xffffff, transparent: true});
-        const mesh = new THREE.Mesh(geometry, material);
-        state.scene.add(mesh);
-        return mesh;
-    });
-
-    // 2. Configure the mesh for this specific effect
-    effectMesh.position.copy(position);
-    effectMesh.scale.set(0.1, 0.1, 0.1); // Start small
-
-    // Configure material properties
-    const mat = effectMesh.material;
-    mat.color.setHex(color);
-    mat.wireframe = wireframe;
-    mat.opacity = 1.0;
-
 }
 
 export function getScreenEdgesInWorldSpace() {

@@ -13,6 +13,12 @@ export let state = {
     gameTime: 0,
     currentLevelId: 1,
 
+    // --- ADD THESE 3 LINES ---
+    instancedMeshes: {}, // Will hold one InstancedMesh per enemy type
+    dummy: new THREE.Object3D(), // A helper object for setting matrices
+    tempColor: new THREE.Color(), // A helper object for setting colors
+    // -----------------------
+
     //horde
     spawnerState: 'CALM', // Can be 'CALM' or 'HORDE_ACTIVE'
     hordeTimer: 0,

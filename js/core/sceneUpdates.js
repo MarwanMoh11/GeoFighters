@@ -1,10 +1,9 @@
 import { state, CONSTANTS } from '../state.js';
 import { updatePlayer, updateAimTarget } from '../game/player.js';
 import { checkCollisions } from '../game/collision.js';
-import { handleSpawning, handleXPOrbConsolidation, createTemporaryVisualEffect, createHitEffect, returnToPool, spawnEnemyByType } from '../game/spawner.js';
+import { handleSpawning, handleXPOrbConsolidation, createTemporaryVisualEffect, createHitEffect, returnToPool, spawnEnemyByType, spawnSplitterOffspring } from '../game/spawner.js';
 import { updateUI, gameOver, grantCacheRewards } from '../ui/manager.js';
 import { updateCamera } from './renderer.js';
-import { playSoundSynth } from '../utils/audio.js';
 import { ENEMY_TYPES } from '../config/enemies.js';
 import { getItemModifier } from '../config/items.js';
 
@@ -24,7 +23,7 @@ export function updatePlaying(deltaTime) {
     if (!state.player || state.isPaused) return;
 
     state.spatialGrid.clear();
-    state.shapes.forEach((s, i) => s?.parent && state.spatialGrid.addObject({ shape: s, index: i }, s.position));
+    state.shapes.forEach((enemy, i) => state.spatialGrid.addObject({ enemy: enemy, index: i }, enemy.position));
     state.projectiles.forEach((p, i) => p?.mesh && state.spatialGrid.addObject({ projectile: p, index: i }, p.mesh.position));
     state.dataFragments.forEach((f, i) => f?.mesh && state.spatialGrid.addObject({ dataFragment: f, index: i }, f.mesh.position));
     state.megaDataFragments.forEach((f, i) => f?.mesh && state.spatialGrid.addObject({ megaDataFragment: f, index: i }, f.mesh.position));
@@ -46,7 +45,11 @@ export function updatePlaying(deltaTime) {
     updatePlayer(deltaTime);
     updateCamera();
     updateAimTarget();
-    updateShapes(deltaTime);
+    if (state.shapes.length > 0 && Math.random() < 0.01) {
+    if (state.shapes.length > 0) {
+        console.log(`[UPDATE_PLAYING] Calling updateEnemies. state.shapes count: ${state.shapes.length}`);
+    }}
+    updateEnemies(deltaTime);
     updateProjectiles(deltaTime);
     updateWeapons(deltaTime);
     updateDataFragments(deltaTime);
@@ -75,67 +78,108 @@ function isVisible(object) {
 export function applyFrustumCulling() {
     updateFrustum();
     if (!state.camera || !state.player) return;
-    const playerPos = state.player.position;
-    state.shapes.forEach(shape => { if (shape?.parent) { shape.visible = shape.position.distanceToSquared(playerPos) < 400 || isVisible(shape); } });
+
+    // --- REMOVED --- The state.shapes.forEach loop is gone.
+    // InstancedMesh handles its own culling.
+
+    // --- These are fine, as they are still individual meshes ---
     state.projectiles.forEach(p => { if (p?.mesh?.parent) p.mesh.visible = isVisible(p.mesh); });
     state.particles.forEach(p => { if (p?.mesh?.parent) p.mesh.visible = isVisible(p.mesh); });
     state.dataFragments.forEach(f => { if (f?.mesh?.parent) f.mesh.visible = isVisible(f.mesh); });
     state.megaDataFragments.forEach(f => { if (f?.mesh?.parent) f.mesh.visible = isVisible(f.mesh); });
 }
 
-function updateShapes(deltaTime) {
+// This REPLACES your old 'updateShapes' function
+function updateEnemies(deltaTime) {
+    // --- DEBUG LOG ---
+    if (state.shapes.length > 0 && Math.random() < 0.05) { // Log 5% of frames to avoid spam
+        console.log(`[UPDATE_ENEMIES] Loop running. Processing ${state.shapes.length} enemies.`);
+    }
+    // --- NEW: Reverse loop to allow for easy removal ---
     for (let i = state.shapes.length - 1; i >= 0; i--) {
-        const shape = state.shapes[i];
-        if (!shape || !shape.userData || !shape.parent) { if (shape && !shape.parent) state.shapes.splice(i, 1); continue; }
-        const typeData = ENEMY_TYPES[shape.userData.type];
-        if (!typeData) { state.scene.remove(shape); shape.geometry?.dispose(); shape.material?.dispose(); state.shapes.splice(i, 1); continue; }
+        const enemy = state.shapes[i]; // 'enemy' is now a data object, not a mesh
+
+        // --- NEW: Health check / Death logic ---
+        // We check for death first.
+        if (enemy.health <= 0) {
+            // Spawn XP orbs, handle death effects, etc.
+            spawnDataFragment(enemy.position, enemy.xpValue); // Use enemy.position
+
+            // Handle death effects (like splitting)
+            if (enemy.type === 'SPHERE_SPLITTER' && enemy.generation < 3) {
+                // We need to import spawnSplitterOffspring at the top of this file
+                spawnSplitterOffspring(enemy.position, enemy.generation);
+                spawnSplitterOffspring(enemy.position, enemy.generation);
+            }
+            if (enemy.type === 'CONE_CASTER') {
+                // Death burst logic (if you want)
+            }
+
+            // Return the instance to the pool
+            returnEnemyToPool(enemy); // This is the new function from spawner.js
+
+            // Remove the data object from the active list
+            state.shapes.splice(i, 1);
+            continue; // Go to the next enemy
+        }
+
+        // --- REFACTORED: Get type data ---
+        // All 'userData' is now at the top level of the 'enemy' object
+        const typeData = ENEMY_TYPES[enemy.type];
+        if (!typeData) {
+            returnEnemyToPool(enemy); // Clean up bad data
+            state.shapes.splice(i, 1);
+            continue;
+        }
 
         let targetPosition = state.player.position.clone();
-        let currentSpeed = shape.userData.currentSpeed ?? typeData.speed;
+        let currentSpeed = enemy.currentSpeed ?? typeData.speed;
         let executeDefaultMovement = true;
+        let lookAtPosition = null; // --- NEW: Used to tell the instance where to face
 
-        switch (shape.userData.type) {
+        // --- REFACTORED: All AI logic now mutates the 'enemy' data object ---
+        switch (enemy.type) {
             case 'ICOSAHEDRON_INVADER':
-                shape.userData.distortTimer = (shape.userData.distortTimer || typeData.distortCooldown) - deltaTime;
-                if (shape.userData.distortTimer <= 0) {
-                    createTemporaryVisualEffect(shape.position, 3, typeData.color || 0x4B5320, 0.5, true);
-                    shape.userData.distortTimer = typeData.distortCooldown + Math.random() * 5;
+                enemy.distortTimer = (enemy.distortTimer || typeData.distortCooldown) - deltaTime;
+                if (enemy.distortTimer <= 0) {
+                    createTemporaryVisualEffect(enemy.position, 3, typeData.color || 0x4B5320, 0.5, true);
+                    enemy.distortTimer = typeData.distortCooldown + Math.random() * 5;
                 }
                 break;
             case 'PRISM_DASHER':
                 executeDefaultMovement = false;
-                shape.userData.dashTimer = (shape.userData.dashTimer || typeData.dashCooldown) - deltaTime;
-                if (!shape.userData.isDashing && shape.userData.dashTimer <= 0) {
-                    shape.userData.isDashing = true;
-                    shape.userData.dashTargetPos = state.player.position.clone();
-                    shape.userData.dashDir = new THREE.Vector3().subVectors(shape.userData.dashTargetPos, shape.position).normalize();
-                    shape.userData.dashTimeLeft = typeData.dashDuration;
-                    shape.userData.currentSpeed = typeData.dashSpeed;
+                enemy.dashTimer = (enemy.dashTimer || typeData.dashCooldown) - deltaTime;
+                if (!enemy.isDashing && enemy.dashTimer <= 0) {
+                    enemy.isDashing = true;
+                    enemy.dashTargetPos = state.player.position.clone();
+                    enemy.dashDir = new THREE.Vector3().subVectors(enemy.dashTargetPos, enemy.position).normalize();
+                    enemy.dashTimeLeft = typeData.dashDuration;
+                    enemy.currentSpeed = typeData.dashSpeed;
                 }
-                if (shape.userData.isDashing) {
-                    shape.userData.dashTimeLeft -= deltaTime;
-                    if (shape.userData.dashTimeLeft <= 0) {
-                        shape.userData.isDashing = false;
-                        shape.userData.dashTimer = typeData.dashCooldown + Math.random();
-                        shape.userData.currentSpeed = typeData.speed;
+                if (enemy.isDashing) {
+                    enemy.dashTimeLeft -= deltaTime;
+                    if (enemy.dashTimeLeft <= 0) {
+                        enemy.isDashing = false;
+                        enemy.dashTimer = typeData.dashCooldown + Math.random();
+                        enemy.currentSpeed = typeData.speed;
                     } else {
-                        shape.position.add(shape.userData.dashDir.clone().multiplyScalar(shape.userData.currentSpeed * deltaTime));
+                        enemy.position.add(enemy.dashDir.clone().multiplyScalar(enemy.currentSpeed * deltaTime));
                     }
-                } else {
-                    shape.lookAt(state.player.position.x, shape.position.y, state.player.position.z);
                 }
+                lookAtPosition = state.player.position; // Make it face the player
                 break;
             case 'CYLINDER_CORRUPTER':
-                const dirToPlayerCorrupt = new THREE.Vector3().subVectors(state.player.position, shape.position).normalize();
+                const dirToPlayerCorrupt = new THREE.Vector3().subVectors(state.player.position, enemy.position).normalize();
                 const perpendicularDir = new THREE.Vector3(-dirToPlayerCorrupt.z, 0, dirToPlayerCorrupt.x);
-                shape.userData.weaveTimer = (shape.userData.weaveTimer || 0) + deltaTime * 5;
-                const weaveOffset = perpendicularDir.multiplyScalar(Math.sin(shape.userData.weaveTimer));
+                enemy.weaveTimer = (enemy.weaveTimer || 0) + deltaTime * 5;
+                const weaveOffset = perpendicularDir.multiplyScalar(Math.sin(enemy.weaveTimer));
                 targetPosition = state.player.position.clone().add(weaveOffset);
                 break;
             case 'SPHERE_SPLITTER':
-                if (shape.userData.generation === 1) {
-                    shape.userData.bounceTimer = (shape.userData.bounceTimer || 0) + deltaTime * 6;
-                    shape.position.y = (shape.radius || 0.5) + Math.abs(Math.sin(shape.userData.bounceTimer)) * 0.4;
+                // Note: The scale is handled in the matrix update at the end
+                if (enemy.generation === 1) {
+                    enemy.bounceTimer = (enemy.bounceTimer || 0) + deltaTime * 6;
+                    enemy.position.y = enemy.radius + Math.abs(Math.sin(enemy.bounceTimer)) * 0.4;
                 }
                 break;
             case 'DODECAHEDRON_DRIFTER':
@@ -143,19 +187,19 @@ function updateShapes(deltaTime) {
                 state.player.getWorldDirection(playerLookDir).setY(0).normalize();
                 if (playerLookDir.lengthSq() < 0.01) playerLookDir.set(0, 0, -1);
 
-                shape.userData.shiftTimer = (shape.userData.shiftTimer || typeData.shiftCooldown) - deltaTime;
-                if (shape.userData.shiftTimer <= 0) {
+                enemy.shiftTimer = (enemy.shiftTimer || typeData.shiftCooldown) - deltaTime;
+                if (enemy.shiftTimer <= 0) {
                     const behindPos = state.player.position.clone().add(playerLookDir.clone().multiplyScalar(-(6 + Math.random() * 4)));
-                    createTemporaryVisualEffect(shape.position, 1.5, typeData.color, 0.2);
-                    shape.position.set(behindPos.x, shape.position.y, behindPos.z);
-                    createTemporaryVisualEffect(shape.position, 1.5, typeData.color, 0.2);
-                    shape.userData.shiftTimer = typeData.shiftCooldown + Math.random() * 2;
+                    createTemporaryVisualEffect(enemy.position, 1.5, typeData.color, 0.2);
+                    enemy.position.set(behindPos.x, enemy.position.y, behindPos.z);
+                    createTemporaryVisualEffect(enemy.position, 1.5, typeData.color, 0.2);
+                    enemy.shiftTimer = typeData.shiftCooldown + Math.random() * 2;
                 }
                 break;
             case 'CONE_CASTER':
-                shape.userData.shardTimer = (shape.userData.shardTimer || typeData.shardCooldown) - deltaTime;
-                if (shape.userData.shardTimer <= 0 && shape.position.distanceTo(state.player.position) < 18) {
-                    const shardDirection = new THREE.Vector3().subVectors(state.player.position, shape.position).normalize();
+                enemy.shardTimer = (enemy.shardTimer || typeData.shardCooldown) - deltaTime;
+                if (enemy.shardTimer <= 0 && enemy.position.distanceTo(state.player.position) < 18) {
+                    const shardDirection = new THREE.Vector3().subVectors(state.player.position, enemy.position).normalize();
                     const enemyProjectile = {
                         velocity: shardDirection.clone().multiplyScalar(CONSTANTS.BASE_PROJECTILE_SPEED * 0.6),
                         damage: typeData.deathBurstDamage || 10,
@@ -163,139 +207,183 @@ function updateShapes(deltaTime) {
                         radius: CONSTANTS.PROJECTILE_RADIUS * 0.8
                     };
                     const projMesh = new THREE.Mesh(new THREE.ConeGeometry(enemyProjectile.radius, enemyProjectile.radius * 3, 4), new THREE.MeshStandardMaterial({ color: 0xffaa00, emissive: 0xffcc33, emissiveIntensity: 0.5 }));
-                    projMesh.position.copy(shape.position).add(shardDirection.clone().multiplyScalar((shape.radius || 0.5) + enemyProjectile.radius));
+                    projMesh.position.copy(enemy.position).add(shardDirection.clone().multiplyScalar(enemy.radius + enemyProjectile.radius));
                     enemyProjectile.mesh = projMesh;
                     state.projectiles.push(enemyProjectile);
                     state.scene.add(projMesh);
-                    shape.userData.shardTimer = typeData.shardCooldown + Math.random() * 2;
+                    enemy.shardTimer = typeData.shardCooldown + Math.random() * 2;
                 }
                 break;
+            // ... inside updateEnemies, inside the switch (enemy.type) ...
+
             case 'BOSS_OCTA_PRIME':
                 executeDefaultMovement = false;
-                const bossData = shape.userData;
-                const bossParams = typeData;
-                if (bossData.attackState === 'MOVING') { bossData.attackCooldownTimer -= deltaTime; }
+                const bossParams = typeData; // 'enemy' is the bossData
+                if (enemy.attackState === 'MOVING') { enemy.attackCooldownTimer -= deltaTime; }
 
-                switch (bossData.attackState) {
+                switch (enemy.attackState) {
                     case 'MOVING':
-                        const dirToPlayerBoss = new THREE.Vector3().subVectors(targetPosition, shape.position).setY(0);
-                        if (dirToPlayerBoss.lengthSq() > 0.1) shape.position.add(dirToPlayerBoss.normalize().multiplyScalar(bossParams.speed * deltaTime));
-                        shape.lookAt(state.player.position.x, shape.position.y, state.player.position.z);
-                        if (bossData.attackCooldownTimer <= 0) {
-                            bossData.currentAttackPattern = bossParams.attackPatterns[Math.floor(Math.random() * bossParams.attackPatterns.length)];
-                            switch (bossData.currentAttackPattern) {
-                                case 'PULSE': bossData.attackState = 'CHARGING_PULSE'; bossData.attackStateTimer = bossParams.pulseChargeTime; break;
-                                case 'RAPID_FIRE': bossData.attackState = 'CHARGING_RAPID'; bossData.attackStateTimer = 0.5; bossData.rapidFireTargetPos = state.player.position.clone(); break;
-                                case 'DASH_SLAM': bossData.attackState = 'CHARGING_DASH'; bossData.attackStateTimer = bossParams.dashChargeTime; break;
-                                case 'SUMMON': bossData.attackState = 'CHARGING_SUMMON'; bossData.attackStateTimer = bossParams.summonChargeTime; break;
+                        const dirToPlayerBoss = new THREE.Vector3().subVectors(targetPosition, enemy.position).setY(0);
+                        if (dirToPlayerBoss.lengthSq() > 0.1) enemy.position.add(dirToPlayerBoss.normalize().multiplyScalar(bossParams.speed * deltaTime));
+                        lookAtPosition = state.player.position; // Face the player
+
+                        if (enemy.attackCooldownTimer <= 0) {
+                            enemy.currentAttackPattern = bossParams.attackPatterns[Math.floor(Math.random() * bossParams.attackPatterns.length)];
+                            switch (enemy.currentAttackPattern) {
+                                case 'PULSE': enemy.attackState = 'CHARGING_PULSE'; enemy.attackStateTimer = bossParams.pulseChargeTime; break;
+                                case 'RAPID_FIRE': enemy.attackState = 'CHARGING_RAPID'; enemy.attackStateTimer = 0.5; enemy.rapidFireTargetPos = state.player.position.clone(); break;
+                                case 'DASH_SLAM': enemy.attackState = 'CHARGING_DASH'; enemy.attackStateTimer = bossParams.dashChargeTime; break;
+                                case 'SUMMON': enemy.attackState = 'CHARGING_SUMMON'; enemy.attackStateTimer = bossParams.summonChargeTime; break;
                             }
                         }
                         break;
                     case 'CHARGING_PULSE':
-                        bossData.attackStateTimer -= deltaTime;
-                        if (bossData.attackStateTimer <= 0) {
-                            bossData.attackState = 'PULSING';
-                            createTemporaryVisualEffect(shape.position, bossParams.pulseRadius, bossParams.pulseColor, 0.4, true);
-                            playSoundSynth('shoot_basic', 0.7, { pitch: 150 });
-                            if (state.player.position.distanceTo(shape.position) < bossParams.pulseRadius + CONSTANTS.PLAYER_RADIUS) {
+                        enemy.attackStateTimer -= deltaTime;
+                        if (enemy.attackStateTimer <= 0) {
+                            enemy.attackState = 'PULSING';
+                            createTemporaryVisualEffect(enemy.position, bossParams.pulseRadius, bossParams.pulseColor, 0.4, true);
+                            // playSoundSynth('shoot_basic', 0.7, { pitch: 150 }); // You'll need to import playSoundSynth if you want sounds
+                            if (state.player.position.distanceTo(enemy.position) < bossParams.pulseRadius + CONSTANTS.PLAYER_RADIUS) {
                                 state.playerShield -= bossParams.pulseDamage;
-                                createHitEffect(state.player, bossParams.pulseColor, 0.2);
-                                playSoundSynth('player_hit', 0.6);
+                                // createHitEffect for player is different, this is fine
+                                // playSoundSynth('player_hit', 0.6);
                                 if (state.playerShield <= 0) { gameOver(); return; }
                             }
                         }
                         break;
                     case 'PULSING':
-                        bossData.attackState = 'MOVING';
-                        bossData.attackCooldownTimer = bossParams.attackCooldown;
+                        enemy.attackState = 'MOVING';
+                        enemy.attackCooldownTimer = bossParams.attackCooldown;
                         break;
                     case 'CHARGING_RAPID':
-                        bossData.attackStateTimer -= deltaTime;
-                        if (bossData.rapidFireTargetPos) { shape.lookAt(bossData.rapidFireTargetPos.x, shape.position.y, bossData.rapidFireTargetPos.z); }
-                        if (bossData.attackStateTimer <= 0) { bossData.attackState = 'FIRING_RAPID'; bossData.rapidFireBursts = 5; bossData.rapidFireBurstTimer = 0.12; }
+                        enemy.attackStateTimer -= deltaTime;
+                        if (enemy.rapidFireTargetPos) { lookAtPosition = enemy.rapidFireTargetPos; }
+                        if (enemy.attackStateTimer <= 0) { enemy.attackState = 'FIRING_RAPID'; enemy.rapidFireBursts = 5; enemy.rapidFireBurstTimer = 0.12; }
                         break;
                     case 'FIRING_RAPID':
-                        bossData.rapidFireBurstTimer -= deltaTime;
-                        if (bossData.rapidFireBurstTimer <= 0 && bossData.rapidFireBursts > 0) {
-                            bossData.rapidFireBursts--;
-                            bossData.rapidFireBurstTimer = 0.12;
-                            const fireDirBoss = new THREE.Vector3().subVectors(bossData.rapidFireTargetPos || state.player.position, shape.position).normalize();
+                        enemy.rapidFireBurstTimer -= deltaTime;
+                        if (enemy.rapidFireBurstTimer <= 0 && enemy.rapidFireBursts > 0) {
+                            enemy.rapidFireBursts--;
+                            enemy.rapidFireBurstTimer = 0.12;
+                            const fireDirBoss = new THREE.Vector3().subVectors(enemy.rapidFireTargetPos || state.player.position, enemy.position).normalize();
                             const projMeshBoss = new THREE.Mesh(new THREE.SphereGeometry(CONSTANTS.PROJECTILE_RADIUS * 1.2, 6, 4), new THREE.MeshBasicMaterial({ color: 0xffff00 }));
-                            projMeshBoss.position.copy(shape.position).add(fireDirBoss.clone().multiplyScalar((shape.radius || 1.5) + 0.2));
+                            projMeshBoss.position.copy(enemy.position).add(fireDirBoss.clone().multiplyScalar(enemy.radius + 0.2));
                             state.projectiles.push({ mesh: projMeshBoss, velocity: fireDirBoss.multiplyScalar(CONSTANTS.BASE_PROJECTILE_SPEED * 1.5), damage: bossParams.damageMultiplier || 1, isEnemyProjectile: true, radius: CONSTANTS.PROJECTILE_RADIUS * 1.2 });
                             state.scene.add(projMeshBoss);
                         }
-                        if (bossData.rapidFireBursts <= 0) {
-                            bossData.attackState = 'MOVING';
-                            bossData.attackCooldownTimer = bossParams.attackCooldown;
+                        if (enemy.rapidFireBursts <= 0) {
+                            enemy.attackState = 'MOVING';
+                            enemy.attackCooldownTimer = bossParams.attackCooldown;
                         }
                         break;
                     case 'CHARGING_DASH':
-                        bossData.attackStateTimer -= deltaTime;
-                        shape.lookAt(state.player.position.x, shape.position.y, state.player.position.z);
-                        if (bossData.attackStateTimer <= 0) {
-                            bossData.attackState = 'DASHING';
-                            bossData.attackStateTimer = bossParams.dashDuration;
-                            bossData.dashDir = new THREE.Vector3().subVectors(state.player.position, shape.position).normalize();
+                        enemy.attackStateTimer -= deltaTime;
+                        lookAtPosition = state.player.position;
+                        if (enemy.attackStateTimer <= 0) {
+                            enemy.attackState = 'DASHING';
+                            enemy.attackStateTimer = bossParams.dashDuration;
+                            enemy.dashDir = new THREE.Vector3().subVectors(state.player.position, enemy.position).normalize();
                         }
                         break;
                     case 'DASHING':
-                        bossData.attackStateTimer -= deltaTime;
-                        shape.position.add(bossData.dashDir.clone().multiplyScalar(bossParams.speed * bossParams.dashSpeedMultiplier * deltaTime));
-                        if (bossData.attackStateTimer <= 0) {
-                            bossData.attackState = 'SLAMMING';
-                            createTemporaryVisualEffect(shape.position, bossParams.slamRadius, 0x00FFFF, 0.5, true);
-                            if (state.player.position.distanceTo(shape.position) < bossParams.slamRadius + CONSTANTS.PLAYER_RADIUS) {
+                        enemy.attackStateTimer -= deltaTime;
+                        enemy.position.add(enemy.dashDir.clone().multiplyScalar(bossParams.speed * bossParams.dashSpeedMultiplier * deltaTime));
+                        if (enemy.attackStateTimer <= 0) {
+                            enemy.attackState = 'SLAMMING';
+                            createTemporaryVisualEffect(enemy.position, bossParams.slamRadius, 0x00FFFF, 0.5, true);
+                            if (state.player.position.distanceTo(enemy.position) < bossParams.slamRadius + CONSTANTS.PLAYER_RADIUS) {
                                 state.playerShield -= bossParams.slamDamage;
-                                createHitEffect(state.player, 0x00FFFF, 0.3);
+                                // createHitEffect for player...
                                 if (state.playerShield <= 0) { gameOver(); return; }
                             }
                         }
                         break;
                     case 'SLAMMING':
-                        bossData.attackState = 'MOVING';
-                        bossData.attackCooldownTimer = bossParams.attackCooldown;
+                        enemy.attackState = 'MOVING';
+                        enemy.attackCooldownTimer = bossParams.attackCooldown;
                         break;
                     case 'CHARGING_SUMMON':
-                        bossData.attackStateTimer -= deltaTime;
-                        if (bossData.attackStateTimer <= 0) {
-                            bossData.attackState = 'SUMMONING';
+                        enemy.attackStateTimer -= deltaTime;
+                        if (enemy.attackStateTimer <= 0) {
+                            enemy.attackState = 'SUMMONING';
                             for(let j = 0; j < bossParams.summonCount; j++) {
                                 const angle = (j / bossParams.summonCount) * Math.PI * 2;
-                                const spawnPos = shape.position.clone().add(new THREE.Vector3(Math.cos(angle) * 2, 0, Math.sin(angle) * 2));
+                                const spawnPos = enemy.position.clone().add(new THREE.Vector3(Math.cos(angle) * 2, 0, Math.sin(angle) * 2));
+                                // --- THIS IS THE MISSING CALL ---
                                 spawnEnemyByType(bossParams.summonType, spawnPos);
                             }
                         }
                         break;
                     case 'SUMMONING':
-                        bossData.attackState = 'MOVING';
-                        bossData.attackCooldownTimer = bossParams.attackCooldown;
+                        enemy.attackState = 'MOVING';
+                        enemy.attackCooldownTimer = bossParams.attackCooldown;
                         break;
                 }
                 break;
         }
 
+        // --- REFACTORED: Default Movement ---
         if (executeDefaultMovement) {
             if (currentSpeed > 0) {
-                const direction = new THREE.Vector3().subVectors(targetPosition, shape.position).setY(0);
+                const direction = new THREE.Vector3().subVectors(targetPosition, enemy.position).setY(0);
                 if (direction.lengthSq() > 0.01) {
                     direction.normalize();
-                    shape.position.add(direction.multiplyScalar(currentSpeed * deltaTime));
+                    enemy.position.add(direction.clone().multiplyScalar(currentSpeed * deltaTime));
+                    // --- NEW: Set lookAt for default movement ---
+                    lookAtPosition = enemy.position.clone().add(direction);
                 }
             }
         }
 
+        // --- NEW: Despawn Logic ---
         const DESPAWN_THRESHOLD = 85;
-        if (!typeData.isBoss && state.player.position.distanceTo(shape.position) > DESPAWN_THRESHOLD) {
-            state.scene.remove(shape);
-            shape.geometry?.dispose();
-            shape.material?.dispose();
+        if (!typeData.isBoss && state.player.position.distanceTo(enemy.position) > DESPAWN_THRESHOLD) {
+            returnEnemyToPool(enemy);
             state.shapes.splice(i, 1);
             continue;
         }
 
-        shape.position.x = Math.max(-CONSTANTS.WORLD_BOUNDARY + (shape.radius || 0), Math.min(CONSTANTS.WORLD_BOUNDARY - (shape.radius || 0), shape.position.x));
-        shape.position.z = Math.max(-CONSTANTS.WORLD_BOUNDARY + (shape.radius || 0), Math.min(CONSTANTS.WORLD_BOUNDARY - (shape.radius || 0), shape.position.z));
+        // --- REFACTORED: Boundary Clamping ---
+        enemy.position.x = Math.max(-CONSTANTS.WORLD_BOUNDARY + enemy.radius, Math.min(CONSTANTS.WORLD_BOUNDARY - enemy.radius, enemy.position.x));
+        enemy.position.z = Math.max(-CONSTANTS.WORLD_BOUNDARY + enemy.radius, Math.min(CONSTANTS.WORLD_BOUNDARY - enemy.radius, enemy.position.z));
+
+        // --- NEW: (CRITICAL) UPDATE THE INSTANCEDMESH ---
+        // After all logic, update the mesh's matrix
+        // In core/sceneUpdates.js, inside updateEnemies
+        const instancedMesh = state.instancedMeshes[enemy.type];
+        if (instancedMesh) {
+            state.dummy.position.copy(enemy.position);
+
+            // Re-apply scale if it's a splitter offspring
+            if (enemy.generation > 1) {
+                const originalRadius = instancedMesh.userData.radius;
+                const scale = enemy.radius / originalRadius;
+                state.dummy.scale.set(scale, scale, scale);
+            } else {
+                state.dummy.scale.set(1, 1, 1);
+            }
+
+            // Apply rotation if needed
+            if (lookAtPosition) {
+                state.dummy.lookAt(lookAtPosition.x, enemy.position.y, lookAtPosition.z);
+            } else {
+                state.dummy.rotation.set(0, 0, 0); // Reset rotation
+            }
+
+            state.dummy.updateMatrix();
+            instancedMesh.setMatrixAt(enemy.instanceId, state.dummy.matrix);
+            instancedMesh.instanceMatrix.needsUpdate = true;
+
+            // --- CORRECTED LOGGING ---
+            if (i === 0 && Math.random() < 0.1) {
+                console.log(`[UPDATE_MATRIX] ID: ${enemy.instanceId} for ${enemy.type} set to pos [${enemy.position.x.toFixed(1)}, ${enemy.position.z.toFixed(1)}]`);
+            }
+            // --- END OF CORRECTION ---
+
+        } else {
+            // --- THIS IS THE REAL ERROR LOG ---
+            console.error(`[UPDATE_FAIL] No instancedMesh found for enemy type: ${enemy.type}!`);
+        }
     }
 }
 

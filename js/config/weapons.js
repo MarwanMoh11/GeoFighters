@@ -2,6 +2,28 @@ import { state, CONSTANTS } from '../state.js';
 import { createHitEffect, createTemporaryVisualEffect, createBurstEffect } from '../game/spawner.js';
 import { getItemModifier } from './items.js';
 
+
+function findNearestEnemy(sourcePosition, maxRange = 50) { // Increased default range
+    const nearbyObjects = state.spatialGrid.getObjectsNear(sourcePosition, maxRange);
+    let closestEnemy = null;
+    let minDistanceSq = Infinity;
+
+    for (const gridObject of nearbyObjects) {
+        if (gridObject.enemy) {
+            const enemyData = gridObject.enemy;
+            const distanceSq = sourcePosition.distanceToSquared(enemyData.position);
+
+            if (distanceSq < minDistanceSq && distanceSq < maxRange * maxRange) {
+                minDistanceSq = distanceSq;
+                closestEnemy = enemyData;
+            }
+        }
+    }
+    return closestEnemy;
+}
+
+// DELETE your old fireGenericProjectile function and REPLACE it with this one.
+
 function fireGenericProjectile(weapon, options = {}) {
     if (!state.player) return;
     const projSpeedMod = getItemModifier('PROJECTILE_SPEED_PERCENT');
@@ -9,7 +31,6 @@ function fireGenericProjectile(weapon, options = {}) {
     const heavyDmgMod = getItemModifier('HEAVY_DAMAGE_PERCENT');
     const singleShotDmgMod = getItemModifier('SINGLE_SHOT_DAMAGE_PERCENT');
     const scatterCountMod = getItemModifier('SCATTER_COUNT');
-    const aoeRadiusMod = getItemModifier('AOE_RADIUS_PERCENT');
 
     const speed = (options.speed || CONSTANTS.BASE_PROJECTILE_SPEED) * projSpeedMod.percent;
     let damage = weapon.getDamage?.() || options.damage || 10;
@@ -21,17 +42,32 @@ function fireGenericProjectile(weapon, options = {}) {
     if (weapon.tags?.includes('scatter')) count += scatterCountMod.count;
 
     const projectileRadius = CONSTANTS.PROJECTILE_RADIUS;
-
     const spread = options.spread || 0;
-    const baseDir = options.direction || new THREE.Vector3().subVectors(state.aimTarget, state.player.position).normalize();
-    baseDir.y = 0;
+
+    // --- GLOBAL AUTO-AIM LOGIC ---
+    let baseDir;
+    // 1. Check if a direction is manually provided (rare, but good for flexibility).
+    if (options.direction) {
+        baseDir = options.direction;
+    } else {
+        // 2. Try to find the nearest enemy to auto-aim at.
+        const target = findNearestEnemy(state.player.position, 50); // Search up to 50 units away
+        if (target) {
+            // If a target is found, aim directly at it.
+            baseDir = new THREE.Vector3().subVectors(target.position, state.player.position).normalize();
+        } else {
+            // 3. If NO target is in range, fallback to aiming at the mouse cursor.
+            baseDir = new THREE.Vector3().subVectors(state.aimTarget, state.player.position).normalize();
+        }
+    }
+    baseDir.y = 0; // Ensure all projectiles fire horizontally.
+    // --- END OF AUTO-AIM LOGIC ---
 
     for (let i = 0; i < count; i++) {
         const currentAngle = (count === 1) ? 0 : (-spread / 2) + (i / (count - 1)) * spread;
         const velocity = baseDir.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), currentAngle).normalize().multiplyScalar(speed);
 
         const projectileGeometry = options.geometry || new THREE.SphereGeometry(projectileRadius, 6, 6);
-
         let projectileMaterial = options.material;
         if (!projectileMaterial) {
             if (options.emissiveColor) {

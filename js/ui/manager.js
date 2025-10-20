@@ -88,7 +88,16 @@ function clearDynamicSceneObjects() {
     console.error("!!! clearDynamicSceneObjects WAS CALLED !!!");
     for (let i = state.scene.children.length - 1; i >= 0; i--) {
         const child = state.scene.children[i];
-        const isProtected = child === state.player || child === state.ground || child.isLight || child.isCamera || child === state.gridHelper || state.staticLevelObjects.includes(child) || child === state.backgroundPattern;
+        // In ui/manager.js, inside clearDynamicSceneObjects()
+
+        const isProtected = child === state.player ||
+            child === state.ground ||
+            child.isLight ||
+            child.isCamera ||
+            child === state.gridHelper ||
+            state.staticLevelObjects.includes(child) ||
+            child === state.backgroundPattern ||
+            child.isInstancedMesh; // <-- ADD THIS LINE
         if (!isProtected) {
             child.geometry?.dispose();
             if (child.material) {
