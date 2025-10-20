@@ -4,11 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="524ebcd6-9740-4e55-8050-730dc68fef7d" name="Changes" comment="Easy mode for Noor">
+    <list default="true" id="524ebcd6-9740-4e55-8050-730dc68fef7d" name="Changes" comment="Undo easy mode">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/js/config/enemies.js" beforeDir="false" afterPath="$PROJECT_DIR$/js/config/enemies.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/js/game/spawner.js" beforeDir="false" afterPath="$PROJECT_DIR$/js/game/spawner.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/js/main.js" beforeDir="false" afterPath="$PROJECT_DIR$/js/main.js" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -100,7 +97,7 @@
       <workItem from="1760862598864" duration="2364000" />
       <workItem from="1760944334482" duration="7028000" />
       <workItem from="1760957551009" duration="3085000" />
-      <workItem from="1760971032374" duration="2707000" />
+      <workItem from="1760971032374" duration="3670000" />
     </task>
     <task id="LOCAL-00001" summary="attempting addition of tetra">
       <option name="closed" value="true" />
@@ -246,7 +243,23 @@
       <option name="project" value="LOCAL" />
       <updated>1760973331495</updated>
     </task>
-    <option name="localTasksCounter" value="19" />
+    <task id="LOCAL-00019" summary="Easy mode for Noor">
+      <option name="closed" value="true" />
+      <created>1760973831370</created>
+      <option name="number" value="00019" />
+      <option name="presentableId" value="LOCAL-00019" />
+      <option name="project" value="LOCAL" />
+      <updated>1760973831370</updated>
+    </task>
+    <task id="LOCAL-00020" summary="Undo easy mode">
+      <option name="closed" value="true" />
+      <created>1760973888947</created>
+      <option name="number" value="00020" />
+      <option name="presentableId" value="LOCAL-00020" />
+      <option name="project" value="LOCAL" />
+      <updated>1760973888947</updated>
+    </task>
+    <option name="localTasksCounter" value="21" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -263,6 +276,7 @@
     <MESSAGE value="More balance Changes" />
     <MESSAGE value="Optimization" />
     <MESSAGE value="Easy mode for Noor" />
-    <option name="LAST_COMMIT_MESSAGE" value="Easy mode for Noor" />
+    <MESSAGE value="Undo easy mode" />
+    <option name="LAST_COMMIT_MESSAGE" value="Undo easy mode" />
   </component>
 </project>

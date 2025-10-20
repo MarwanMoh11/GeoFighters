@@ -164,6 +164,12 @@ export function resetGameState() {
         state.player.position.set(0, CONSTANTS.PLAYER_HEIGHT / 2, 0);
     }
 
+    for (const typeId in state.instancedMeshes) {
+        const instancedMesh = state.instancedMeshes[typeId];
+        instancedMesh.count = 0;
+        instancedMesh.instanceMatrix.needsUpdate = true; // Important to commit the change
+    }
+
     console.log("Game state has been reset for a new run.");
 }
 
