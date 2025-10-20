@@ -2,24 +2,24 @@ export const ENEMY_TYPES = {
     // --- COMMON HORDE ENEMIES ---
     CUBE_CRUSHER: {
         name: 'Cube Crusher', icon: '⬜', geometryType: 'Box', size: [0.8, 0.8, 0.8], color: 0xcc3333,
-        speed: 1.3, healthMultiplier: 1, xpMultiplier: 0.7, dropsCache: false,
+        speed: 1.3, healthMultiplier: 4.5, xpMultiplier: 0.7, dropsCache: false,
         specialAbility: null, damageMultiplier: 0.7, cost: 1
     },
     TETRA_SWARMER: {
         name: 'Tetra Swarmer', icon: 'tetrahedral', geometryType: 'Tetrahedron', size: [0.4, 0], color: 0x9A1F1F,
-        speed: 3.6, healthMultiplier: 1, xpMultiplier: 0.4, dropsCache: false,
+        speed: 3.6, healthMultiplier: 2.0, xpMultiplier: 0.4, dropsCache: false,
         specialAbility: null, damageMultiplier: 0.6, cost: 0.5
     },
 
     // --- SLIGHTLY TOUGHER / MORE NUMEROUS HORDE ---
     ICOSAHEDRON_INVADER: {
         name: 'Icosahedron Invader', icon: '🌐', geometryType: 'Icosahedron', size: [0.6, 0], color: 0x4B5320,
-        speed: 1.2, healthMultiplier: 1.0, xpMultiplier: 0.8, dropsCache: false,
+        speed: 1.2, healthMultiplier: 5.0, xpMultiplier: 0.8, dropsCache: false,
         specialAbility: 'distort', distortCooldown: 12, distortTimer: 6 + Math.random() * 6, damageMultiplier: 0.8, cost: 1.5
     },
     SPHERE_SPLITTER: {
         name: 'Sphere Splitter', icon: '⚪', geometryType: 'Sphere', size: [0.5, 12, 8], color: 0x98FB98,
-        speed: 1.0, healthMultiplier: 1.0, xpMultiplier: 0.6, dropsCache: false,
+        speed: 1.0, healthMultiplier: 4.0, xpMultiplier: 0.6, dropsCache: false,
         specialAbility: 'split', generation: 1, damageMultiplier: 0.4, cost: 1.2
     },
     CYLINDER_CORRUPTER: {
@@ -31,17 +31,17 @@ export const ENEMY_TYPES = {
     // --- SPECIAL ABILITY / MID-TIER ENEMIES ---
     PRISM_DASHER: {
         name: 'Prism Dasher', icon: '🔶', geometryType: 'Cylinder', size: [0.35, 1.5, 0.35, 6], color: 0xB0C4DE,
-        speed: 0, healthMultiplier: 1.5, xpMultiplier: 1.2, dropsCache: false,
+        speed: 0, healthMultiplier: 3.5, xpMultiplier: 1.2, dropsCache: false,
         specialAbility: 'dash', dashSpeed: 7.0, dashDuration: 0.45, dashCooldown: 2.8, dashTimer: 1.5 + Math.random(), isDashing: false, damageMultiplier: 1.2, cost: 3
     },
     CONE_CASTER: {
         name: 'Cone Caster', icon: '🗼', geometryType: 'Cone', size: [0.45, 1.3, 8], color: 0xB8860B,
-        speed: 1.0, healthMultiplier: 1.5, xpMultiplier: 1.3, dropsCache: false,
+        speed: 1.0, healthMultiplier: 4.5, xpMultiplier: 1.3, dropsCache: false,
         specialAbility: 'launch_shard', shardCooldown: 4.5, shardTimer: Math.random() * 4.5, deathBurstRadius: 2.0, deathBurstDamage: 10, damageMultiplier: 0.9, cost: 3.5
     },
     DODECAHEDRON_DRIFTER: {
         name: 'Dodecahedron Drifter', icon: '✨', geometryType: 'Dodecahedron', size: [0.6, 0], color: 0x181818,
-        speed: 1.7, healthMultiplier: 1.0, xpMultiplier: 1.5, dropsCache: false,
+        speed: 1.7, healthMultiplier: 5.0, xpMultiplier: 1.5, dropsCache: false,
         specialAbility: 'phase_shift', shiftCooldown: 5.5, shiftTimer: Math.random() * 5.5, damageMultiplier: 1.0, cost: 4
     },
 
