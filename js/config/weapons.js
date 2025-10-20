@@ -130,8 +130,15 @@ export const WEAPONS = {
     },
     ORBITAL_SHIELD: {
         id: 'ORBITAL_SHIELD', name: 'Orbital Shield', icon: '⟳', level: 0, maxLevel: 5, synergyItemId: 'ORBITAL_ENHANCER', tags: ['aoe', 'orbital'], shortDescription: "Spinning geometric shapes damage nearby enemies.", baseDamage: 5, baseRadius: CONSTANTS.PLAYER_RADIUS + 1.2, baseRotationSpeed: Math.PI * 0.6, baseShapeCount: 3, damageInterval: 0.25, damageTimer: 0, enemiesHitThisInterval: [], isEvolved: false,
-        fire: function (deltaTime) { this.damageTimer += deltaTime; if (this.damageTimer >= this.damageInterval) { this.damageTimer = 0; this.enemiesHitThisInterval = []; } },
-        getRadius: function () { const aoeMod = getItemModifier('AOE_RADIUS_PERCENT'); return (this.baseRadius + (this.level - 1) * 0.25) * aoeMod.percent; },
+        fire: function (deltaTime) {
+            this.damageTimer += deltaTime;
+            if (this.damageTimer >= this.damageInterval) {
+                this.damageTimer = 0;
+                // --- THE FIX ---
+                // Instead of creating a new array, just reset the length of the existing one.
+                this.enemiesHitThisInterval.length = 0;
+            }
+        }, getRadius: function () { const aoeMod = getItemModifier('AOE_RADIUS_PERCENT'); return (this.baseRadius + (this.level - 1) * 0.25) * aoeMod.percent; },
         getDamage: function () { const orbitalMod = getItemModifier('ORBITAL_EFFECT_PERCENT'); const globalDmgMod = getItemModifier('GLOBAL_DAMAGE_PERCENT'); return (this.baseDamage + (this.level - 1) * 2.5) * orbitalMod.percent * globalDmgMod.percent; },
         getRotationSpeed: function () { return this.baseRotationSpeed + (this.level - 1) * Math.PI * 0.1; },
         getShapeCount: function () { const orbitalMod = getItemModifier('ORBITAL_EFFECT_PERCENT'); return Math.floor((this.baseShapeCount + Math.floor((this.level - 1) / 2)) * orbitalMod.percent); },
@@ -226,8 +233,15 @@ export const EVOLVED_WEAPONS = {
         id: 'ORBITAL_SHIELD_EVOLVED', name: 'Vortex Shield', icon: '🌀', isEvolved: true, level: 1, maxLevel: 1, tags: ['aoe', 'orbital', 'evolved'],
         shortDescription: "Rapidly spinning vortex damages and pulls enemies.",
         baseDamage: 15, baseRadius: CONSTANTS.PLAYER_RADIUS + 2.2, baseRotationSpeed: Math.PI * 1.6, baseShapeCount: 7, damageInterval: 0.18, damageTimer: 0, enemiesHitThisInterval: [],
-        fire: function (deltaTime) { this.damageTimer += deltaTime; if (this.damageTimer >= this.damageInterval) { this.damageTimer = 0; this.enemiesHitThisInterval = []; } },
-        getRadius: function () { const aoeMod = getItemModifier('AOE_RADIUS_PERCENT'); return this.baseRadius * aoeMod.percent; },
+        fire: function (deltaTime) {
+            this.damageTimer += deltaTime;
+            if (this.damageTimer >= this.damageInterval) {
+                this.damageTimer = 0;
+                // --- THE FIX ---
+                // Instead of creating a new array, just reset the length of the existing one.
+                this.enemiesHitThisInterval.length = 0;
+            }
+        },getRadius: function () { const aoeMod = getItemModifier('AOE_RADIUS_PERCENT'); return this.baseRadius * aoeMod.percent; },
         getDamage: function () { const orbitalMod = getItemModifier('ORBITAL_EFFECT_PERCENT'); const globalDmgMod = getItemModifier('GLOBAL_DAMAGE_PERCENT'); return this.baseDamage * orbitalMod.percent * globalDmgMod.percent; },
         getRotationSpeed: function () { return this.baseRotationSpeed; },
         getShapeCount: function () { const orbitalMod = getItemModifier('ORBITAL_EFFECT_PERCENT'); return Math.floor(this.baseShapeCount * orbitalMod.percent); },

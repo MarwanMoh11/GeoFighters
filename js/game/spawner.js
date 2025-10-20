@@ -44,6 +44,18 @@ export function resetDamageNumberCounter() {
     damageNumbersThisFrame = 0;
 }
 
+export function initializeDataFragmentPool() {
+    const poolName = 'dataFragments';
+    state.objectPools[poolName] = [];
+    const orbGeometry = new THREE.TetrahedronGeometry(CONSTANTS.DATA_FRAGMENT_RADIUS, 0);
+    const orbMaterial = new THREE.MeshBasicMaterial({ color: 0x00ffff, wireframe: true });
+    for (let i = 0; i < 200; i++) { // Pool for 200 XP orbs
+        const mesh = new THREE.Mesh(orbGeometry, orbMaterial);
+        mesh.visible = false;
+        state.scene.add(mesh);
+        state.objectPools[poolName].push(mesh);
+    }
+}
 
 // Now, find and REPLACE your existing createDamageNumber function with this one:
 
@@ -197,7 +209,7 @@ function handleCalmPhase(deltaTime) {
 
 function spawnHordeWave() {
     let budget = Math.min(15 + Math.floor(state.gameTime / 20) + state.playerLevel * 2.5, 80);
-    const maxSpawns = 8;
+    const maxSpawns = 20;
     let spawnedCount = 0;
 
     // This can be a main horde type OR a mini-horde type
@@ -586,13 +598,17 @@ export function spawnGeometricCache(position) {
 }
 
 export function spawnDataFragment(position, value) {
-    const orbGeometry = new THREE.TetrahedronGeometry(CONSTANTS.DATA_FRAGMENT_RADIUS, 0);
-    const orbMaterial = new THREE.MeshBasicMaterial({ color: 0x00ffff, wireframe: true });
-    const orbMesh = new THREE.Mesh(orbGeometry, orbMaterial);
+    // Get an orb from the pool instead of creating a new one
+    const orbMesh = getFromPool('dataFragments', () => null);
+    if (!orbMesh) return; // Pool is exhausted, fail gracefully
+
     orbMesh.position.set(position.x, CONSTANTS.DATA_FRAGMENT_RADIUS * 1.2, position.z);
-    const fragment = { mesh: orbMesh, xpValue: Math.max(1, Math.floor(value)) };
-    state.dataFragments.push(fragment);
-    state.scene.add(orbMesh);
+
+    // The fragment data is now attached to the MESH's userData to keep it bundled
+    orbMesh.userData.xpValue = Math.max(1, Math.floor(value));
+
+    // We now push the MESH itself to the array, not a wrapper object
+    state.dataFragments.push(orbMesh);
 }
 
 export function spawnMegaDataFragment(xpAmount) {
