@@ -30,10 +30,7 @@ const HORDE_TIMELINE = [
 
     // === PHASE 4: The Corrupted Zone (7:00 - 9:45) ===
     // Objective: High-stakes survival with area denial and ranged threats.
-    { startTime: 420, duration: 70, type: 'CYLINDER_CORRUPTER', calmDuration: 25 }, // Introduce area denial. Ends at 8:15.
-    // ** OVERLAP! ** Ranged casters support the corrupters.
-    { startTime: 470, duration: 5, type: 'CONE_CASTER', calmDuration: 0, isMiniHorde: true }, // Forces movement while corrupters chase.
-    { startTime: 490, duration: 70, type: 'CYLINDER_CORRUPTER', calmDuration: 25 }, // continue with the area of denial
+    { startTime: 420, duration: 140, type: 'CYLINDER_CORRUPTER', calmDuration: 25 }, // Introduce area denial. Ends at 8:15.
 
     // === FINAL CLIMAX (before the boss) ===
     { startTime: 535, duration: 45, type: 'DODECAHEDRON_DRIFTER', calmDuration: 20 }, // The final, tanky drifters. Ends at 9:40.
