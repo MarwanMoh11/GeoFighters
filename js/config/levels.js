@@ -1,4 +1,5 @@
 import { state, CONSTANTS } from '../state.js';
+import * as THREE from 'three';
 
 function setupLevel1Map() {
     // Clear any obstacles from a previous run

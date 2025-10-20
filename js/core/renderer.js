@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import { state, CONSTANTS } from '../state.js';
 import { createPlayer } from '../game/player.js';
 import { populateLevelList } from '../ui/manager.js';

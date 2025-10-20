@@ -7,9 +7,12 @@ import { saveData, applyMetaUpgradesToGame } from '../utils/saveLoad.js';
 import { initializeAudio, playSoundSynth } from '../utils/audio.js';
 import { toggleFullScreen } from '../utils/input.js';
 import { checkEvolution } from '../game/evolution.js';
-// NOTE: We no longer import from player.js to avoid circular dependencies.
-// The necessary functions (recalculatePlayerStats) will be imported where needed.
 import { recalculatePlayerStats } from '../game/player.js';
+import { ENEMY_TYPES } from '../config/enemies.js';
+import { spawnEnemyByType } from '../game/spawner.js';
+import * as THREE from 'three';
+// ... your existing imports like state, ui, gameLevels, etc. ...
+
 
 // --- Event Binding ---
 export function bindUIEvents() {
@@ -29,9 +32,66 @@ export function bindUIEvents() {
     ui.fullscreenButton.onclick = toggleFullScreen;
 }
 
+// PASTE THIS ENTIRE FUNCTION into src/ui/manager.js
+
+/**
+ * Instantly sets up a test environment with maxed-out gear and a horde of enemies.
+ */
+function setupDebugState() {
+    console.warn("--- DEBUG MODE ACTIVE ---");
+
+    // 1. Max out all weapons
+    Object.values(WEAPONS).forEach(weapon => {
+        if (!state.playerWeapons.find(w => w.id === weapon.id)) {
+            weapon.level = weapon.maxLevel;
+            state.playerWeapons.push(weapon);
+            weapon.createMesh?.(weapon); // Create visuals for orbitals, etc.
+        }
+    });
+
+    // 2. Max out all items
+    Object.values(ITEMS).forEach(item => {
+        if (!state.playerItems.find(i => i.id === item.id)) {
+            item.level = item.maxLevel;
+            state.playerItems.push(item);
+        }
+    });
+
+    // 3. Trigger all possible evolutions
+    state.playerWeapons.forEach(weapon => {
+        checkEvolution(weapon);
+    });
+
+    // 4. Spawn a massive horde of enemies for stress testing
+    const spawnCount = 1000;
+    const spawnRadius = 30;
+    const spawnableEnemies = Object.keys(ENEMY_TYPES).filter(key => !ENEMY_TYPES[key].isBoss);
+
+    console.log(`Spawning ${spawnCount} enemies for debug mode...`);
+    for (let i = 0; i < spawnCount; i++) {
+        const randomType = spawnableEnemies[Math.floor(Math.random() * spawnableEnemies.length)];
+
+        const angle = Math.random() * Math.PI * 2;
+        const radius = 10 + Math.random() * (spawnRadius - 10);
+        const x = state.player.position.x + Math.cos(angle) * radius;
+        const z = state.player.position.z + Math.sin(angle) * radius;
+
+        // Use a forced position to spawn enemies around the player
+        spawnEnemyByType(randomType, new THREE.Vector3(x, 0, z));
+    }
+
+    // 5. Instantly level up the player to see scaling
+    state.playerLevel = 50;
+}
+
 // --- Game Flow & State Management ---
 
+// REPLACE your existing startGame function with this one.
+
 export function startGame(levelId) {
+    // Check for the debug flag in the URL (e.g., "index.html?debug=true")
+    const isDebugMode = new URLSearchParams(window.location.search).has('debug');
+
     resetGameState();
     initializeAudio();
 
@@ -53,22 +113,29 @@ export function startGame(levelId) {
     state.isBossWave = false;
     state.nextBossTime = 600;
 
-    clearDynamicSceneObjects();
+    // --- DEBUG MODE ACTIVATION ---
+    if (isDebugMode) {
+        setupDebugState(); // This sets up your maxed-out state
+    } else {
+        // --- NORMAL GAME START ---
+        // Clear weapon/item levels from previous runs
+        Object.values(WEAPONS).forEach(w => { w.level = 0; w.isEvolved = false; w.fireTimer = 0; });
+        Object.values(ITEMS).forEach(i => { i.level = 0; });
 
-    Object.values(WEAPONS).forEach(w => { w.level = 0; w.isEvolved = false; w.fireTimer = 0; });
-    Object.values(ITEMS).forEach(i => { i.level = 0; });
+        // Start with a default weapon
+        if (WEAPONS.VECTOR_LANCE) {
+            defaultApplyUpgrade.call(WEAPONS.VECTOR_LANCE);
+        }
+    }
+    // ---------------------------
 
     if (state.player) state.player.position.set(0, CONSTANTS.PLAYER_HEIGHT / 2, 0);
 
     selectedLevelData.mapSetup?.();
 
-    // Start with a default weapon by directly calling the apply logic
-    if (WEAPONS.VECTOR_LANCE) {
-        defaultApplyUpgrade.call(WEAPONS.VECTOR_LANCE);
-    }
-
     recalculatePlayerStats();
     updateUI();
+    updateWeaponUI();
     updateItemUI();
 
     Object.values(ui).forEach(element => {

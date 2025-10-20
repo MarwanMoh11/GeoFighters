@@ -37,6 +37,66 @@ const HORDE_TIMELINE = [
     // The game enters a final "Calm" phase from 580s (9:40) to 600s, allowing the player to prepare for the boss.
 ];
 
+export let damageNumbersThisFrame = 0; // Export the counter
+const MAX_DAMAGE_NUMBERS_PER_FRAME = 25; // Budget: Only allow 25 new damage numbers per frame.
+
+export function resetDamageNumberCounter() {
+    damageNumbersThisFrame = 0;
+}
+
+
+// Now, find and REPLACE your existing createDamageNumber function with this one:
+
+export function createDamageNumber(position, amount, isCritical = false) {
+    // --- THE FINAL OPTIMIZATION ---
+    // Enforce the budget. If we've shown too many numbers this frame, do nothing.
+    if (damageNumbersThisFrame >= MAX_DAMAGE_NUMBERS_PER_FRAME) {
+        return;
+    }
+    damageNumbersThisFrame++;
+    // --- END OF FIX ---
+
+    if (!ui.damageNumbersContainer) return;
+
+    // Get a <div> from the pool instead of creating a new one.
+    const el = getFromPool('damageNumbers', () => {
+        // Fallback in case the pool runs out (should be rare)
+        const newEl = document.createElement('div');
+        newEl.style.position = 'absolute';
+        ui.damageNumbersContainer.appendChild(newEl);
+        return newEl;
+    });
+
+    // Configure the reused element
+    el.className = 'damage-number';
+    if (isCritical) {
+        el.classList.add('critical');
+        el.textContent = `${Math.round(amount)}!!`;
+    } else {
+        el.textContent = String(Math.round(amount));
+    }
+
+    const screenPos = worldToScreen(position);
+    if (!screenPos) {
+        // If the position is off-screen, immediately return the element to the pool
+        returnToPool('damageNumbers', el);
+        return;
+    }
+
+    el.style.left = `${screenPos.x}px`;
+    el.style.top = `${screenPos.y}px`;
+
+    // Use animation to handle the lifecycle
+    el.style.animation = 'damage-anim 0.8s ease-out forwards';
+
+    // After the animation is done, return the element to the pool for reuse.
+    setTimeout(() => {
+        el.style.animation = 'none'; // Reset animation for the next use
+        returnToPool('damageNumbers', el);
+    }, 800); // 800ms must match your CSS animation duration
+}
+
+
 // =================================================================================
 // --- DIRECTOR: Main Spawning Orchestration ---
 // =================================================================================
@@ -220,6 +280,13 @@ export function initializePools() {
             default: geometry = new THREE.BoxGeometry(1, 1, 1);
         }
         geometry.computeBoundingSphere();
+        const color = new THREE.Color();
+        const colorArray = [];
+        for (let i = 0; i < geometry.attributes.position.count; i++) {
+            color.set(0xffffff); // Default to white
+            colorArray.push(color.r, color.g, color.b);
+        }
+        geometry.setAttribute('color', new THREE.Float32BufferAttribute(colorArray, 3));
 
         // 2. Create the shared material
         // We MUST enable vertexColors to allow for hit effects.
@@ -268,6 +335,7 @@ export function initializePools() {
 
     console.log("All instanced meshes and index pools initialized.");
 }
+
 
 export function getFromPool(poolName, createFunc) {
     const pool = state.objectPools[poolName];
@@ -693,31 +761,9 @@ export function initializeDamageNumberPool() {
     }
 }
 
-export function createDamageNumber(position, amount, isCritical = false) {
-    if (!ui.damageNumbersContainer) return;
-    const el = getFromPool('damageNumbers', () => {
-        const newEl = document.createElement('div');
-        newEl.style.position = 'absolute';
-        ui.damageNumbersContainer.appendChild(newEl);
-        return newEl;
-    });
-    el.className = 'damage-number';
-    if (isCritical) {
-        el.classList.add('critical');
-        el.textContent = `${Math.round(amount)}!!`;
-    } else {
-        el.textContent = String(Math.round(amount));
-    }
-    const screenPos = worldToScreen(position);
-    if (!screenPos) { returnToPool('damageNumbers', el); return; }
-    el.style.left = `${screenPos.x}px`;
-    el.style.top = `${screenPos.y}px`;
-    el.style.animation = 'damage-anim 0.8s ease-out forwards';
-    setTimeout(() => {
-        el.style.animation = 'none';
-        returnToPool('damageNumbers', el);
-    }, 800);
-}
+// REPLACE your old createDamageNumber function with this one.
+
+
 
 export function createHitEffect(enemyData, hitColor = 0xffffff, duration = 0.15) {
     // We now pass the ENEMY DATA object, not the mesh

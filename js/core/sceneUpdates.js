@@ -6,7 +6,8 @@ import { updateUI, gameOver, grantCacheRewards } from '../ui/manager.js';
 import { updateCamera } from './renderer.js';
 import { ENEMY_TYPES } from '../config/enemies.js';
 import { getItemModifier } from '../config/items.js';
-
+import { spawnDataFragment , returnEnemyToPool } from '../game/spawner.js';
+import * as THREE from 'three';
 // Initialize spatial grid on state if it doesn't exist.
 if (!state.spatialGrid) {
     class SpatialGrid {

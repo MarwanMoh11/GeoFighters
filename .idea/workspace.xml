@@ -6,12 +6,14 @@
   <component name="ChangeListManager">
     <list default="true" id="524ebcd6-9740-4e55-8050-730dc68fef7d" name="Changes" comment="More balance Changes">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/js/config/enemies.js" beforeDir="false" afterPath="$PROJECT_DIR$/js/config/enemies.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/index.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/js/config/levels.js" beforeDir="false" afterPath="$PROJECT_DIR$/js/config/levels.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/js/config/weapons.js" beforeDir="false" afterPath="$PROJECT_DIR$/js/config/weapons.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/js/core/renderer.js" beforeDir="false" afterPath="$PROJECT_DIR$/js/core/renderer.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/js/core/sceneUpdates.js" beforeDir="false" afterPath="$PROJECT_DIR$/js/core/sceneUpdates.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/js/game/collision.js" beforeDir="false" afterPath="$PROJECT_DIR$/js/game/collision.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/js/game/spawner.js" beforeDir="false" afterPath="$PROJECT_DIR$/js/game/spawner.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/js/state.js" beforeDir="false" afterPath="$PROJECT_DIR$/js/state.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/js/main.js" beforeDir="false" afterPath="$PROJECT_DIR$/js/main.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/js/ui/manager.js" beforeDir="false" afterPath="$PROJECT_DIR$/js/ui/manager.js" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -103,6 +105,8 @@
       <workItem from="1760818063623" duration="4000" />
       <workItem from="1760862598864" duration="2364000" />
       <workItem from="1760944334482" duration="7028000" />
+      <workItem from="1760957551009" duration="3085000" />
+      <workItem from="1760971032374" duration="1142000" />
     </task>
     <task id="LOCAL-00001" summary="attempting addition of tetra">
       <option name="closed" value="true" />

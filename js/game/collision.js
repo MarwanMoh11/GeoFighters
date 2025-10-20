@@ -14,170 +14,142 @@ import {
 } from './spawner.js';
 import { ENEMY_TYPES } from '../config/enemies.js';
 
+
+// Reusable vector to prevent creating new objects in the loop (anti-jank)
+const _knockbackDir = new THREE.Vector3();
+
 export function checkCollisions() {
     if (!state.player || state.isPaused) return;
 
+    // Use Sets for efficient, duplicate-free tracking of objects to remove at the end of the frame.
     const projectilesToRemove = new Set();
     const shapesToRemove = new Set();
     const repairNodesToRemove = new Set();
     const energyCoresToRemove = new Set();
     const dataFragmentsToRemove = new Set();
     const megaDataFragmentsToRemove = new Set();
+    const projectilesConsumedThisFrame = new Set(); // Tracks non-piercing projectiles used this frame.
 
-    // --- 1. PROJECTILE vs. ENTITY COLLISIONS ---
-    state.projectiles.forEach((projectile, pIndex) => {
-        if (!projectile || !projectile.mesh || projectilesToRemove.has(pIndex)) return;
+    // --- 1. HIGH-PERFORMANCE COLLISION CHECK: ENEMY-CENTRIC LOOP ---
+    // This is much faster than looping through every projectile.
+    state.shapes.forEach((enemyData, enemyIndex) => {
+        if (!enemyData || shapesToRemove.has(enemyIndex)) return;
 
-        // A. Enemy projectile vs. Player
-        if (projectile.isEnemyProjectile) {
-            if (state.player.position.distanceTo(projectile.mesh.position) < CONSTANTS.PLAYER_RADIUS + (projectile.radius || CONSTANTS.PROJECTILE_RADIUS)) {
-                state.playerShield -= projectile.damage;
-                playSoundSynth('player_hit', 0.6);
-                projectilesToRemove.add(pIndex);
-                if (state.playerShield <= 0 && state.currentGameState === GameState.Playing) {
-                    gameOver();
-                }
-            }
-            return;
-        }
+        // Get all projectiles near this specific enemy just once.
+        const nearbyProjectiles = state.spatialGrid.getObjectsNear(enemyData.position, 5);
 
-        // B. Player projectile vs. Enemy
-        const nearbyEnemies = state.spatialGrid.getObjectsNear(projectile.mesh.position, 2);
+        for (const gridObject of nearbyProjectiles) {
+            // We only care about player projectiles.
+            if (!gridObject.projectile || gridObject.projectile.isEnemyProjectile) continue;
 
-        for (const gridObject of nearbyEnemies) {
-            // **FIX**: Correctly reference the enemy data object and its index from the grid
-            const enemyData = gridObject.enemy;
-            const enemyIndex = gridObject.index;
+            const projectile = gridObject.projectile;
+            const pIndex = gridObject.index;
 
-            // --- LEGACY FEATURE RESTORED: SINGLE-HIT LOGIC ---
-            // If this projectile has already hit this specific enemy, skip it.
-            if (!enemyData || shapesToRemove.has(enemyIndex) || projectile.hitEnemies.has(enemyIndex)) {
-                continue;
-            }
+            // Skip if projectile is already used up or has already hit this specific enemy.
+            if (projectilesConsumedThisFrame.has(pIndex) || projectile.hitEnemies.has(enemyIndex)) continue;
 
-            const distance = projectile.mesh.position.distanceTo(enemyData.position);
-            const collisionThreshold = (projectile.radius || CONSTANTS.PROJECTILE_RADIUS) + enemyData.radius;
+            // OPTIMIZATION: Use squared distances to avoid expensive square root calculations.
+            const distanceSq = enemyData.position.distanceToSquared(projectile.mesh.position);
+            const collisionThreshold = enemyData.radius + (projectile.radius || CONSTANTS.PROJECTILE_RADIUS);
+            const collisionThresholdSq = collisionThreshold * collisionThreshold;
 
-            if (distance < collisionThreshold) {
+            if (distanceSq < collisionThresholdSq) {
                 // --- COLLISION DETECTED! ---
-
-                // **LEGACY FEATURE RESTORED**: Add enemy to the projectile's "hit list" immediately.
-                // This prevents this same projectile from hitting this same enemy again in the next frame.
-                projectile.hitEnemies.add(enemyIndex);
+                projectile.hitEnemies.add(enemyIndex); // Prevents multi-hits from this projectile.
 
                 let damageDealt = projectile.damage * state.baseDamageMultiplier;
                 const isCrit = Math.random() < state.playerCritChance;
-                if (isCrit) {
-                    damageDealt *= state.playerCritDamageMultiplier;
-                }
+                if (isCrit) damageDealt *= state.playerCritDamageMultiplier;
 
                 enemyData.health -= damageDealt;
-                playSoundSynth('enemy_hit', 0.3, { pitch: 220 + Math.random() * 50 });
                 createDamageNumber(enemyData.position, damageDealt, isCrit);
-                createHitEffect(enemyData, 0xffffff, 0.15); // Pass data object
-
-                if (projectile.onHit) {
-                    projectile.onHit(enemyData, projectile);
-                }
+                createHitEffect(enemyData, 0xffffff, 0.15);
+                playSoundSynth('enemy_hit', 0.3, { pitch: 220 + Math.random() * 50 });
 
                 if (!projectile.tags?.includes('piercing')) {
                     projectilesToRemove.add(pIndex);
+                    projectilesConsumedThisFrame.add(pIndex);
                 }
 
                 if (enemyData.health <= 0) {
                     shapesToRemove.add(enemyIndex);
                     state.score += Math.max(1, Math.floor((enemyData.xpValue || 1) * 0.7));
-
-                    if (enemyData.isBoss) { winGame(); }
-
-                    if (enemyData.dropsCache) {
-                        spawnGeometricCache(enemyData.position);
-                    } else if (enemyData.type === 'SPHERE_SPLITTER') {
+                    if (enemyData.isBoss) winGame();
+                    if (enemyData.dropsCache) spawnGeometricCache(enemyData.position);
+                    else if (enemyData.type === 'SPHERE_SPLITTER') {
                         spawnSplitterOffspring(enemyData.position, enemyData.generation || 1);
                         spawnSplitterOffspring(enemyData.position, enemyData.generation || 1);
                     } else {
                         spawnDataFragment(enemyData.position, enemyData.xpValue);
                     }
-
-                    const killingWeapon = state.playerWeapons.find(w => w.id === projectile.weaponId);
-                    if (killingWeapon?.id === 'ENERGY_SIPHON' && killingWeapon.getShieldRestore) {
-                        state.playerShield = Math.min(state.MAX_PLAYER_SHIELD, state.playerShield + killingWeapon.getShieldRestore());
-                    }
-
-                    if (!projectile.tags?.includes('piercing')) {
-                        break;
-                    }
                 }
+                // If the projectile was consumed, stop checking this enemy against other projectiles.
+                if (projectilesConsumedThisFrame.has(pIndex)) break;
             }
         }
     });
 
-    // --- 2. PLAYER vs. ENTITY COLLISIONS (Damage & Effects) ---
-    const nearbyToPlayer = state.spatialGrid.getObjectsNear(state.player.position, 5);
+    // --- 2. PLAYER-CENTRIC COLLISIONS (This is already efficient) ---
+    const nearbyToPlayer = state.spatialGrid.getObjectsNear(state.player.position, Math.max(state.xpCollectionRadius, 5));
     for (const gridObject of nearbyToPlayer) {
 
         // A. Player vs. Enemy
         if (gridObject.enemy && !shapesToRemove.has(gridObject.index)) {
             const enemyData = gridObject.enemy;
             const typeData = ENEMY_TYPES[enemyData.type];
-            if (!typeData) continue;
+            const playerCollisionThreshold = CONSTANTS.PLAYER_RADIUS + enemyData.radius;
 
-            const distance = state.player.position.distanceTo(enemyData.position);
-            if (distance < CONSTANTS.PLAYER_RADIUS + enemyData.radius) {
-                const damageToPlayer = (typeData.damageMultiplier || 1.0) * (5 + Math.floor(state.gameTime / 60));
-                state.playerShield -= damageToPlayer;
+            if (typeData && state.player.position.distanceToSquared(enemyData.position) < playerCollisionThreshold * playerCollisionThreshold) {
+                state.playerShield -= (typeData.damageMultiplier || 1.0) * (5 + Math.floor(state.gameTime / 60));
                 playSoundSynth('player_hit', 0.6);
 
-                const knockbackDir = new THREE.Vector3().subVectors(state.player.position, enemyData.position).normalize().setY(0);
-                state.player.position.add(knockbackDir.clone().multiplyScalar(0.3));
-                enemyData.position.add(knockbackDir.clone().multiplyScalar(-0.8));
+                // OPTIMIZATION: Use the reusable vector for knockback to prevent garbage collection.
+                _knockbackDir.subVectors(state.player.position, enemyData.position).normalize().setY(0);
+                state.player.position.add(_knockbackDir.clone().multiplyScalar(0.3));
+                enemyData.position.add(_knockbackDir.clone().multiplyScalar(-0.8));
 
-                if (enemyData.type === 'TETRA_SWARMER') {
-                    shapesToRemove.add(gridObject.index);
-                }
-                if (typeData.specialAbility === 'corrupt_touch') {
-                    state.corruptionEffectTimer = Math.max(state.corruptionEffectTimer, 5.0);
-                }
-
-                if (state.playerShield <= 0 && state.currentGameState === GameState.Playing) {
-                    gameOver();
-                    return;
-                }
+                if (enemyData.type === 'TETRA_SWARMER') shapesToRemove.add(gridObject.index);
+                if (typeData.specialAbility === 'corrupt_touch') state.corruptionEffectTimer = Math.max(state.corruptionEffectTimer, 5.0);
+                if (state.playerShield <= 0 && state.currentGameState === GameState.Playing) { gameOver(); return; }
             }
         }
 
-        // B. Player vs. Pickups (This logic remains the same)
-        else if (gridObject.dataFragment && !dataFragmentsToRemove.has(gridObject.index) && state.player.position.distanceTo(gridObject.dataFragment.mesh.position) < state.xpCollectionRadius) {
+        // B. Player vs. Enemy Projectile
+        else if (gridObject.projectile && gridObject.projectile.isEnemyProjectile && !projectilesToRemove.has(gridObject.index)) {
+            const enemyProjCollisionThreshold = CONSTANTS.PLAYER_RADIUS + (gridObject.projectile.radius || CONSTANTS.PROJECTILE_RADIUS);
+            if (state.player.position.distanceToSquared(gridObject.projectile.mesh.position) < enemyProjCollisionThreshold * enemyProjCollisionThreshold) {
+                state.playerShield -= gridObject.projectile.damage;
+                playSoundSynth('player_hit', 0.6);
+                projectilesToRemove.add(gridObject.index);
+                if (state.playerShield <= 0 && state.currentGameState === GameState.Playing) { gameOver(); return; }
+            }
+        }
+
+        // C. Player vs. Pickups
+        else if (gridObject.dataFragment && !dataFragmentsToRemove.has(gridObject.index) && state.player.position.distanceToSquared(gridObject.dataFragment.mesh.position) < state.xpCollectionRadius * state.xpCollectionRadius) {
             dataFragmentsToRemove.add(gridObject.index);
             collectXP(gridObject.dataFragment.xpValue);
-            playSoundSynth('pickup_xp', 0.2, { pitch: 880 + Math.random() * 200 });
-        } else if (gridObject.megaDataFragment && !megaDataFragmentsToRemove.has(gridObject.index) && state.player.position.distanceTo(gridObject.megaDataFragment.mesh.position) < state.xpCollectionRadius) {
+        } else if (gridObject.megaDataFragment && !megaDataFragmentsToRemove.has(gridObject.index) && state.player.position.distanceToSquared(gridObject.megaDataFragment.mesh.position) < state.xpCollectionRadius * state.xpCollectionRadius) {
             megaDataFragmentsToRemove.add(gridObject.index);
             collectXP(gridObject.megaDataFragment.xpValue);
-            playSoundSynth('pickup_xp', 0.45, { pitch: 330 + Math.random() * 80 });
             createBurstEffect(gridObject.megaDataFragment.mesh.position, 35, 0xFF8C00, 4.5, 0.6);
-        } else if (gridObject.geometricCache && state.player.position.distanceTo(gridObject.geometricCache.mesh.position) < CONSTANTS.PICKUP_COLLECTION_RADIUS + CONSTANTS.CACHE_RADIUS) {
+        } else if (gridObject.geometricCache && state.player.position.distanceToSquared(gridObject.geometricCache.mesh.position) < Math.pow(CONSTANTS.PICKUP_COLLECTION_RADIUS + CONSTANTS.CACHE_RADIUS, 2)) {
             openGeometricCache(gridObject.geometricCache.mesh);
-        } else if (gridObject.repairNode && !repairNodesToRemove.has(gridObject.index) && state.player.position.distanceTo(gridObject.repairNode.mesh.position) < CONSTANTS.PICKUP_COLLECTION_RADIUS) {
+        } else if (gridObject.repairNode && !repairNodesToRemove.has(gridObject.index) && state.player.position.distanceToSquared(gridObject.repairNode.mesh.position) < CONSTANTS.PICKUP_COLLECTION_RADIUS * CONSTANTS.PICKUP_COLLECTION_RADIUS) {
             repairNodesToRemove.add(gridObject.index);
             state.playerShield = Math.min(state.MAX_PLAYER_SHIELD, state.playerShield + gridObject.repairNode.shieldValue);
-            playSoundSynth('pickup_health', 0.5);
-        } else if (gridObject.energyCore && !energyCoresToRemove.has(gridObject.index) && state.player.position.distanceTo(gridObject.energyCore.mesh.position) < CONSTANTS.PICKUP_COLLECTION_RADIUS) {
+        } else if (gridObject.energyCore && !energyCoresToRemove.has(gridObject.index) && state.player.position.distanceToSquared(gridObject.energyCore.mesh.position) < CONSTANTS.PICKUP_COLLECTION_RADIUS * CONSTANTS.PICKUP_COLLECTION_RADIUS) {
             energyCoresToRemove.add(gridObject.index);
             collectXP(gridObject.energyCore.xpValue);
-            playSoundSynth('pickup_xp', 0.25, { pitch: 660 + Math.random() * 150 });
         }
     }
 
-    // --- 4. PROCESS REMOVALS ---
+    // --- 4. PROCESS ALL REMOVALS AT THE END OF THE FRAME ---
     if (shapesToRemove.size > 0) {
         const sortedIndices = Array.from(shapesToRemove).sort((a, b) => b - a);
         for (const index of sortedIndices) {
             const enemy = state.shapes[index];
             if (enemy) {
-                const typeData = ENEMY_TYPES[enemy.type] || {};
-                const deathColor = new THREE.Color(typeData.color || 0xffffff).getHex();
-                createBurstEffect(enemy.position, 15, deathColor, 3, 0.4);
                 returnEnemyToPool(enemy);
                 state.shapes.splice(index, 1);
             }
