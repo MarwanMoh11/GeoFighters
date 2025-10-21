@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="524ebcd6-9740-4e55-8050-730dc68fef7d" name="Changes" comment="Undo easy mode">
+    <list default="true" id="524ebcd6-9740-4e55-8050-730dc68fef7d" name="Changes" comment="easy mode">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -97,7 +97,8 @@
       <workItem from="1760862598864" duration="2364000" />
       <workItem from="1760944334482" duration="7028000" />
       <workItem from="1760957551009" duration="3085000" />
-      <workItem from="1760971032374" duration="3670000" />
+      <workItem from="1760971032374" duration="3944000" />
+      <workItem from="1760991560371" duration="6000" />
     </task>
     <task id="LOCAL-00001" summary="attempting addition of tetra">
       <option name="closed" value="true" />
@@ -259,7 +260,23 @@
       <option name="project" value="LOCAL" />
       <updated>1760973888947</updated>
     </task>
-    <option name="localTasksCounter" value="21" />
+    <task id="LOCAL-00021" summary="fixed cleaning">
+      <option name="closed" value="true" />
+      <created>1760974883434</created>
+      <option name="number" value="00021" />
+      <option name="presentableId" value="LOCAL-00021" />
+      <option name="project" value="LOCAL" />
+      <updated>1760974883434</updated>
+    </task>
+    <task id="LOCAL-00022" summary="easy mode">
+      <option name="closed" value="true" />
+      <created>1760974899143</created>
+      <option name="number" value="00022" />
+      <option name="presentableId" value="LOCAL-00022" />
+      <option name="project" value="LOCAL" />
+      <updated>1760974899143</updated>
+    </task>
+    <option name="localTasksCounter" value="23" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -277,6 +294,8 @@
     <MESSAGE value="Optimization" />
     <MESSAGE value="Easy mode for Noor" />
     <MESSAGE value="Undo easy mode" />
-    <option name="LAST_COMMIT_MESSAGE" value="Undo easy mode" />
+    <MESSAGE value="fixed cleaning" />
+    <MESSAGE value="easy mode" />
+    <option name="LAST_COMMIT_MESSAGE" value="easy mode" />
   </component>
 </project>

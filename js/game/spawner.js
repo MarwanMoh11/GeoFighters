@@ -225,10 +225,14 @@ function spawnHordeWave() {
 // =================================================================================
 
 function handleBossWave(deltaTime) {
-    const bossExists = state.shapes.some(s => s.userData?.type === 'BOSS_OCTA_PRIME' && s.parent);
+    // We now check for the 'type' property directly on the data object in state.shapes
+    const bossExists = state.shapes.some(s => s.type === 'BOSS_OCTA_PRIME');
+
     if (!bossExists) {
         spawnEnemyByType('BOSS_OCTA_PRIME');
     }
+
+    // ... rest of the function is the same ...
     state.pickupSpawnTimer += deltaTime;
     if (state.pickupSpawnTimer > 12) {
         state.pickupSpawnTimer = 0;
