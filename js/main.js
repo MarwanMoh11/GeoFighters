@@ -18,7 +18,7 @@ function init() {
 
     initializePools();
     initializeDamageNumberPool();
-
+    resetDamageNumberCounter();
 
     setupEventListeners();
     bindUIEvents();

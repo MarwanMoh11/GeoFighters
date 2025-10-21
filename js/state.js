@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-
+import { ENEMY_TYPES } from './config/enemies.js';
 // Game States Enum
 export const GameState = { MainMenu: 'MainMenu', LevelSelect: 'LevelSelect', UpgradeMenu: 'UpgradeMenu', Playing: 'Playing', Paused: 'Paused', LevelUp: 'LevelUp', Settings: 'Settings', GameOver: 'GameOver', Win: 'Win', EvolutionBook: 'EvolutionBook' };
 
@@ -118,6 +118,11 @@ export let state = {
     nextBossTime: 300,
 };
 
+// In src/state.js
+// REPLACE your entire resetGameState function with this one.
+
+// REPLACE your entire existing resetGameState function with this one.
+
 export function resetGameState() {
     // Core Gameplay State
     state.gameTime = 0;
@@ -127,18 +132,10 @@ export function resetGameState() {
     // Player Stats
     state.playerLevel = 1;
     state.currentXP = 0;
-    state.xpToNextLevel = 60; // Or your initial value
-    state.playerShield = state.MAX_PLAYER_SHIELD; // Start with full shield
+    state.xpToNextLevel = 60;
+    state.playerShield = state.MAX_PLAYER_SHIELD;
 
     // Clear dynamic arrays
-    // We need to be careful here to not just clear the array, but also remove objects from the scene
-    // and return them to pools. This will be handled by a separate "cleanup" function.
-    state.shapes.forEach(shape => {
-        // A simple removal for now. A full cleanup would return to pool.
-        if (shape.parent) state.scene.remove(shape);
-    });
-
-    // Reset arrays to be empty
     state.shapes = [];
     state.projectiles = [];
     state.dataFragments = [];
@@ -148,10 +145,9 @@ export function resetGameState() {
     state.energyCores = [];
     state.effectsToUpdate = [];
 
-    // --- THE FIX FOR YOUR HORDE PROBLEM ---
     // Reset Spawner State
     state.spawnerState = 'CALM';
-    state.hordeTimer = 5; // Give player 5 seconds before first wave starts
+    state.hordeTimer = 5;
     state.hordeIndex = 0;
     state.currentHordeEnemyType = null;
     state.isBossWave = false;
@@ -164,11 +160,29 @@ export function resetGameState() {
         state.player.position.set(0, CONSTANTS.PLAYER_HEIGHT / 2, 0);
     }
 
+    // --- THE COMPLETE AND CORRECT GHOST-BUSTING FIX ---
     for (const typeId in state.instancedMeshes) {
         const instancedMesh = state.instancedMeshes[typeId];
+        const poolName = `pool_${typeId}`;
+        const pool = state.objectPools[poolName];
+        if (!pool) continue;
+
+        // 1. Visually hide all currently drawn instances.
         instancedMesh.count = 0;
-        instancedMesh.instanceMatrix.needsUpdate = true; // Important to commit the change
+
+        // 2. Clear the existing pool of instance IDs.
+        pool.length = 0;
+
+        // 3. CORRECTLY get the total capacity of the InstancedMesh.
+        // The total number of matrices is the length of the array buffer divided by 16 (a 4x4 matrix has 16 floats).
+        const maxInstances = instancedMesh.instanceMatrix.array.length / 16;
+
+        // 4. Refill the pool with ALL available instance IDs, from 0 to MAX.
+        for (let i = 0; i < maxInstances; i++) {
+            pool.push(i);
+        }
     }
+    // --- END OF FIX ---
 
     console.log("Game state has been reset for a new run.");
 }
