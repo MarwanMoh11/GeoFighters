@@ -59,7 +59,7 @@ export const ENEMY_TYPES = {
     BOSS_OCTA_PRIME: {
         name: 'Octa Prime', icon: '💠', geometryType: 'Octahedron', size: [3.0, 0], color: 0xFF1493,
         roughness: 0.3, metalness: 0.4, emissive: 0x8B008B, emissiveIntensity: 0.6, flatShading: false,
-        speed: 6, healthMultiplier: 250.0, xpMultiplier: 100.0, dropsCache: true,
+        speed: 4.5, healthMultiplier: 250.0, xpMultiplier: 100.0, dropsCache: true,
         currencyDrop: 500 + Math.floor(Math.random() * 251), damageMultiplier: 1.1, cost: 500, isBoss: true,
         specialAbility: 'multi_attack',
         attackPatterns: ['PULSE', 'RAPID_FIRE', 'DASH_SLAM', 'SUMMON'],

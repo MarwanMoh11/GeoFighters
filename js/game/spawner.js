@@ -25,6 +25,7 @@ const HORDE_TIMELINE = [
     // === PHASE 3: The Gauntlet (4:30 - 7:00) ===
     // Objective: Combine hordes to test player prioritization.
     { startTime: 275, duration: 65, type: 'SPHERE_SPLITTER',  calmDuration: 20 }, // A full wave of easy enemies. Ends at 5:40.
+    { startTime: 275, duration: 65, type: 'CUBE_CRUSHER',  calmDuration: 20 },
     // ** OVERLAP! ** While dashers are still spawning, swarmers return.
     { startTime: 275, duration: 80, type: 'TETRA_SWARMER', calmDuration: 0, isMiniHorde: true }, // Swarmers create chaos for the dashers.
 

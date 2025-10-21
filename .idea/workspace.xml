@@ -4,9 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="524ebcd6-9740-4e55-8050-730dc68fef7d" name="Changes" comment="easy mode">
-      <change beforePath="$PROJECT_DIR$/js/main.js" beforeDir="false" afterPath="$PROJECT_DIR$/js/main.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/js/state.js" beforeDir="false" afterPath="$PROJECT_DIR$/js/state.js" afterDir="false" />
+    <list default="true" id="524ebcd6-9740-4e55-8050-730dc68fef7d" name="Changes" comment="fixed ghosting">
+      <change beforePath="$PROJECT_DIR$/js/config/enemies.js" beforeDir="false" afterPath="$PROJECT_DIR$/js/config/enemies.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/js/game/spawner.js" beforeDir="false" afterPath="$PROJECT_DIR$/js/game/spawner.js" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -100,7 +100,7 @@
       <workItem from="1760957551009" duration="3085000" />
       <workItem from="1760971032374" duration="3944000" />
       <workItem from="1760991560371" duration="6000" />
-      <workItem from="1761050891182" duration="1245000" />
+      <workItem from="1761050891182" duration="1761000" />
     </task>
     <task id="LOCAL-00001" summary="attempting addition of tetra">
       <option name="closed" value="true" />
@@ -286,7 +286,15 @@
       <option name="project" value="LOCAL" />
       <updated>1761051174778</updated>
     </task>
-    <option name="localTasksCounter" value="24" />
+    <task id="LOCAL-00024" summary="fixed ghosting">
+      <option name="closed" value="true" />
+      <created>1761052802718</created>
+      <option name="number" value="00024" />
+      <option name="presentableId" value="LOCAL-00024" />
+      <option name="project" value="LOCAL" />
+      <updated>1761052802718</updated>
+    </task>
+    <option name="localTasksCounter" value="25" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -306,6 +314,7 @@
     <MESSAGE value="Undo easy mode" />
     <MESSAGE value="fixed cleaning" />
     <MESSAGE value="easy mode" />
-    <option name="LAST_COMMIT_MESSAGE" value="easy mode" />
+    <MESSAGE value="fixed ghosting" />
+    <option name="LAST_COMMIT_MESSAGE" value="fixed ghosting" />
   </component>
 </project>
