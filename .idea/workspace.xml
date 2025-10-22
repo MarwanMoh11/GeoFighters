@@ -4,10 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="524ebcd6-9740-4e55-8050-730dc68fef7d" name="Changes" comment="fixed ghosting">
-      <change beforePath="$PROJECT_DIR$/js/config/enemies.js" beforeDir="false" afterPath="$PROJECT_DIR$/js/config/enemies.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/js/game/spawner.js" beforeDir="false" afterPath="$PROJECT_DIR$/js/game/spawner.js" afterDir="false" />
-    </list>
+    <list default="true" id="524ebcd6-9740-4e55-8050-730dc68fef7d" name="Changes" comment="balanced the boss" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -100,7 +97,7 @@
       <workItem from="1760957551009" duration="3085000" />
       <workItem from="1760971032374" duration="3944000" />
       <workItem from="1760991560371" duration="6000" />
-      <workItem from="1761050891182" duration="1761000" />
+      <workItem from="1761050891182" duration="2893000" />
     </task>
     <task id="LOCAL-00001" summary="attempting addition of tetra">
       <option name="closed" value="true" />
@@ -294,7 +291,15 @@
       <option name="project" value="LOCAL" />
       <updated>1761052802718</updated>
     </task>
-    <option name="localTasksCounter" value="25" />
+    <task id="LOCAL-00025" summary="balanced the boss">
+      <option name="closed" value="true" />
+      <created>1761053848863</created>
+      <option name="number" value="00025" />
+      <option name="presentableId" value="LOCAL-00025" />
+      <option name="project" value="LOCAL" />
+      <updated>1761053848863</updated>
+    </task>
+    <option name="localTasksCounter" value="26" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -315,6 +320,7 @@
     <MESSAGE value="fixed cleaning" />
     <MESSAGE value="easy mode" />
     <MESSAGE value="fixed ghosting" />
-    <option name="LAST_COMMIT_MESSAGE" value="fixed ghosting" />
+    <MESSAGE value="balanced the boss" />
+    <option name="LAST_COMMIT_MESSAGE" value="balanced the boss" />
   </component>
 </project>

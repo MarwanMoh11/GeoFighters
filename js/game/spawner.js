@@ -34,7 +34,7 @@ const HORDE_TIMELINE = [
     { startTime: 420, duration: 140, type: 'CYLINDER_CORRUPTER', calmDuration: 25 }, // Introduce area denial. Ends at 8:15.
 
     // === FINAL CLIMAX (before the boss) ===
-    { startTime: 535, duration: 45, type: 'DODECAHEDRON_DRIFTER', calmDuration: 20 }, // The final, tanky drifters. Ends at 9:40.
+    { startTime: 535, duration: 45, type: 'CYLINDER_CORRUPTER', calmDuration: 20 }, // The final, tanky drifters. Ends at 9:40.
     // The game enters a final "Calm" phase from 580s (9:40) to 600s, allowing the player to prepare for the boss.
 ];
 
