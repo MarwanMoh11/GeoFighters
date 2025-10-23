@@ -74,6 +74,15 @@ export function checkCollisions() {
                 if (enemyData.health <= 0) {
                     shapesToRemove.add(enemyIndex);
                     state.score += Math.max(1, Math.floor((enemyData.xpValue || 1) * 0.7));
+                    const typeDataOnDeath = ENEMY_TYPES[enemyData.type];
+
+                    // 2. Check if the enemy type is valid and has a currency drop value.
+                    // This will now work for the boss or any other enemy that should drop cores.
+                    if (typeDataOnDeath?.currencyDrop > 0) {
+                        state.dataCores += typeDataOnDeath.currencyDrop;
+                        // Add a console log for easy debugging confirmation.
+                        console.log(`[REWARD] Awarded ${typeDataOnDeath.currencyDrop} Data Cores for defeating ${enemyData.type}. Total: ${state.dataCores}`);
+                    }
                     if (enemyData.isBoss) winGame();
                     if (enemyData.dropsCache) spawnGeometricCache(enemyData.position);
                     else if (enemyData.type === 'SPHERE_SPLITTER') {
@@ -82,6 +91,7 @@ export function checkCollisions() {
                     } else {
                         spawnDataFragment(enemyData.position, enemyData.xpValue);
                     }
+                    playSoundSynth('enemy_death', 0.4, { isLarge: typeDataOnDeath?.cost >= 5 });
                 }
                 // If the projectile was consumed, stop checking this enemy against other projectiles.
                 if (projectilesConsumedThisFrame.has(pIndex)) break;
@@ -176,6 +186,8 @@ export function checkCollisions() {
             }
         }
     }
+
+
 
     processMeshRemovals(projectilesToRemove, state.projectiles, 'projectiles');
     processMeshRemovals(dataFragmentsToRemove, state.dataFragments, 'dataFragments');

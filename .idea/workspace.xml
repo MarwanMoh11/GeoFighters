@@ -4,7 +4,11 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="524ebcd6-9740-4e55-8050-730dc68fef7d" name="Changes" comment="balanced the boss" />
+    <list default="true" id="524ebcd6-9740-4e55-8050-730dc68fef7d" name="Changes" comment="balanced the boss">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/js/game/collision.js" beforeDir="false" afterPath="$PROJECT_DIR$/js/game/collision.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/js/ui/manager.js" beforeDir="false" afterPath="$PROJECT_DIR$/js/ui/manager.js" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -98,6 +102,8 @@
       <workItem from="1760971032374" duration="3944000" />
       <workItem from="1760991560371" duration="6000" />
       <workItem from="1761050891182" duration="2893000" />
+      <workItem from="1761139556695" duration="442000" />
+      <workItem from="1761211175369" duration="3205000" />
     </task>
     <task id="LOCAL-00001" summary="attempting addition of tetra">
       <option name="closed" value="true" />
@@ -299,7 +305,15 @@
       <option name="project" value="LOCAL" />
       <updated>1761053848863</updated>
     </task>
-    <option name="localTasksCounter" value="26" />
+    <task id="LOCAL-00026" summary="balanced the boss">
+      <option name="closed" value="true" />
+      <created>1761139744489</created>
+      <option name="number" value="00026" />
+      <option name="presentableId" value="LOCAL-00026" />
+      <option name="project" value="LOCAL" />
+      <updated>1761139744489</updated>
+    </task>
+    <option name="localTasksCounter" value="27" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">

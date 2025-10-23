@@ -32,6 +32,35 @@ export function bindUIEvents() {
     ui.fullscreenButton.onclick = toggleFullScreen;
 }
 
+// PASTE THIS NEW FUNCTION into src/ui/manager.js
+
+function setupBossDebugState() {
+    console.warn("--- BOSS TEST DEBUG MODE ACTIVE ---");
+
+    // 1. Give the player powerful, evolved weapons to win the fight.
+    const weapon = WEAPONS.AXIS_BOLTER; // A great single-target weapon for bosses
+    if (weapon) {
+        for (let i = 0; i < weapon.maxLevel; i++) {
+            defaultApplyUpgrade.call(weapon);
+        }
+        if (weapon.synergyItemId) {
+            const item = ITEMS[weapon.synergyItemId];
+            if (item) defaultItemApplyUpgrade.call(item);
+        }
+    }
+
+    // 2. Grant some defensive items.
+    if (ITEMS.SHIELD_REGEN) defaultItemApplyUpgrade.call(ITEMS.SHIELD_REGEN);
+
+    // 3. THE KEY: Make the boss spawn almost immediately.
+    // The boss spawns when gameTime >= nextBossTime.
+    state.nextBossTime = 5; // Spawn boss at the 5-second mark.
+    console.log(`Boss spawn time set to ${state.nextBossTime} seconds.`);
+
+    // 4. Set player level high.
+    state.playerLevel = 50;
+}
+
 // PASTE THIS ENTIRE FUNCTION into src/ui/manager.js
 
 /**
@@ -89,8 +118,8 @@ function setupDebugState() {
 // REPLACE your existing startGame function with this one.
 
 export function startGame(levelId) {
-    // Check for the debug flag in the URL (e.g., "index.html?debug=true")
-    const isDebugMode = new URLSearchParams(window.location.search).has('debug');
+    // Check for the VALUE of the debug flag (e.g., "true", "boss", or null)
+    const debugParam = new URLSearchParams(window.location.search).get('debug');
 
     resetGameState();
     initializeAudio();
@@ -111,14 +140,17 @@ export function startGame(levelId) {
     state.playerItems = [];
     state.gameTime = 0;
     state.isBossWave = false;
-    state.nextBossTime = 600;
+    state.nextBossTime = 600; // Default boss time
 
     // --- DEBUG MODE ACTIVATION ---
-    if (isDebugMode) {
-        setupDebugState(); // This sets up your maxed-out state
+    // This now checks the specific value of the 'debug' parameter
+    if (debugParam === 'true') {
+        setupDebugState(); // This is your "1000 shapes" stress test
+    } else if (debugParam === 'boss') {
+        setupBossDebugState(); // This is the new boss test mode
     } else {
         // --- NORMAL GAME START ---
-        // Clear weapon/item levels from previous runs
+        // This runs if there is no ?debug parameter in the URL
         Object.values(WEAPONS).forEach(w => { w.level = 0; w.isEvolved = false; w.fireTimer = 0; });
         Object.values(ITEMS).forEach(i => { i.level = 0; });
 
