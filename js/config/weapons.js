@@ -63,6 +63,16 @@ function fireGenericProjectile(weapon, options = {}) {
     baseDir.y = 0; // Ensure all projectiles fire horizontally.
     // --- END OF AUTO-AIM LOGIC ---
 
+    if (state.socket) {
+        for (let i = 0; i < count; i++) {
+            const currentAngle = (count === 1) ? 0 : (-spread / 2) + (i / (count - 1)) * spread;
+            const finalDirection = baseDir.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), currentAngle);
+
+            // Tell the server to fire a projectile with this specific direction.
+            state.socket.emit('shoot', { dx: finalDirection.x, dz: finalDirection.z });
+        }
+    }
+
     for (let i = 0; i < count; i++) {
         const currentAngle = (count === 1) ? 0 : (-spread / 2) + (i / (count - 1)) * spread;
         const velocity = baseDir.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), currentAngle).normalize().multiplyScalar(speed);

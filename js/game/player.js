@@ -36,6 +36,11 @@ export function updatePlayer(deltaTime) {
         state.player.position.add(moveVector);
     }
 
+    if (state.socket) {
+        state.socket.emit('playerInput', state.moveState);
+    }
+
+
     // --- 3. AIMING (ROTATION) ---
     // Make the player look towards the aim target.
     // The aimTarget is updated by the `updateAimTarget` function.

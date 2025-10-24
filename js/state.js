@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { ENEMY_TYPES } from './config/enemies.js';
 // Game States Enum
 export const GameState = { MainMenu: 'MainMenu', LevelSelect: 'LevelSelect', UpgradeMenu: 'UpgradeMenu', Playing: 'Playing', Paused: 'Paused', LevelUp: 'LevelUp', Settings: 'Settings', GameOver: 'GameOver', Win: 'Win', EvolutionBook: 'EvolutionBook' };
 
@@ -30,6 +29,7 @@ export let state = {
     frustum: new THREE.Frustum(),
     projScreenMatrix: new THREE.Matrix4(),
     spatialGrid: null,
+    socket: null,
 
     // Core Game Objects
     scene: null,
@@ -109,6 +109,7 @@ export let state = {
     persistentWeaponMeshes: {},
     staticLevelObjects: [],
     backgroundPattern: null,
+    otherPlayers: {},
 
     // XP Consolidation
     accumulatedOffScreenXP: 0,
