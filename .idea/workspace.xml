@@ -4,16 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="524ebcd6-9740-4e55-8050-730dc68fef7d" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/index.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/js/config/weapons.js" beforeDir="false" afterPath="$PROJECT_DIR$/js/config/weapons.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/js/core/sceneUpdates.js" beforeDir="false" afterPath="$PROJECT_DIR$/js/core/sceneUpdates.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/js/game/player.js" beforeDir="false" afterPath="$PROJECT_DIR$/js/game/player.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/js/main.js" beforeDir="false" afterPath="$PROJECT_DIR$/js/main.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server/server.js" beforeDir="false" afterPath="$PROJECT_DIR$/server/server.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/styles.css" beforeDir="false" afterPath="$PROJECT_DIR$/styles.css" afterDir="false" />
-    </list>
+    <list default="true" id="524ebcd6-9740-4e55-8050-730dc68fef7d" name="Changes" comment="added more multiplayer logic" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -119,6 +110,7 @@
       <workItem from="1761555350429" duration="2000" />
       <workItem from="1761741422442" duration="55000" />
       <workItem from="1761741543474" duration="23000" />
+      <workItem from="1762077042535" duration="305000" />
     </task>
     <task id="LOCAL-00001" summary="attempting addition of tetra">
       <option name="closed" value="true" />
@@ -336,7 +328,15 @@
       <option name="project" value="LOCAL" />
       <updated>1761214395800</updated>
     </task>
-    <option name="localTasksCounter" value="28" />
+    <task id="LOCAL-00028" summary="added more multiplayer logic">
+      <option name="closed" value="true" />
+      <created>1762077186349</created>
+      <option name="number" value="00028" />
+      <option name="presentableId" value="LOCAL-00028" />
+      <option name="project" value="LOCAL" />
+      <updated>1762077186349</updated>
+    </task>
+    <option name="localTasksCounter" value="29" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -360,6 +360,7 @@
     <MESSAGE value="balanced the boss" />
     <MESSAGE value="fixed boss drop" />
     <MESSAGE value="Added primitive multiplayer" />
-    <option name="LAST_COMMIT_MESSAGE" value="Added primitive multiplayer" />
+    <MESSAGE value="added more multiplayer logic" />
+    <option name="LAST_COMMIT_MESSAGE" value="added more multiplayer logic" />
   </component>
 </project>
