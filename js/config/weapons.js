@@ -63,6 +63,7 @@ function fireGenericProjectile(weapon, options = {}) {
     baseDir.y = 0; // Ensure all projectiles fire horizontally.
     // --- END OF AUTO-AIM LOGIC ---
 
+    // In multiplayer mode, only send to server, don't create local projectiles
     if (state.socket) {
         for (let i = 0; i < count; i++) {
             const currentAngle = (count === 1) ? 0 : (-spread / 2) + (i / (count - 1)) * spread;
@@ -71,6 +72,7 @@ function fireGenericProjectile(weapon, options = {}) {
             // Tell the server to fire a projectile with this specific direction.
             state.socket.emit('shoot', { dx: finalDirection.x, dz: finalDirection.z });
         }
+        return; // Don't create local projectiles in multiplayer
     }
 
     for (let i = 0; i < count; i++) {
@@ -118,6 +120,18 @@ export const WEAPONS = {
         fireRadialShards: function (weapon) {
             const count = weapon.getProjectileCount();
             const damage = weapon.getDamage();
+            
+            // In multiplayer, send all shots to server
+            if (state.socket) {
+                for (let i = 0; i < count; i++) {
+                    const angle = (i / count) * Math.PI * 2;
+                    const direction = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
+                    state.socket.emit('shoot', { dx: direction.x, dz: direction.z });
+                }
+                return;
+            }
+            
+            // Single player mode - create local projectiles
             const shardGeometry = new THREE.TetrahedronGeometry(CONSTANTS.PROJECTILE_RADIUS * 1.5, 0);
             const shardMaterial = new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x00ffff, emissiveIntensity: 0.6 });
             for (let i = 0; i < count; i++) {
@@ -217,6 +231,18 @@ export const EVOLVED_WEAPONS = {
         fireRadialShards: function (weapon) {
             const count = weapon.getProjectileCount();
             const damage = weapon.getDamage();
+            
+            // In multiplayer, send all shots to server
+            if (state.socket) {
+                for (let i = 0; i < count; i++) {
+                    const angle = (i / count) * Math.PI * 2;
+                    const direction = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
+                    state.socket.emit('shoot', { dx: direction.x, dz: direction.z });
+                }
+                return;
+            }
+            
+            // Single player mode - create local projectiles
             const shardGeometry = new THREE.IcosahedronGeometry(CONSTANTS.PROJECTILE_RADIUS * 1.8, 0);
             const shardMaterial = new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x88ffff, emissiveIntensity: 0.8 });
             for (let i = 0; i < count; i++) {

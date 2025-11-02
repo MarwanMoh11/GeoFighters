@@ -95,7 +95,8 @@ export function updateAimTarget() {
     const autoAimRangeSq = 40 * 40; // 40 units range
 
     state.shapes.forEach(shape => {
-        if (shape?.userData?.health > 0 && shape.parent) {
+        // Check if it's an enemy (has health > 0 and is not a player)
+        if (shape?.health > 0 && !shape.isPlayer) {
             const distanceSq = state.player.position.distanceToSquared(shape.position);
             if (distanceSq < minDistanceSq && distanceSq < autoAimRangeSq) {
                 minDistanceSq = distanceSq;

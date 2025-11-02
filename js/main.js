@@ -1,25 +1,32 @@
-import { state, GameState, CONSTANTS } from './state.js';
-import { initRenderer } from './core/renderer.js';
-import { updatePlaying, applyFrustumCulling } from './core/sceneUpdates.js';
-import { setupEventListeners } from './utils/input.js';
-import { loadGameData } from './utils/saveLoad.js';
-import { initializeAudio } from './utils/audio.js';
-import { bindUIEvents } from './ui/manager.js';
+import {CONSTANTS, GameState, state} from './state.js';
+import {initRenderer} from './core/renderer.js';
+import {applyFrustumCulling, updatePlaying} from './core/sceneUpdates.js';
+import {setupEventListeners} from './utils/input.js';
+import {loadGameData} from './utils/saveLoad.js';
+import {initializeAudio} from './utils/audio.js';
+import {bindUIEvents} from './ui/manager.js';
 import * as THREE from 'three';
 // Make sure this path is correct for your project structure!
 // It might be './systems/spawner.js'
-import { initializePools, initializeDamageNumberPool, resetDamageNumberCounter } from './game/spawner.js';
+import {
+    initializeDamageNumberPool,
+    initializePools,
+    resetDamageNumberCounter,
+    returnEnemyToPool
+} from './game/spawner.js';
+import {ENEMY_TYPES} from './config/enemies.js';
 
 // At the very top of main.js
 const socket = io(); // This line connects your game to the server
 state.socket = socket;
 
-// Add this entire new block of code to main.js
-// This listens for the 'gameStateUpdate' from the server and draws what it sees.
-socket.on('gameStateUpdate', (serverPlayers) => {
+// Enhanced multiplayer synchronization
+socket.on('gameStateUpdate', (data) => {
     if (!state.scene || state.isPaused) return;
 
-    // Loop through all players the server knows about
+    const { players: serverPlayers, gameState: serverGameState } = data;
+
+    // Update other players
     for (const id in serverPlayers) {
         const serverPlayer = serverPlayers[id];
 
@@ -49,12 +56,303 @@ socket.on('gameStateUpdate', (serverPlayers) => {
     for (const id in state.otherPlayers) {
         if (!serverPlayers[id]) {
             console.log(`[-] Player left: ${id}`);
-            state.scene.remove(state.otherPlayers[id].mesh); // If you store meshes directly
-            state.scene.remove(state.otherPlayers[id]); // If you store wrapper objects
+            state.scene.remove(state.otherPlayers[id]);
             delete state.otherPlayers[id];
         }
     }
+
+    // Update multiplayer UI
+    updateMultiplayerUI(serverPlayers);
+
+    // Synchronize game state
+    if (serverGameState) {
+        // Update enemies
+        syncEnemies(serverGameState.enemies);
+        
+        // Update projectiles
+        syncProjectiles(serverGameState.projectiles);
+        
+        // Update data fragments
+        syncDataFragments(serverGameState.dataFragments);
+        
+        // Update game time and other state
+        state.gameTime = serverGameState.gameTime;
+        state.spawnerState = serverGameState.spawnerState;
+        state.hordeTimer = serverGameState.hordeTimer;
+        
+        // Update local player's score from server
+        const localPlayer = serverPlayers[socket.id];
+        if (localPlayer && localPlayer.score !== undefined) {
+            state.score = localPlayer.score;
+        }
+    }
 });
+
+// Listen for projectile creation from server
+socket.on('projectileCreated', (projectileData) => {
+    if (!state.scene) return;
+    
+    // Create projectile mesh
+    const geometry = new THREE.SphereGeometry(projectileData.radius, 8, 6);
+    const material = new THREE.MeshBasicMaterial({ 
+        color: projectileData.isEnemyProjectile ? 0xff0000 : 0x00ff00 
+    });
+    const mesh = new THREE.Mesh(geometry, material);
+    
+    mesh.position.set(projectileData.position.x, projectileData.position.y, projectileData.position.z);
+    state.scene.add(mesh);
+    
+    // Store projectile data
+    const projectile = {
+        id: projectileData.id,
+        mesh: mesh,
+        velocity: new THREE.Vector3(projectileData.velocity.x, projectileData.velocity.y, projectileData.velocity.z),
+        damage: projectileData.damage,
+        radius: projectileData.radius,
+        life: projectileData.life,
+        ownerId: projectileData.ownerId,
+        isEnemyProjectile: projectileData.isEnemyProjectile,
+        hitEnemies: new Set(), // Add missing property for collision detection
+        weaponId: projectileData.weaponId || 'unknown',
+        tags: projectileData.tags || []
+    };
+    
+    state.projectiles.push(projectile);
+});
+
+// Listen for player disconnections
+socket.on('playerDisconnected', (playerId) => {
+    console.log(`[SERVER] Player ${playerId} disconnected`);
+    if (state.otherPlayers[playerId]) {
+        state.scene.remove(state.otherPlayers[playerId]);
+        delete state.otherPlayers[playerId];
+    }
+});
+
+// Connection status monitoring
+socket.on('connect', () => {
+    console.log('[SOCKET] Connected to server');
+    updateMultiplayerUI({}); // Will be updated by gameStateUpdate
+});
+
+socket.on('disconnect', () => {
+    console.log('[SOCKET] Disconnected from server');
+    updateMultiplayerUI({}); // Clear UI
+});
+
+socket.on('connect_error', (error) => {
+    console.error('[SOCKET] Connection error:', error);
+    updateMultiplayerUI({}); // Clear UI
+});
+
+// Helper functions for synchronization
+function syncEnemies(serverEnemies) {
+    // Clear existing enemies and rebuild from server state
+    // This ensures perfect synchronization
+    state.shapes.forEach(enemy => {
+        if (enemy.instanceId !== undefined) {
+            returnEnemyToPool(enemy);
+        }
+    });
+    state.shapes.length = 0;
+    
+    // Add all enemies from server
+    serverEnemies.forEach(serverEnemy => {
+        const localEnemy = {
+            id: serverEnemy.id,
+            type: serverEnemy.type,
+            position: new THREE.Vector3(serverEnemy.position.x, serverEnemy.position.y, serverEnemy.position.z),
+            health: serverEnemy.health,
+            maxHealth: serverEnemy.maxHealth,
+            radius: serverEnemy.radius,
+            speed: serverEnemy.speed,
+            damageMultiplier: serverEnemy.damageMultiplier,
+            spawnTime: serverEnemy.spawnTime,
+            // Preserve AI state from server
+            dashTimer: serverEnemy.dashTimer,
+            isDashing: serverEnemy.isDashing,
+            dashDirection: serverEnemy.dashDirection,
+            dashTimeLeft: serverEnemy.dashTimeLeft,
+            weaveTimer: serverEnemy.weaveTimer,
+            bounceTimer: serverEnemy.bounceTimer,
+            generation: serverEnemy.generation,
+            instanceId: null // Will be assigned by spawnEnemyByType
+        };
+        
+        // Use the original spawning system to create the enemy
+        spawnEnemyFromServer(localEnemy);
+    });
+}
+
+function spawnEnemyFromServer(enemyData) {
+    // This integrates with the existing enemy spawning system
+    const typeData = ENEMY_TYPES[enemyData.type];
+    if (!typeData) return;
+
+    // Get the InstancedMesh and an available index from the pool
+    const instancedMesh = state.instancedMeshes[enemyData.type];
+    const poolName = `pool_${enemyData.type}`;
+    const pool = state.objectPools[poolName];
+
+    if (!instancedMesh || !pool || pool.length === 0) {
+        console.warn(`[MULTIPLAYER_SPAWN_FAIL] Pool empty for ${enemyData.type}`);
+        return;
+    }
+
+    const instanceId = pool.pop();
+    instancedMesh.count = Math.max(instancedMesh.count, instanceId + 1);
+
+    // Set the instance's transform
+    state.dummy.position.copy(enemyData.position);
+    state.dummy.scale.set(1, 1, 1);
+    state.dummy.updateMatrix();
+    instancedMesh.setMatrixAt(instanceId, state.dummy.matrix);
+    instancedMesh.instanceMatrix.needsUpdate = true;
+
+    // Set the instance's color
+    instancedMesh.setColorAt(instanceId, instancedMesh.userData.baseColor);
+    instancedMesh.instanceColor.needsUpdate = true;
+
+    // Link the enemy data to the instance
+    enemyData.instanceId = instanceId;
+    state.shapes.push(enemyData);
+}
+
+function syncProjectiles(serverProjectiles) {
+    // Clear all local projectiles and rebuild from server state
+    // This ensures perfect synchronization
+    state.projectiles.forEach(projectile => {
+        if (projectile.mesh) {
+            state.scene.remove(projectile.mesh);
+        }
+    });
+    state.projectiles.length = 0;
+    
+    // Add all projectiles from server
+    serverProjectiles.forEach(serverProjectile => {
+        const localProjectile = {
+            id: serverProjectile.id,
+            mesh: null,
+            velocity: new THREE.Vector3(serverProjectile.velocity.x, serverProjectile.velocity.y, serverProjectile.velocity.z),
+            damage: serverProjectile.damage,
+            radius: serverProjectile.radius,
+            life: serverProjectile.life,
+            ownerId: serverProjectile.ownerId,
+            isEnemyProjectile: serverProjectile.isEnemyProjectile,
+            hitEnemies: new Set(), // Add missing property for collision detection
+            weaponId: serverProjectile.weaponId || 'unknown',
+            tags: serverProjectile.tags || []
+        };
+        
+        // Create mesh for projectile
+        const geometry = new THREE.SphereGeometry(serverProjectile.radius, 8, 6);
+        const material = new THREE.MeshBasicMaterial({ 
+            color: serverProjectile.isEnemyProjectile ? 0xff0000 : 0x00ff00 
+        });
+        localProjectile.mesh = new THREE.Mesh(geometry, material);
+        localProjectile.mesh.position.set(
+            serverProjectile.position.x,
+            serverProjectile.position.y,
+            serverProjectile.position.z
+        );
+        
+        state.scene.add(localProjectile.mesh);
+        state.projectiles.push(localProjectile);
+    });
+}
+
+function syncDataFragments(serverFragments) {
+    // Remove fragments that no longer exist on server
+    for (let i = state.dataFragments.length - 1; i >= 0; i--) {
+        const localFragment = state.dataFragments[i];
+        const serverFragment = serverFragments.find(f => f.id === localFragment.id);
+        if (!serverFragment) {
+            if (localFragment.mesh) {
+                state.scene.remove(localFragment.mesh);
+            }
+            state.dataFragments.splice(i, 1);
+        }
+    }
+    
+    // Add or update fragments from server
+    serverFragments.forEach(serverFragment => {
+        let localFragment = state.dataFragments.find(f => f.id === serverFragment.id);
+        
+        if (!localFragment) {
+            // Create new fragment
+            localFragment = {
+                id: serverFragment.id,
+                position: new THREE.Vector3(serverFragment.position.x, serverFragment.position.y, serverFragment.position.z),
+                xpValue: serverFragment.xpValue,
+                life: serverFragment.life,
+                mesh: null
+            };
+            
+            // Create mesh
+            const geometry = new THREE.SphereGeometry(0.3, 8, 6);
+            const material = new THREE.MeshBasicMaterial({ color: 0x00ffff });
+            localFragment.mesh = new THREE.Mesh(geometry, material);
+            localFragment.mesh.position.copy(localFragment.position);
+            state.scene.add(localFragment.mesh);
+            
+            state.dataFragments.push(localFragment);
+        } else {
+            // Update existing fragment
+            localFragment.position.set(serverFragment.position.x, serverFragment.position.y, serverFragment.position.z);
+            localFragment.life = serverFragment.life;
+            
+            if (localFragment.mesh) {
+                localFragment.mesh.position.copy(localFragment.position);
+            }
+        }
+    });
+}
+
+
+// Function to send weapon fire events to server
+export function sendWeaponFire(fireData) {
+    if (state.socket) {
+        state.socket.emit('weaponFire', fireData);
+    }
+}
+
+// Multiplayer UI management
+function updateMultiplayerUI(players) {
+    const connectionStatus = document.getElementById('connectionStatus');
+    const playerCountValue = document.getElementById('playerCountValue');
+    const playerList = document.getElementById('playerList');
+    
+    if (!connectionStatus || !playerCountValue || !playerList) return;
+    
+    // Update connection status
+    if (state.socket && state.socket.connected) {
+        connectionStatus.textContent = 'Connected';
+        connectionStatus.className = '';
+    } else {
+        connectionStatus.textContent = 'Disconnected';
+        connectionStatus.className = 'disconnected';
+    }
+    
+    // Update player count
+    playerCountValue.textContent = Object.keys(players).length;
+    
+    // Update player list
+    playerList.innerHTML = '';
+    for (const playerId in players) {
+        const player = players[playerId];
+        const playerItem = document.createElement('div');
+        playerItem.className = 'player-item';
+        
+        if (playerId === socket.id) {
+            playerItem.className += ' self';
+            playerItem.textContent = `You (${Math.floor(player.shield || 100)}) - Score: ${player.score || 0}`;
+        } else {
+            playerItem.textContent = `Player ${playerId.substring(0, 6)} (${Math.floor(player.shield || 100)}) - Score: ${player.score || 0}`;
+        }
+        
+        playerList.appendChild(playerItem);
+    }
+}
 
 function init() {
     state.isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);

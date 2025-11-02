@@ -389,6 +389,9 @@ function updateEnemies(deltaTime) {
 }
 
 function updateProjectiles(deltaTime) {
+    // In multiplayer mode, don't update projectiles locally - server handles this
+    if (state.socket) return;
+    
     for (let i = state.projectiles.length - 1; i >= 0; i--) {
         const p = state.projectiles[i];
         if (!p || !p.mesh) { state.projectiles.splice(i, 1); continue; }

@@ -38,6 +38,52 @@ canvas {
     pointer-events: none;
 }
 
+/* --- Multiplayer UI --- */
+#multiplayerInfo {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: rgba(0, 0, 0, 0.6);
+    padding: 10px;
+    border-radius: 5px;
+    font-size: 14px;
+    z-index: 1;
+    pointer-events: none;
+    min-width: 150px;
+}
+
+#connectionStatus {
+    color: #00ff00;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+#connectionStatus.disconnected {
+    color: #ff0000;
+}
+
+#playerCount {
+    margin-bottom: 5px;
+}
+
+#playerList {
+    font-size: 12px;
+    max-height: 100px;
+    overflow-y: auto;
+}
+
+.player-item {
+    margin: 2px 0;
+    padding: 2px 5px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+}
+
+.player-item.self {
+    background-color: rgba(0, 255, 0, 0.2);
+    font-weight: bold;
+}
+
 #timer {
     position: absolute;
     top: 10px;
