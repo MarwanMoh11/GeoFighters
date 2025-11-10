@@ -1,10 +1,37 @@
+/* --- GOOGLE FONT IMPORT --- */
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&family=Titillium+Web:wght@400;600;700&display=swap');
+
+/* --- CSS VARIABLES (COLORS & FONTS) --- */
+:root {
+    --font-main: 'Titillium Web', sans-serif;
+    --font-mono: 'Roboto Mono', monospace;
+
+    --color-primary: #00ffff; /* Cyan */
+    --color-primary-dark: #008b8b;
+    --color-primary-faded: rgba(0, 255, 255, 0.4);
+
+    --color-secondary: #ff00ff; /* Magenta */
+    --color-accent: #ffd700; /* Gold */
+    --color-success: #00ff88; /* Green */
+    --color-danger: #ff4040; /* Red */
+    --color-text: #ddeeff;
+    --color-text-dim: #80a0c0;
+
+    --color-bg-dark: #030510;
+    --color-bg-ui: rgba(10, 20, 40, 0.85);
+    --color-bg-ui-light: rgba(20, 35, 55, 0.85);
+    --color-border: #3070a0;
+    --color-border-glow: rgba(0, 150, 255, 0.3);
+}
+
+
 /* Basic styling */
 body {
     margin: 0;
     overflow: hidden;
-    background-color: #111;
-    font-family: 'Arial', sans-serif;
-    color: white;
+    background-color: var(--color-bg-dark);
+    font-family: var(--font-main);
+    color: var(--color-text);
     -webkit-user-select: none;
     -ms-user-select: none;
     user-select: none;
@@ -20,68 +47,92 @@ canvas {
     left: 0;
     width: 100%;
     height: 100%;
-    pointer-events: none; /* Default to none, specific UI elements will override */
-    color: #fff;
-    text-shadow: 1px 1px 2px black;
+    pointer-events: none;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
 }
 
-/* --- Game Info UI --- */
-#info {
+/* --- NEW Game Info UI (HUD) --- */
+#hud-top-left {
     position: absolute;
     top: 10px;
     left: 10px;
-    background-color: rgba(0, 0, 0, 0.6);
-    padding: 10px;
-    border-radius: 5px;
+    background: var(--color-bg-ui);
+    padding: 10px 15px;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    backdrop-filter: blur(5px);
+    box-shadow: 0 0 10px var(--color-border-glow);
+    z-index: 1;
+    pointer-events: none;
+    font-family: var(--font-mono);
+    font-size: 15px;
+    line-height: 1.6;
+}
+
+#level-display {
+    display: flex;
+    align-items: center;
+    margin-top: 8px;
+    gap: 10px;
+}
+#levelText {
+    font-family: var(--font-main);
+    font-weight: 700;
     font-size: 16px;
-    z-index: 1;
-    pointer-events: none;
+    color: var(--color-accent);
 }
 
-#timer {
-    position: absolute;
-    top: 10px;
-    left: 50%;
-    transform: translateX(-50%);
-    background-color: rgba(0, 0, 0, 0.6);
-    padding: 8px 15px;
-    border-radius: 5px;
-    font-size: 18px;
-    font-weight: bold;
-    z-index: 1;
-    color: #ffffaa;
-    pointer-events: none;
-}
-
-#xpBar {
-    position: absolute;
-    bottom: 50px;
-    left: 10px;
-    width: 200px;
-    height: 15px;
-    background-color: rgba(0, 0, 0, 0.6);
-    border: 1px solid #555;
+#xpBar, #shieldBar {
+    width: 160px;
+    height: 12px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--color-primary-faded);
     border-radius: 3px;
     overflow: hidden;
     z-index: 1;
-    pointer-events: none;
+}
+#shieldBar {
+    width: 100%; /* Take full width of parent */
+    height: 8px;
+    margin-top: 6px;
+    border-color: rgba(0, 255, 136, 0.4);
 }
 
 #xpBarFill {
     width: 0;
     height: 100%;
-    background-color: #00ffff;
+    background: linear-gradient(90deg, var(--color-primary-dark), var(--color-primary));
+    transition: width 0.2s ease-out;
+}
+#shieldBarFill {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, #008044, var(--color-success));
     transition: width 0.2s ease-out;
 }
 
-#levelText {
+
+#hud-top-center {
     position: absolute;
-    bottom: 70px;
-    left: 10px;
-    font-size: 14px;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
     z-index: 1;
     pointer-events: none;
 }
+#timer {
+    background: var(--color-bg-ui);
+    padding: 8px 20px;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    backdrop-filter: blur(5px);
+    box-shadow: 0 0 10px var(--color-border-glow);
+    font-size: 22px;
+    font-weight: 700;
+    font-family: var(--font-mono);
+    color: var(--color-accent);
+}
+
 /* --- Weapon & Item Indicators --- */
 .indicator-container {
     position: absolute;
@@ -100,132 +151,190 @@ canvas {
     flex-direction: row; /* Display icons horizontally */
     flex-wrap: wrap; /* Allow wrapping if too many */
     justify-content: flex-end; /* Align to the right */
-    gap: 5px;
-    max-width: 300px; /* Limit width */
+    gap: 6px;
+    max-width: 320px; /* Limit width */
 }
 
-.icon-display { /* Common style for weapon and item icons */
-    background-color: rgba(0, 0, 0, 0.7);
-    padding: 5px 8px;
-    border-radius: 4px;
-    font-size: 13px;
+.icon-display {
+    background: var(--color-bg-ui);
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 14px;
     display: flex;
     align-items: center;
-    gap: 4px;
-    border: 1px solid #555;
-    color: #ddd; /* Default color */
+    gap: 5px;
+    border: 1px solid var(--color-border);
+    color: var(--color-text);
+    backdrop-filter: blur(5px);
+    box-shadow: 0 0 8px var(--color-border-glow);
 }
 
-    .icon-display span:first-child { /* Icon */
-        font-size: 15px;
-        min-width: 15px;
-        text-align: center;
-    }
+.icon-display span:first-child { /* Icon */
+    font-size: 16px;
+    min-width: 16px;
+    text-align: center;
+}
 
-    .icon-display span:last-child { /* Level text */
-        white-space: nowrap;
-        font-size: 11px; /* Smaller level text */
-    }
-    /* Style for evolved weapons */
-    .icon-display.evolved {
-        border-color: #ffd700; /* Gold border */
-        color: #ffd700; /* Gold text */
-        box-shadow: 0 0 5px rgba(255, 215, 0, 0.5);
-    }
+.icon-display span:last-child { /* Level text */
+    white-space: nowrap;
+    font-size: 12px;
+    font-family: var(--font-mono);
+    font-weight: 700;
+}
+
+.icon-display.evolved {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+    box-shadow: 0 0 8px rgba(255, 215, 0, 0.7);
+}
 
 .synergy-hint {
-    font-size: 10px;
-    color: #aaffaa;
+    font-size: 11px;
+    color: var(--color-success);
     margin-left: 5px;
 }
+.synergy-hint.needed {
+    color: #ffddaa; /* Yellowish for needed items */
+}
 
-    .synergy-hint.needed {
-        color: #ffddaa; /* Yellowish for needed items */
-    }
-
-/* --- Menu Styles --- */
+/* --- NEW Menu Styles --- */
 .menu-overlay {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.85);
+    background-color: rgba(3, 5, 16, 0.85); /* Darker backdrop */
     flex-direction: column;
     justify-content: center;
     align-items: center;
     z-index: 5;
     pointer-events: auto;
-    display: none; /* pointer-events: auto is crucial */
-    overflow-y: auto; /* For scrolling if content overflows */
+    display: none;
+    overflow-y: auto;
+    opacity: 0;
+    transition: opacity 0.3s ease-out;
 }
+/* Style for when menu is shown */
+.menu-overlay[style*="display: flex;"] {
+    opacity: 1;
+}
+
+/* New subtle grid background for menus */
+.menu-backdrop-grid {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image:
+            linear-gradient(to right, rgba(0, 255, 255, 0.05) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(0, 255, 255, 0.05) 1px, transparent 1px);
+    background-size: 40px 40px;
+    opacity: 0.3;
+    z-index: -1;
+    animation: pan-grid 20s linear infinite;
+}
+@keyframes pan-grid {
+    0% { background-position: 0 0; }
+    100% { background-position: 40px 40px; }
+}
+
 
 .menu-box {
-    background-color: rgba(30, 40, 50, 0.95);
+    background: var(--color-bg-ui);
     padding: 30px 40px;
-    border-radius: 15px;
-    border: 2px solid #80a0c0;
+    border-radius: 12px;
+    border: 2px solid var(--color-border);
     text-align: center;
-    min-width: 300px;
+    min-width: 320px;
     max-width: 90%;
-    box-shadow: 0 0 20px rgba(100, 150, 255, 0.3);
-    margin: 20px; /* Add margin for better spacing on smaller screens */
-    pointer-events: auto; /* Ensure menu box itself allows events */
+    box-shadow: 0 0 20px var(--color-border-glow), inset 0 0 15px rgba(0, 150, 255, 0.1);
+    backdrop-filter: blur(10px);
+    margin: 20px;
+    pointer-events: auto;
+
+    /* Pop-in animation */
+    transform: scale(0.95);
+    opacity: 0;
+    animation: menu-pop-in 0.3s ease-out forwards;
+}
+@keyframes menu-pop-in {
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
 }
 
-    .menu-box h1, .menu-box h2 {
-        margin-top: 0;
-        margin-bottom: 25px;
-        color: #ddeeff;
-        font-family: 'Courier New', Courier, monospace;
-    }
 
-    .menu-box button, .level-button {
-        display: block;
-        width: 100%;
-        padding: 12px 20px;
-        font-size: 18px;
-        margin-top: 15px;
-        cursor: pointer;
-        background: linear-gradient(to bottom, #5a7a9a, #4a6a8a);
-        color: #fff;
-        border: 1px solid #90b0d0;
-        border-radius: 8px;
-        transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
-        text-shadow: 1px 1px 1px rgba(0,0,0,0.5);
-        pointer-events: auto !important; /* Ensure buttons are clickable */
-    }
+.menu-box h1, .menu-box h2 {
+    margin-top: 0;
+    margin-bottom: 25px;
+    color: var(--color-text);
+    font-family: var(--font-main);
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+.menu-box h1 {
+    font-size: 32px;
+    color: var(--color-primary);
+    text-shadow: 0 0 10px var(--color-primary-faded);
+}
 
-        .menu-box button:hover, .level-button:hover:not(:disabled) {
-            background: linear-gradient(to bottom, #6a8aac, #5a7a9a);
-            transform: scale(1.02);
-            box-shadow: 0 0 10px rgba(150, 200, 255, 0.5);
-        }
+.menu-box button, .level-button {
+    display: block;
+    width: 100%;
+    padding: 14px 22px;
+    font-size: 18px;
+    margin-top: 15px;
+    cursor: pointer;
+    background: rgba(0, 100, 150, 0.5);
+    color: var(--color-text);
+    border: 2px solid #00aaff;
+    border-radius: 8px;
+    transition: all 0.2s ease-out;
+    text-shadow: 1px 1px 1px rgba(0,0,0,0.5);
+    pointer-events: auto !important;
+    font-family: var(--font-main);
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
 
-        .menu-box button:active, .level-button:active:not(:disabled) {
-            transform: scale(0.98);
-            box-shadow: 0 0 5px rgba(150, 200, 255, 0.3);
-        }
+.menu-box button:hover:not(:disabled), .level-button:hover:not(:disabled) {
+    background: rgba(0, 150, 200, 0.9);
+    box-shadow: 0 0 15px rgba(0, 200, 255, 0.7);
+    transform: scale(1.03);
+    color: #fff;
+}
 
-        .level-button:disabled {
-            background: linear-gradient(to bottom, #3a4a5a, #2a3a4a);
-            color: #777;
-            cursor: not-allowed;
-            border-color: #506070;
-        }
+.menu-box button:active:not(:disabled), .level-button:active:not(:disabled) {
+    transform: scale(0.98);
+    box-shadow: 0 0 5px rgba(0, 200, 255, 0.5);
+    background: rgba(0, 120, 180, 0.9);
+}
+
+.level-button:disabled, .menu-box button:disabled {
+    background: rgba(50, 60, 70, 0.5);
+    color: #777;
+    cursor: not-allowed;
+    border-color: #506070;
+    box-shadow: none;
+}
 
 .settings-content {
     text-align: left;
     margin-bottom: 20px;
-    line-height: 1.6;
+    line-height: 1.7;
     font-size: 16px;
     max-width: 400px;
-    color: #c0d0e0;
+    color: var(--color-text-dim);
 }
-
-    .settings-content strong {
-        color: #aaddff;
-    }
+.settings-content strong {
+    color: var(--color-text);
+    font-weight: 600;
+}
 
 
 /* Style for Upgrade Menu */
@@ -238,328 +347,65 @@ canvas {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background-color: rgba(50, 60, 70, 0.8);
-    padding: 8px 12px;
-    margin-bottom: 8px;
-    border-radius: 5px;
-    border: 1px solid #708090;
+    background-color: var(--color-bg-ui-light);
+    padding: 10px 14px;
+    margin-bottom: 10px;
+    border-radius: 6px;
+    border: 1px solid var(--color-border);
     text-align: left;
-    font-size: 14px;
+    font-size: 15px;
 }
-
-    .upgrade-stat-entry span {
-        color: #c0d0e0;
-    }
-
-        .upgrade-stat-entry span strong { /* Cost */
-            color: #ffffaa;
-        }
-
-    .upgrade-stat-entry button {
-        padding: 5px 10px;
-        font-size: 13px;
-        margin-left: 15px;
-        min-width: 70px;
-        margin-top: 0; /* Override default margin */
-        pointer-events: auto !important;
-    }
-
-        .upgrade-stat-entry button:disabled {
-            background: #444;
-            cursor: not-allowed;
-            color: #888;
-            border-color: #555;
-        }
+.upgrade-stat-entry span {
+    color: var(--color-text-dim);
+}
+.upgrade-stat-entry span:first-child {
+    color: var(--color-text);
+    font-weight: 600;
+}
+.upgrade-stat-entry span strong { /* Cost */
+    color: var(--color-accent);
+    font-family: var(--font-mono);
+}
+.upgrade-stat-entry button {
+    padding: 6px 12px;
+    font-size: 13px;
+    margin-left: 15px;
+    min-width: 80px;
+    margin-top: 0;
+    pointer-events: auto !important;
+    border-width: 1px;
+}
 
 #currencyDisplay {
-    font-size: 16px;
-    color: #ffffaa;
+    font-size: 18px;
+    color: var(--color-accent);
     margin-bottom: 20px;
-    font-weight: bold;
+    font-weight: 700;
+    font-family: var(--font-mono);
 }
 
-/* Style for Damage Numbers */
+/* --- Damage Numbers --- */
 .damage-number {
     position: absolute;
-    font-size: 14px; /* Adjust size as needed */
-    font-weight: bold;
-    color: white;
-    text-shadow: 1px 1px 2px black;
-    pointer-events: none;
-    user-select: none;
-    z-index: 10; /* Above game elements */
-    transition: transform 0.5s ease-out, opacity 0.5s ease-out;
-    opacity: 1;
-}
-
-    .damage-number.critical {
-        color: #ffdd00; /* Yellow for critical? */
-        font-size: 16px;
-        font-weight: bolder;
-    }
-
-/* --- Popup Styles --- */
-.popup-overlay { /* This is for game over, win, level up screens */
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    padding: 30px 40px;
-    border-radius: 15px;
-    font-size: 38px;
-    text-align: center;
-    display: none;
-    z-index: 10;
-    color: #fff;
-    text-shadow: 2px 2px 4px black;
-    pointer-events: auto;
-    min-width: 300px;
-    max-width: 90%;
-}
-
-#gameOver {
-    background-color: rgba(100, 0, 0, 0.9);
-    border: 2px solid #ffaaaa;
-    box-shadow: 0 0 25px rgba(255, 50, 50, 0.4);
-}
-
-#winScreen {
-    background-color: rgba(0, 100, 50, 0.9);
-    border: 2px solid #aaffaa;
-    box-shadow: 0 0 25px rgba(50, 255, 50, 0.4);
-    font-size: 32px;
-}
-
-#levelUpScreen { /* This is also a .popup-overlay, so pointer-events: auto is inherited */
-    background-color: rgba(0, 50, 100, 0.95);
-    border-color: #aaaaff;
-    font-size: 20px;
-    z-index: 9;
-    max-height: 80vh;
-    overflow-y: auto;
-    scrollbar-width: thin;
-    scrollbar-color: #77aaff #336699;
-    box-shadow: 0 0 25px rgba(100, 150, 255, 0.4);
-}
-
-    #levelUpScreen::-webkit-scrollbar {
-        width: 8px;
-    }
-
-    #levelUpScreen::-webkit-scrollbar-track {
-        background: #336699;
-        border-radius: 4px;
-    }
-
-    #levelUpScreen::-webkit-scrollbar-thumb {
-        background-color: #77aaff;
-        border-radius: 4px;
-    }
-
-    #levelUpScreen h2 {
-        margin-top: 0;
-        margin-bottom: 20px;
-        color: #ffffaa;
-        font-size: 28px;
-        font-family: 'Courier New', Courier, monospace;
-    }
-
-    #levelUpScreen .upgrade-option {
-        margin-top: 10px;
-        text-align: left;
-    }
-
-    #levelUpScreen button { /* Buttons inside level up screen */
-        display: block;
-        width: 100%;
-        padding: 10px 15px;
-        font-size: 16px;
-        cursor: pointer;
-        background: linear-gradient(to bottom, #4477aa, #336699);
-        color: #fff;
-        border: 1px solid #88bbff;
-        border-radius: 5px;
-        text-align: left;
-        transition: background 0.2s, box-shadow 0.2s;
-        margin-bottom: 3px;
-        text-shadow: 1px 1px 1px rgba(0,0,0,0.4);
-        pointer-events: auto !important; /* Explicitly ensure clickable */
-    }
-
-        #levelUpScreen button:hover {
-            background: linear-gradient(to bottom, #5599cc, #4488bb);
-            box-shadow: 0 0 8px rgba(150, 200, 255, 0.4);
-        }
-
-.upgrade-description {
-    font-size: 13px;
-    color: #bbddff;
-    padding-left: 15px;
-    margin-top: 0;
-}
-
-#gameOver button, #winScreen button { /* Buttons inside game over / win screens */
-    padding: 12px 25px;
-    font-size: 20px;
-    margin-top: 20px;
-    cursor: pointer;
-    background: linear-gradient(to bottom, #ccc, #aaa);
-    color: #222;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    transition: background 0.2s, transform 0.1s;
-    text-shadow: 1px 1px 1px rgba(255,255,255,0.3);
-    pointer-events: auto !important; /* Explicitly ensure clickable */
-}
-
-    #gameOver button:hover, #winScreen button:hover {
-        background: linear-gradient(to bottom, #ddd, #bbb);
-        transform: scale(1.02);
-    }
-
-    #gameOver button:active, #winScreen button:active {
-        transform: scale(0.98);
-    }
-
-#cacheRewardPopup {
-    position: absolute;
-    bottom: 15%;
-    left: 50%;
-    transform: translateX(-50%);
-    background-color: rgba(50, 100, 50, 0.95);
-    padding: 15px 25px;
-    border-radius: 8px;
-    border: 2px solid #aaffaa;
-    z-index: 8;
-    display: none;
-    text-align: center;
-    pointer-events: none; /* This is a display popup, not interactive */
-    transition: opacity 0.5s ease-out;
-    box-shadow: 0 0 15px rgba(100, 255, 100, 0.4);
-}
-
-    #cacheRewardPopup h3 {
-        margin-top: 0;
-        margin-bottom: 10px;
-        font-size: 18px;
-        color: #ffffcc;
-        font-family: 'Courier New', Courier, monospace;
-    }
-
-    #cacheRewardPopup .reward-item {
-        display: inline-block;
-        margin: 0 10px;
-        font-size: 24px;
-    }
-
-/* Evolution Book */
-#evolutionBookMenu .menu-box {
-    max-height: 80vh;
-    overflow-y: auto;
-}
-
-.evolution-entry {
-    background-color: rgba(50, 60, 70, 0.8);
-    padding: 10px;
-    margin-bottom: 10px;
-    border-radius: 5px;
-    border: 1px solid #708090;
-    text-align: left;
-    font-size: 14px;
-}
-
-    .evolution-entry strong {
-        color: #ffffaa;
-    }
-
-    .evolution-entry .weapon-name {
-        color: #aaddff;
-    }
-
-    .evolution-entry .item-name {
-        color: #aaffaa;
-    }
-
-    .evolution-entry .evolved-name {
-        color: #ffd700;
-        font-weight: bold;
-    }
-
-#joystick-area {
-    position: fixed; /* Use 'fixed' to overlay on the canvas anywhere on the screen */
-    border-radius: 50%;
-    pointer-events: none; /* The area itself doesn't need to capture events */
-    z-index: 1000;
-
-    /* 1. Hide the joystick by default */
-    opacity: 0;
-
-    /* 2. This is the centering trick. JS sets left/top to the touch point,
-       and this transform moves the div so its CENTER is at that point. */
-    transform: translate(-50%, -50%);
-
-    transition: opacity 0.15s ease-out; /* Smooth fade-out */
-
-    /* Visual styling for the joystick area */
-    background: radial-gradient(circle, rgba(20, 35, 55, 0.2) 0%, rgba(20, 35, 55, 0.1) 70%, transparent 100%);
-    border: 2px solid rgba(140, 180, 230, 0.15);
-
-    /* Performance hint for the browser */
-    will-change: opacity, left, top;
-}
-
-/* This class is added by JS to make the joystick visible */
-#joystick-area.active {
-    opacity: 1;
-    transition: opacity 0.05s ease-in; /* Appear faster than it fades */
-}
-
-#joystick-knob {
-    position: absolute;
-    border-radius: 50%;
-    pointer-events: none;
-
-    /* Visual styling for the knob */
-    background: radial-gradient(circle, rgba(200, 220, 255, 0.8) 0%, rgba(150, 180, 220, 0.7) 100%);
-    border: 1px solid rgba(220, 240, 255, 0.5);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.3);
-
-    /* 3. The JS will now control the knob's movement ONLY with the transform property.
-       This is very smooth and performant. */
-    transform: translate(0, 0);
-
-    /* We don't want a CSS transition on the transform, as JS updates it every frame.
-       A transition here would make it feel laggy. */
-    will-change: transform;
-}
-
-/* Ensure aim joystick area is always hidden */
-#aim-joystick-area {
-    display: none !important;
-}
-
-/*
-  --- DAMAGE NUMBER ANIMATION ---
-  This is the required animation for the pooled damage numbers.
-*/
-.damage-number {
-    position: absolute; /* Handled by JS */
+    font-family: var(--font-main);
     font-size: 16px;
-    font-weight: bold;
+    font-weight: 700;
     color: white;
     text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
     pointer-events: none;
+    user-select: none;
     z-index: 10;
+    transition: transform 0.5s ease-out, opacity 0.5s ease-out;
+    opacity: 1;
     transform-origin: bottom;
-    /* JS will trigger the animation */
 }
-
 .damage-number.critical {
-    color: #ffd700;
+    color: var(--color-accent);
     font-size: 20px;
+    font-weight: 700;
     transform: scale(1.1);
 }
-
+/* Animation for pooled numbers */
 @keyframes damage-anim {
     0% {
         transform: translateY(0) scale(1);
@@ -572,209 +418,351 @@ canvas {
 }
 
 
-#fullscreen-button { /* No change needed here based on joystick type */
+/* --- Popup Styles --- */
+.popup-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 10;
+    display: none;
+    pointer-events: auto;
+    /* Apply menu-box styling */
+    background: var(--color-bg-ui);
+    padding: 30px 40px;
+    border-radius: 12px;
+    text-align: center;
+    min-width: 320px;
+    max-width: 90%;
+    backdrop-filter: blur(10px);
+    margin: 20px;
+    font-family: var(--font-main);
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--color-text);
+    font-size: 24px;
+}
+
+#gameOver {
+    border: 2px solid var(--color-danger);
+    box-shadow: 0 0 25px rgba(255, 64, 64, 0.6), inset 0 0 15px rgba(255, 64, 64, 0.2);
+}
+#winScreen {
+    border: 2px solid var(--color-success);
+    box-shadow: 0 0 25px rgba(0, 255, 136, 0.6), inset 0 0 15px rgba(0, 255, 136, 0.2);
+    font-size: 28px;
+}
+
+#levelUpScreen {
+    border: 2px solid var(--color-primary);
+    box-shadow: 0 0 25px var(--color-primary-faded), inset 0 0 15px rgba(0, 255, 255, 0.1);
+    font-size: 20px;
+    z-index: 9;
+    max-height: 80vh;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-primary-faded) var(--color-border);
+}
+#levelUpScreen::-webkit-scrollbar { width: 8px; }
+#levelUpScreen::-webkit-scrollbar-track { background: var(--color-border); border-radius: 4px; }
+#levelUpScreen::-webkit-scrollbar-thumb { background-color: var(--color-primary-faded); border-radius: 4px; }
+
+#levelUpScreen h2 {
+    color: var(--color-accent);
+    font-size: 28px;
+}
+#levelUpScreen .upgrade-option {
+    margin-top: 10px;
+    text-align: left;
+}
+/* Buttons inside level up screen */
+#levelUpScreen button {
+    display: block;
+    width: 100%;
+    padding: 12px 18px;
+    font-size: 16px;
+    cursor: pointer;
+    background: var(--color-bg-ui-light);
+    color: var(--color-text);
+    border: 2px solid var(--color-border);
+    border-radius: 8px;
+    text-align: left;
+    transition: all 0.2s ease-out;
+    margin-bottom: 5px;
+    text-shadow: 1px 1px 1px rgba(0,0,0,0.4);
+    pointer-events: auto !important;
+    font-family: var(--font-main);
+    font-weight: 600;
+    text-transform: none; /* Keep upgrade descriptions normal */
+    letter-spacing: 0;
+}
+#levelUpScreen button:hover {
+    background: var(--color-border);
+    border-color: var(--color-primary);
+    box-shadow: 0 0 10px var(--color-primary-faded);
+    transform: scale(1.02);
+}
+
+.upgrade-description {
+    font-size: 14px;
+    color: var(--color-text-dim);
+    padding-left: 15px;
+    margin-top: 4px;
+    font-weight: 400;
+}
+
+/* Buttons inside game over / win screens */
+#gameOver button, #winScreen button {
+    padding: 12px 25px;
+    font-size: 18px;
+    margin-top: 25px;
+    cursor: pointer;
+    background: rgba(180, 200, 220, 0.7);
+    color: var(--color-bg-dark);
+    border: 2px solid #ddeeff;
+    border-radius: 8px;
+    transition: all 0.2s ease-out;
+    text-shadow: none;
+    pointer-events: auto !important;
+    font-family: var(--font-main);
+    font-weight: 700;
+    text-transform: uppercase;
+}
+#gameOver button:hover, #winScreen button:hover {
+    background: #ffffff;
+    transform: scale(1.03);
+    box-shadow: 0 0 15px #fff;
+}
+#gameOver button:active, #winScreen button:active {
+    transform: scale(0.98);
+}
+
+
+#cacheRewardPopup {
+    position: absolute;
+    bottom: 15%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--color-bg-ui);
+    padding: 15px 25px;
+    border-radius: 8px;
+    border: 2px solid var(--color-success);
+    z-index: 8;
+    display: none;
+    text-align: center;
+    pointer-events: none;
+    transition: opacity 0.5s ease-out;
+    box-shadow: 0 0 15px rgba(0, 255, 136, 0.5);
+    backdrop-filter: blur(5px);
+}
+#cacheRewardPopup h3 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 18px;
+    color: var(--color-accent);
+    font-family: var(--font-mono);
+}
+#cacheRewardPopup .reward-item {
+    display: inline-block;
+    margin: 0 10px;
+    font-size: 24px;
+}
+
+/* Evolution Book */
+#evolutionBookMenu .menu-box {
+    max-height: 80vh;
+    overflow-y: auto;
+}
+.evolution-entry {
+    background: var(--color-bg-ui-light);
+    padding: 12px;
+    margin-bottom: 10px;
+    border-radius: 6px;
+    border: 1px solid var(--color-border);
+    text-align: left;
+    font-size: 15px;
+    line-height: 1.5;
+}
+.evolution-entry strong { color: var(--color-text); }
+.evolution-entry .weapon-name { color: var(--color-primary); font-weight: 600; }
+.evolution-entry .item-name { color: var(--color-success); font-weight: 600; }
+.evolution-entry .evolved-name {
+    color: var(--color-accent);
+    font-weight: 700;
+    font-size: 1.1em;
+}
+
+/* --- Joystick --- */
+#joystick-area {
+    position: fixed;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 1000;
+    opacity: 0;
+    transform: translate(-50%, -50%);
+    transition: opacity 0.15s ease-out;
+    background: radial-gradient(circle, rgba(20, 35, 55, 0.2) 0%, rgba(20, 35, 55, 0.1) 70%, transparent 100%);
+    border: 2px solid rgba(140, 180, 230, 0.15);
+    will-change: opacity, left, top;
+}
+#joystick-area.active {
+    opacity: 1;
+    transition: opacity 0.05s ease-in;
+}
+
+#joystick-knob {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+    background: radial-gradient(circle, rgba(200, 220, 255, 0.8) 0%, rgba(150, 180, 220, 0.7) 100%);
+    border: 1px solid rgba(220, 240, 255, 0.5);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.3);
+    transform: translate(0, 0);
+    will-change: transform;
+}
+#aim-joystick-area { display: none !important; }
+
+/* --- Fullscreen Button --- */
+#fullscreen-button {
     position: absolute;
     top: 10px;
     right: 10px;
-    padding: 8px 12px;
-    font-size: 14px;
-    background-color: rgba(0,0,0,0.6);
-    color: white;
-    border: 1px solid #555;
-    border-radius: 5px;
+    padding: 8px 14px;
+    font-size: 15px;
+    font-family: var(--font-main);
+    font-weight: 600;
+    background-color: var(--color-bg-ui);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
     cursor: pointer;
     z-index: 101;
     display: none;
     pointer-events: auto;
+    backdrop-filter: blur(5px);
+    box-shadow: 0 0 10px var(--color-border-glow);
+    transition: all 0.2s ease-out;
+}
+#fullscreen-button:hover {
+    background-color: var(--color-bg-ui-light);
+    border-color: var(--color-primary);
+    color: #fff;
 }
 
 
+/* --- MOBILE & SMALL SCREEN STYLES --- */
 @media (max-width: 768px) {
-    /* General mobile / small screen adjustments */
 
-    /* Top UI Elements */
-    #info {
+    #hud-top-left {
+        padding: 6px 8px;
         font-size: 11px;
-        padding: 4px 6px;
         top: 5px;
         left: 5px;
     }
+    #level-display { gap: 6px; margin-top: 5px; }
+    #levelText { font-size: 12px; }
+    #xpBar { width: 80px; height: 8px; }
+    #shieldBar { width: 100%; height: 6px; margin-top: 4px; }
 
+
+    #hud-top-center { top: 5px; }
     #timer {
-        font-size: 13px;
-        padding: 4px 8px;
-        top: 5px;
+        font-size: 14px;
+        padding: 5px 10px;
     }
 
     #fullscreen-button {
         top: 5px;
         right: 5px;
         padding: 6px 10px;
-        font-size: 12px;
-    }
-
-    /* --- SINGLE JOYSTICK ADJUSTMENTS FOR MOBILE --- */
-    #joystick-area {
-        width: 100px; /* Slightly smaller base for smaller screens */
-        height: 100px;
-        bottom: 15px; /* Adjust bottom position for smaller screens */
-        /* left: 50%; transform: translateX(-50%); is inherited */
-    }
-
-    #joystick-knob {
-        width: 45px; /* Smaller knob for smaller base */
-        height: 45px;
-    }
-
-    /* --- POSITION OTHER UI ELEMENTS AROUND THE SINGLE JOYSTICK --- */
-
-    /* Option 1: XP/Level on left, Indicators on right, above joystick line */
-    #xpBar {
-        bottom: 125px; /* joystick height (100) + bottom gap (15) + desired space (10) */
-        left: 10px;
-        width: 120px; /* Or a percentage like calc(40% - 10px); */
-        max-width: 150px;
-        height: 10px;
-    }
-
-    #levelText {
-        bottom: 140px; /* Above XP bar */
-        left: 10px;
-        font-size: 10px;
-    }
-
-    .indicator-container {
-        bottom: 125px; /* Match XP bar's vertical position */
-        right: 10px;
-        max-width: 120px; /* Or calc(40% - 10px); */
-        gap: 3px;
-    }
-    /* End of Option 1 */
-
-
-    /* Common icon display styles for mobile */
-    .icon-display {
-        padding: 2px 4px;
-        font-size: 9px;
-        gap: 2px;
-        border-width: 1px;
-    }
-
-        .icon-display span:first-child { /* Icon */
-            font-size: 11px;
-            min-width: 11px;
-        }
-
-        .icon-display span:last-child { /* Level text */
-            font-size: 7px;
-        }
-
-
-    /* Menu / Popup Adjustments (no changes needed here for joystick type) */
-    .menu-box {
-        padding: 15px 20px;
-        min-width: 260px;
-        margin: 10px;
-    }
-
-        .menu-box h1 {
-            font-size: 22px;
-            margin-bottom: 15px;
-        }
-
-        .menu-box h2 {
-            font-size: 18px;
-            margin-bottom: 15px;
-        }
-
-        .menu-box button, .level-button {
-            font-size: 15px;
-            padding: 10px 15px;
-            margin-top: 10px;
-        }
-
-    .settings-content {
         font-size: 14px;
     }
 
-    .popup-overlay {
-        font-size: 20px;
-        padding: 15px 20px;
+    #joystick-area { width: 100px; height: 100px; }
+    #joystick-knob { width: 45px; height: 45px; }
+
+    .indicator-container {
+        bottom: 10px;
+        right: 5px;
+        max-width: 130px;
+        gap: 3px;
     }
 
-    #gameOver, #winScreen {
-        font-size: 18px;
-    }
-
-        #gameOver button, #winScreen button {
-            font-size: 15px;
-            padding: 8px 15px;
-        }
-
-    #levelUpScreen {
-        font-size: 16px;
-    }
-
-        #levelUpScreen h2 {
-            font-size: 20px;
-            margin-bottom: 15px;
-        }
-
-        #levelUpScreen button {
-            font-size: 13px;
-            padding: 8px 12px;
-        }
-
-    .upgrade-description {
+    .icon-display {
+        padding: 3px 5px;
         font-size: 10px;
-        padding-left: 10px;
+        gap: 3px;
+        border-width: 1px;
+        border-radius: 4px;
+    }
+    .icon-display span:first-child { font-size: 12px; min-width: 12px; }
+    .icon-display span:last-child { font-size: 9px; }
+
+
+    /* Menus */
+    .menu-box {
+        padding: 20px 20px;
+        min-width: 280px;
+        margin: 10px;
+    }
+    .menu-box h1 { font-size: 24px; margin-bottom: 20px; }
+    .menu-box h2 { font-size: 20px; margin-bottom: 15px; }
+    .menu-box button, .level-button {
+        font-size: 16px;
+        padding: 12px 18px;
+        margin-top: 12px;
     }
 
-    .synergy-hint {
-        font-size: 9px;
+    .settings-content { font-size: 14px; }
+
+    .popup-overlay { font-size: 20px; padding: 20px 20px; }
+    #gameOver, #winScreen { font-size: 22px; }
+    #gameOver button, #winScreen button {
+        font-size: 16px;
+        padding: 10px 18px;
     }
 
+    #levelUpScreen { font-size: 18px; }
+    #levelUpScreen h2 { font-size: 22px; margin-bottom: 15px; }
+    #levelUpScreen button {
+        font-size: 14px;
+        padding: 10px 14px;
+    }
+    .upgrade-description { font-size: 12px; padding-left: 10px; }
+    .synergy-hint { font-size: 10px; }
 
-    /* Specific adjustments for Portrait Orientation */
+
+    /* Portrait Orientation */
     @media (orientation: portrait) {
         #joystick-area {
-            width: 110px; /* Can be slightly larger in portrait */
+            width: 110px;
             height: 110px;
             bottom: 20px;
         }
-
         #joystick-knob {
             width: 50px;
             height: 50px;
         }
 
-        /* Option for Portrait: Center XP/Level and Indicators stack higher */
-        #xpBar {
+        /* Stack HUD above the joystick */
+        #hud-top-left {
+            /* Move from top-left to bottom-center */
+            top: auto;
             bottom: 145px; /* joystick height (110) + bottom gap (20) + desired space (15) */
             left: 50%;
             transform: translateX(-50%);
-            width: 160px; /* Centered bar can be wider */
+            width: 180px;
         }
-
-        #levelText {
-            bottom: 160px; /* Above XP bar */
-            left: 50%;
-            transform: translateX(-50%);
-            width: 160px; /* Match XP bar for text alignment */
-            text-align: center; /* Center text content */
-            font-size: 11px;
-        }
+        #xpBar { width: 100%; } /* Fill parent */
 
         .indicator-container {
-            /* Stack indicators above everything else, centered or to one side */
-            bottom: 180px; /* Highest UI elements */
+            /* Stack above the HUD */
+            bottom: 250px; /* Approx height of hud-top-left + space */
             left: 50%;
             transform: translateX(-50%);
-            align-items: center; /* Center the icons if container is centered */
-            /* Or stick to a side if preferred:
-            /* right: 10px; left: auto; transform: none; align-items: flex-end; */
-            max-width: 200px; /* Allow more width if centered */
+            align-items: center; /* Center the icons */
+            max-width: 200px;
         }
     }
 }
-/* End of @media (max-width: 768px) */

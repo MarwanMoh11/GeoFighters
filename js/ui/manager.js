@@ -337,17 +337,29 @@ function populateEvolutionBook() {
     }
 }
 
+// --- THIS IS THE MODIFIED FUNCTION ---
 export function updateUI() {
+    // Update simple text fields
     ui.shield.textContent = Math.max(0, state.playerShield).toFixed(0);
     ui.score.textContent = state.score;
-    ui.shapeCount.textContent = state.shapes.length;
-    ui.levelText.textContent = `Level: ${state.playerLevel}`;
+    ui.levelText.textContent = state.playerLevel; // Fixed: Just update the number
+
+    // Update XP Bar
     ui.xpBarFill.style.width = `${Math.min(1, state.currentXP / state.xpToNextLevel) * 100}%`;
+
+    // Update new Shield Bar
+    if (ui.shieldBarFill) {
+        const shieldPercent = Math.min(1, Math.max(0, state.playerShield) / state.MAX_PLAYER_SHIELD) * 100;
+        ui.shieldBarFill.style.width = `${shieldPercent}%`;
+    }
+
+    // Update Timer
     const totalSeconds = Math.floor(state.gameTime);
     const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
     const seconds = String(totalSeconds % 60).padStart(2, '0');
     ui.timer.textContent = `${minutes}:${seconds}`;
 }
+// --- END OF MODIFIED FUNCTION ---
 
 export function updateWeaponUI() {
     ui.weaponIndicator.innerHTML = '';
@@ -471,6 +483,7 @@ function presentUpgradeOptions(permanentUpgrades, count = 3) {
         button.innerHTML = description;
         button.onclick = () => selectUpgrade(optionWrapper);
         const descElement = document.createElement('p');
+        descElement.classList.add('upgrade-description');
         descElement.textContent = option.shortDescription || '';
         const optionDiv = document.createElement('div');
         optionDiv.appendChild(button);
