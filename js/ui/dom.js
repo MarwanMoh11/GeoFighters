@@ -2,13 +2,19 @@ export const ui = {
     gameUi: document.getElementById('gameUi'),
     shield: document.getElementById('shield'),
     score: document.getElementById('score'),
-    // shapeCount: document.getElementById('shapeCount'), // Removed from new HUD
     timer: document.getElementById('timer'),
     levelText: document.getElementById('level'),
     xpBarFill: document.getElementById('xpBarFill'),
-    shieldBarFill: document.getElementById('shieldBarFill'), // Added for the new shield bar
-    weaponIndicator: document.getElementById('weaponIndicator'),
-    itemIndicator: document.getElementById('itemIndicator'),
+    shieldBarFill: document.getElementById('shieldBarFill'),
+
+    // New Grid elements
+    weaponGrid: document.getElementById('weapon-grid'),
+    itemGrid: document.getElementById('item-grid'),
+
+    // Old indicators removed
+    // weaponIndicator: document.getElementById('weaponIndicator'),
+    // itemIndicator: document.getElementById('itemIndicator'),
+
     fullscreenButton: document.getElementById('fullscreen-button'),
     damageNumbersContainer: document.getElementById('damage-numbers-container'),
     mainMenu: document.getElementById('mainMenu'),

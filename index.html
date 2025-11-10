@@ -24,25 +24,26 @@
 
     <div id="gameUi" style="display: none;">
 
-        <div id="hud-top-left">
-            <div id="stats">
-                <div>Shield: <span id="shield">100</span></div>
-                <div>Score: <span id="score">0</span></div>
-            </div>
-            <div id="shieldBar"><div id="shieldBarFill"></div></div>
-            <div id="level-display">
-                <div id="levelText">LVL <span id="level">1</span></div>
-                <div id="xpBar"><div id="xpBarFill"></div></div>
-            </div>
-        </div>
-
         <div id="hud-top-center">
             <div id="timer">00:00</div>
         </div>
 
-        <div class="indicator-container">
-            <div id="weaponIndicator"></div>
-            <div id="itemIndicator"></div>
+        <div id="hud-bottom-container">
+            <div id="weapon-grid" class="hud-grid">
+            </div>
+
+            <div id="player-status-container">
+                <div id="level-text-hud">LVL <span id="level">1</span></div>
+                <div id="xpBar"><div id="xpBarFill"></div></div>
+                <div id="shieldBar"><div id="shieldBarFill"></div></div>
+                <div id="stats-text-hud">
+                    <span>Shield: <span id="shield">100</span></span>
+                    <span>Score: <span id="score">0</span></span>
+                </div>
+            </div>
+
+            <div id="item-grid" class="hud-grid">
+            </div>
         </div>
 
         <button id="fullscreen-button">Fullscreen</button>

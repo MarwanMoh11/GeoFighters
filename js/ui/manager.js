@@ -337,12 +337,13 @@ function populateEvolutionBook() {
     }
 }
 
-// --- THIS IS THE MODIFIED FUNCTION ---
+// --- MODIFIED: updateUI ---
+// Updates the new symmetrical HUD elements
 export function updateUI() {
-    // Update simple text fields
+    // Update text fields
     ui.shield.textContent = Math.max(0, state.playerShield).toFixed(0);
     ui.score.textContent = state.score;
-    ui.levelText.textContent = state.playerLevel; // Fixed: Just update the number
+    ui.levelText.textContent = state.playerLevel;
 
     // Update XP Bar
     ui.xpBarFill.style.width = `${Math.min(1, state.currentXP / state.xpToNextLevel) * 100}%`;
@@ -359,31 +360,55 @@ export function updateUI() {
     const seconds = String(totalSeconds % 60).padStart(2, '0');
     ui.timer.textContent = `${minutes}:${seconds}`;
 }
-// --- END OF MODIFIED FUNCTION ---
 
+// --- MODIFIED: updateWeaponUI ---
+// Fills the new weapon grid
 export function updateWeaponUI() {
-    ui.weaponIndicator.innerHTML = '';
-    state.playerWeapons.forEach(weapon => {
-        if (weapon.level > 0) {
-            const iconDiv = document.createElement('div');
-            iconDiv.classList.add('icon-display');
-            if (weapon.isEvolved) iconDiv.classList.add('evolved');
-            iconDiv.innerHTML = `<span>${weapon.icon || '?'}</span> <span>${weapon.isEvolved ? 'EVO' : 'L' + weapon.level}</span>`;
-            ui.weaponIndicator.appendChild(iconDiv);
+    if (!ui.weaponGrid) return;
+    ui.weaponGrid.innerHTML = ''; // Clear existing
+
+    // Create 6 slots
+    for (let i = 0; i < CONSTANTS.MAX_WEAPONS; i++) {
+        const weapon = state.playerWeapons[i];
+        const slot = document.createElement('div');
+        slot.classList.add('grid-slot');
+
+        if (weapon) {
+            slot.classList.add(weapon.isEvolved ? 'evolved' : 'filled');
+            slot.innerHTML = `
+                <span class="slot-icon">${weapon.icon || '?'}</span>
+                <span class="slot-level">${weapon.isEvolved ? 'EVO' : 'L' + weapon.level}</span>
+            `;
+        } else {
+            // Empty slot
         }
-    });
+        ui.weaponGrid.appendChild(slot);
+    }
 }
 
+// --- MODIFIED: updateItemUI ---
+// Fills the new item grid
 export function updateItemUI() {
-    ui.itemIndicator.innerHTML = '';
-    state.playerItems.forEach(item => {
-        if (item.level > 0) {
-            const iconDiv = document.createElement('div');
-            iconDiv.classList.add('icon-display');
-            iconDiv.innerHTML = `<span>${item.icon || '?'}</span> <span>L${item.level}</span>`;
-            ui.itemIndicator.appendChild(iconDiv);
+    if (!ui.itemGrid) return;
+    ui.itemGrid.innerHTML = ''; // Clear existing
+
+    // Create 6 slots
+    for (let i = 0; i < CONSTANTS.MAX_ITEMS; i++) {
+        const item = state.playerItems[i];
+        const slot = document.createElement('div');
+        slot.classList.add('grid-slot');
+
+        if (item) {
+            slot.classList.add('filled');
+            slot.innerHTML = `
+                <span class="slot-icon">${item.icon || '?'}</span>
+                <span class="slot-level">L${item.level}</span>
+            `;
+        } else {
+            // Empty slot
         }
-    });
+        ui.itemGrid.appendChild(slot);
+    }
 }
 
 export function updateJoystickVisibility() {
@@ -458,33 +483,69 @@ function levelUp() {
 }
 
 
-// Change the function signature to accept the list
+// --- MODIFIED: presentUpgradeOptions ---
+// Now includes logic for evolution hints
 function presentUpgradeOptions(permanentUpgrades, count = 3) {
     ui.upgradeOptions.innerHTML = '';
 
-    // --- MODIFICATION START ---
-    // We already have the permanent upgrades.
-    // We just need to add the generic ones back into the pool for selection.
     const allAvailableUpgrades = [...permanentUpgrades];
     Object.values(GENERIC_UPGRADES).forEach(u => allAvailableUpgrades.push({ type: 'generic_upgrade', data: u }));
-    // --- MODIFICATION END ---
 
-    // The rest of the function is the same, but uses `allAvailableUpgrades`
     const optionsToShow = allAvailableUpgrades.sort(() => 0.5 - Math.random()).slice(0, count);
 
     optionsToShow.forEach(optionWrapper => {
         const option = optionWrapper.data;
         const button = document.createElement('button');
         let description;
+        let evolutionHint = ''; // <-- NEW: Evolution hint string
+
+        // --- NEW: Evolution Hint Logic ---
+        try {
+            if (optionWrapper.type.includes('weapon')) {
+                // Check if this weapon can evolve
+                const synergyItem = ITEMS[option.synergyItemId];
+                if (synergyItem) {
+                    const playerHasItem = state.playerItems.some(i => i.id === option.synergyItemId && i.level > 0);
+                    // Check if this upgrade is the *final* level needed
+                    if (option.level === option.maxLevel - 1 && playerHasItem) {
+                        evolutionHint = `<span class="evolution-hint">✨ READY TO EVOLVE!</span>`;
+                    } else if (playerHasItem) {
+                        evolutionHint = `<span class="evolution-hint">(Evolves with ${synergyItem.icon})</span>`;
+                    } else {
+                        evolutionHint = `<span class="evolution-hint-needed">(Needs ${synergyItem.icon} to evolve)</span>`;
+                    }
+                }
+            } else if (optionWrapper.type.includes('item')) {
+                // Check if this item can evolve a weapon
+                const synergyWeapon = WEAPONS[option.synergyWeaponId];
+                if (synergyWeapon) {
+                    const playerHasWeapon = state.playerWeapons.find(w => w.id === option.synergyWeaponId);
+                    if (playerHasWeapon && !playerHasWeapon.isEvolved) {
+                        if (playerHasWeapon.level === playerHasWeapon.maxLevel) {
+                            evolutionHint = `<span class="evolution-hint">✨ READY TO EVOLVE ${synergyWeapon.icon}!</span>`;
+                        } else {
+                            evolutionHint = `<span class="evolution-hint">(Evolves ${synergyWeapon.icon} at Lvl ${synergyWeapon.maxLevel})</span>`;
+                        }
+                    }
+                }
+            }
+        } catch (e) {
+            console.error("Error generating evolution hint:", e, optionWrapper);
+        }
+        // --- END: Evolution Hint Logic ---
+
+
         if(optionWrapper.type.includes('weapon')) description = defaultGetUpgradeDescription.call(option);
         else if(optionWrapper.type.includes('item')) description = defaultItemGetUpgradeDescription.call(option);
         else description = `${option.name} ${option.icon || ''}`;
 
-        button.innerHTML = description;
+        button.innerHTML = description + evolutionHint; // <-- NEW: Append hint
         button.onclick = () => selectUpgrade(optionWrapper);
+
         const descElement = document.createElement('p');
         descElement.classList.add('upgrade-description');
         descElement.textContent = option.shortDescription || '';
+
         const optionDiv = document.createElement('div');
         optionDiv.appendChild(button);
         optionDiv.appendChild(descElement);

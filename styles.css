@@ -22,6 +22,8 @@
     --color-bg-ui-light: rgba(20, 35, 55, 0.85);
     --color-border: #3070a0;
     --color-border-glow: rgba(0, 150, 255, 0.3);
+
+    --grid-slot-size: 52px;
 }
 
 
@@ -52,66 +54,8 @@ canvas {
 }
 
 /* --- NEW Game Info UI (HUD) --- */
-#hud-top-left {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    background: var(--color-bg-ui);
-    padding: 10px 15px;
-    border-radius: 8px;
-    border: 1px solid var(--color-border);
-    backdrop-filter: blur(5px);
-    box-shadow: 0 0 10px var(--color-border-glow);
-    z-index: 1;
-    pointer-events: none;
-    font-family: var(--font-mono);
-    font-size: 15px;
-    line-height: 1.6;
-}
 
-#level-display {
-    display: flex;
-    align-items: center;
-    margin-top: 8px;
-    gap: 10px;
-}
-#levelText {
-    font-family: var(--font-main);
-    font-weight: 700;
-    font-size: 16px;
-    color: var(--color-accent);
-}
-
-#xpBar, #shieldBar {
-    width: 160px;
-    height: 12px;
-    background-color: rgba(255, 255, 255, 0.1);
-    border: 1px solid var(--color-primary-faded);
-    border-radius: 3px;
-    overflow: hidden;
-    z-index: 1;
-}
-#shieldBar {
-    width: 100%; /* Take full width of parent */
-    height: 8px;
-    margin-top: 6px;
-    border-color: rgba(0, 255, 136, 0.4);
-}
-
-#xpBarFill {
-    width: 0;
-    height: 100%;
-    background: linear-gradient(90deg, var(--color-primary-dark), var(--color-primary));
-    transition: width 0.2s ease-out;
-}
-#shieldBarFill {
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, #008044, var(--color-success));
-    transition: width 0.2s ease-out;
-}
-
-
+/* Top Timer */
 #hud-top-center {
     position: absolute;
     top: 10px;
@@ -133,69 +77,159 @@ canvas {
     color: var(--color-accent);
 }
 
-/* --- Weapon & Item Indicators --- */
-.indicator-container {
+/* Bottom Bar */
+#hud-bottom-container {
     position: absolute;
     bottom: 10px;
-    right: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 95%;
+    max-width: 800px;
+
     display: flex;
-    flex-direction: column;
+    justify-content: space-between;
     align-items: flex-end;
-    gap: 8px; /* Space between weapon and item rows */
-    z-index: 1;
+    gap: 15px;
     pointer-events: none;
+    z-index: 2;
 }
 
-#weaponIndicator, #itemIndicator {
-    display: flex;
-    flex-direction: row; /* Display icons horizontally */
-    flex-wrap: wrap; /* Allow wrapping if too many */
-    justify-content: flex-end; /* Align to the right */
-    gap: 6px;
-    max-width: 320px; /* Limit width */
-}
-
-.icon-display {
+/* Center Status Orb */
+#player-status-container {
     background: var(--color-bg-ui);
-    padding: 6px 10px;
-    border-radius: 6px;
-    font-size: 14px;
-    display: flex;
-    align-items: center;
-    gap: 5px;
     border: 1px solid var(--color-border);
-    color: var(--color-text);
     backdrop-filter: blur(5px);
+    box-shadow: 0 0 15px var(--color-border-glow);
+    border-radius: 12px;
+    padding: 10px 15px;
+    text-align: center;
+    width: 220px;
+    flex-shrink: 0;
+}
+
+#level-text-hud {
+    font-family: var(--font-main);
+    font-weight: 700;
+    font-size: 18px;
+    color: var(--color-accent);
+    margin-bottom: 5px;
+}
+#level-text-hud span {
+    font-family: var(--font-mono);
+    font-size: 20px;
+}
+
+#xpBar, #shieldBar {
+    width: 100%;
+    height: 12px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--color-primary-faded);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 5px;
+}
+#shieldBar {
+    height: 10px;
+    border-color: rgba(0, 255, 136, 0.4);
+}
+
+#xpBarFill {
+    width: 0;
+    height: 100%;
+    background: linear-gradient(90deg, var(--color-primary-dark), var(--color-primary));
+    transition: width 0.2s ease-out;
+}
+#shieldBarFill {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, #008044, var(--color-success));
+    transition: width 0.2s ease-out;
+}
+
+#stats-text-hud {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--color-text-dim);
+    margin-top: 8px;
+}
+#stats-text-hud span {
+    color: var(--color-text);
+}
+
+
+/* Weapon/Item Grids */
+.hud-grid {
+    display: grid;
+    grid-template-columns: repeat(3, var(--grid-slot-size));
+    grid-template-rows: repeat(2, var(--grid-slot-size));
+    gap: 6px;
+    width: calc(var(--grid-slot-size) * 3 + 12px); /* 3 slots + 2 gaps */
+    flex-shrink: 0;
+}
+#weapon-grid {
+    justify-content: flex-start;
+}
+#item-grid {
+    justify-content: flex-end;
+}
+
+.grid-slot {
+    width: var(--grid-slot-size);
+    height: var(--grid-slot-size);
+    background: rgba(0, 0, 0, 0.3);
+    border: 2px solid var(--color-border);
+    border-radius: 8px;
+    position: relative;
+    overflow: hidden;
+    background-size: cover;
+    background-position: center;
+}
+.grid-slot.filled {
+    background: var(--color-bg-ui-light);
     box-shadow: 0 0 8px var(--color-border-glow);
 }
-
-.icon-display span:first-child { /* Icon */
-    font-size: 16px;
-    min-width: 16px;
-    text-align: center;
-}
-
-.icon-display span:last-child { /* Level text */
-    white-space: nowrap;
-    font-size: 12px;
-    font-family: var(--font-mono);
-    font-weight: 700;
-}
-
-.icon-display.evolved {
+.grid-slot.evolved {
+    background: var(--color-bg-ui-light);
     border-color: var(--color-accent);
-    color: var(--color-accent);
-    box-shadow: 0 0 8px rgba(255, 215, 0, 0.7);
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
 }
 
-.synergy-hint {
-    font-size: 11px;
-    color: var(--color-success);
-    margin-left: 5px;
+.slot-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    font-size: 28px;
+    line-height: 1;
+    color: var(--color-text);
 }
-.synergy-hint.needed {
-    color: #ffddaa; /* Yellowish for needed items */
+.evolved .slot-icon {
+    color: var(--color-accent);
 }
+
+.slot-level {
+    position: absolute;
+    bottom: 2px;
+    right: 4px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 700;
+    color: #fff;
+    text-shadow: 1px 1px 2px #000;
+}
+.evolved .slot-level {
+    color: var(--color-accent);
+}
+
+
+/* --- Old Indicators (HIDDEN) --- */
+.indicator-container {
+    display: none;
+}
+
 
 /* --- NEW Menu Styles --- */
 .menu-overlay {
@@ -512,6 +546,24 @@ canvas {
     font-weight: 400;
 }
 
+/* --- NEW EVOLUTION HINT STYLES --- */
+.evolution-hint {
+    display: inline-block;
+    margin-left: 10px;
+    font-size: 0.9em;
+    font-weight: 700;
+    color: var(--color-accent);
+    text-shadow: 0 0 5px var(--color-accent);
+}
+.evolution-hint-needed {
+    display: inline-block;
+    margin-left: 10px;
+    font-size: 0.9em;
+    font-weight: 600;
+    color: var(--color-text-dim);
+}
+
+
 /* Buttons inside game over / win screens */
 #gameOver button, #winScreen button {
     padding: 12px 25px;
@@ -653,18 +705,9 @@ canvas {
 
 /* --- MOBILE & SMALL SCREEN STYLES --- */
 @media (max-width: 768px) {
-
-    #hud-top-left {
-        padding: 6px 8px;
-        font-size: 11px;
-        top: 5px;
-        left: 5px;
+    :root {
+        --grid-slot-size: 40px; /* Smaller slots for mobile */
     }
-    #level-display { gap: 6px; margin-top: 5px; }
-    #levelText { font-size: 12px; }
-    #xpBar { width: 80px; height: 8px; }
-    #shieldBar { width: 100%; height: 6px; margin-top: 4px; }
-
 
     #hud-top-center { top: 5px; }
     #timer {
@@ -679,25 +722,37 @@ canvas {
         font-size: 14px;
     }
 
+    /* --- Mobile Bottom Bar --- */
+    #hud-bottom-container {
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+        gap: 8px;
+        bottom: 5px;
+    }
+
+    /* Grids stack first */
+    .hud-grid {
+        gap: 5px;
+        width: calc(var(--grid-slot-size) * 3 + 10px);
+        order: 1; /* Grids first */
+    }
+
+    /* Center status bar goes *below* the grids */
+    #player-status-container {
+        order: 2; /* Status bar below grids */
+        width: 180px;
+        padding: 6px 10px;
+    }
+    #level-text-hud { font-size: 14px; margin-bottom: 4px; }
+    #level-text-hud span { font-size: 16px; }
+    #xpBar, #shieldBar { height: 10px; }
+    #shieldBar { height: 8px; }
+    #stats-text-hud { font-size: 10px; margin-top: 5px; }
+
+
     #joystick-area { width: 100px; height: 100px; }
     #joystick-knob { width: 45px; height: 45px; }
-
-    .indicator-container {
-        bottom: 10px;
-        right: 5px;
-        max-width: 130px;
-        gap: 3px;
-    }
-
-    .icon-display {
-        padding: 3px 5px;
-        font-size: 10px;
-        gap: 3px;
-        border-width: 1px;
-        border-radius: 4px;
-    }
-    .icon-display span:first-child { font-size: 12px; min-width: 12px; }
-    .icon-display span:last-child { font-size: 9px; }
 
 
     /* Menus */
@@ -730,7 +785,7 @@ canvas {
         padding: 10px 14px;
     }
     .upgrade-description { font-size: 12px; padding-left: 10px; }
-    .synergy-hint { font-size: 10px; }
+    .evolution-hint, .evolution-hint-needed { font-size: 0.8em; margin-left: 8px;}
 
 
     /* Portrait Orientation */
@@ -745,24 +800,9 @@ canvas {
             height: 50px;
         }
 
-        /* Stack HUD above the joystick */
-        #hud-top-left {
-            /* Move from top-left to bottom-center */
-            top: auto;
-            bottom: 145px; /* joystick height (110) + bottom gap (20) + desired space (15) */
-            left: 50%;
-            transform: translateX(-50%);
-            width: 180px;
-        }
-        #xpBar { width: 100%; } /* Fill parent */
-
-        .indicator-container {
-            /* Stack above the HUD */
-            bottom: 250px; /* Approx height of hud-top-left + space */
-            left: 50%;
-            transform: translateX(-50%);
-            align-items: center; /* Center the icons */
-            max-width: 200px;
+        /* In portrait, stack the UI above the joystick */
+        #hud-bottom-container {
+            bottom: 140px; /* joystick height (110) + bottom gap (20) + desired space (10) */
         }
     }
 }
