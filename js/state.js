@@ -176,8 +176,8 @@ export function resetGameState() {
 // --- Game Constants ---
 export const CONSTANTS = {
     WORLD_BOUNDARY: 70,
-    MAX_WEAPONS: 5,
-    MAX_ITEMS: 5,
+    MAX_WEAPONS: 6, // <-- CHANGED FROM 5
+    MAX_ITEMS: 6, // <-- CHANGED FROM 5
     CORRUPTION_DAMAGE: 1,
     CORRUPTION_INTERVAL: 0.5,
 

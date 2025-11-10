@@ -104,6 +104,7 @@ export function updateCamera() {
     }
 }
 
+// --- MODIFIED FUNCTION ---
 function createBackgroundPattern() {
     if (state.backgroundPattern) {
         state.scene.remove(state.backgroundPattern);
@@ -118,13 +119,19 @@ function createBackgroundPattern() {
             vUv = uv;
             gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
         }`;
+
+    // --- NEW FRAGMENT SHADER (Starfield) ---
     const patternFragmentShader = `
         uniform float time;
         varying vec2 vUv;
-        uniform vec3 color1;
-        uniform vec3 color2;
+        uniform vec3 color1; // Base dark color
+        uniform vec3 color2; // Nebula/accent color
         
-        float random (vec2 st) { return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123); }
+        // --- Helper functions for noise and random ---
+        float random (vec2 st) { 
+            return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123); 
+        }
+        
         float noise (vec2 st) {
             vec2 i = floor(st); vec2 f = fract(st);
             float a = random(i); float b = random(i + vec2(1.0, 0.0));
@@ -132,18 +139,39 @@ function createBackgroundPattern() {
             vec2 u = f*f*(3.0-2.0*f);
             return mix(a, b, u.x) + (c - a)* u.y * (1.0 - u.x) + (d - b) * u.y * u.x;
         }
+        // --- End helper functions ---
 
         void main() {
-            vec2 scaledUv = vUv * 25.0;
-            float n = noise(scaledUv + vec2(time * 0.1, time * 0.15));
-            float wave1 = sin(scaledUv.x * cos(time*0.05) + scaledUv.y * sin(time*0.08) + n * 4.0) * 0.5 + 0.5;
-            float wave2 = cos(scaledUv.y * 1.5 * sin(time*0.06) - scaledUv.x * 1.2 * cos(time*0.09) + n * 3.0) * 0.5 + 0.5;
-            float pattern = smoothstep(0.3, 0.7, wave1 * wave2 + noise(scaledUv * 0.5 + time * 0.05) * 0.2);
-            vec3 finalColor = mix(color1, color2, pattern);
+            vec2 st = vUv * 15.0; // Scale the space
+            st.x *= (16.0/9.0); // Adjust for aspect ratio (approx)
+
+            float n = noise(st * 0.2 + time * 0.05); // Slow moving noise for clouds
+            
+            // Star Layer 1 (small, dense)
+            float star1 = random(floor(st * 2.0));
+            star1 = pow(star1, 25.0) * smoothstep(0.9, 1.0, star1);
+            star1 *= 0.7; // Brightness
+            
+            // Star Layer 2 (larger, sparse)
+            float star2 = random(floor(st * 0.7));
+            star2 = pow(star2, 35.0) * smoothstep(0.9, 1.0, star2);
+            star2 *= 1.0; // Brightness
+            
+            // Twinkling effect
+            float twinkle = (sin(time * 3.0 + (st.x * 0.5)) * 0.5 + 0.5) * 0.4 + 0.6;
+            
+            // Combine layers
+            float stars = (star1 + star2) * twinkle;
+            
+            // Nebula/Cloud effect
+            float nebula = smoothstep(0.4, 0.6, n) * 0.5; // Made nebula a bit stronger
+            
+            vec3 finalColor = mix(color1, color2, nebula) + vec3(stars);
+            
             float distFromCenter = distance(vUv, vec2(0.5));
-            float vignette = smoothstep(0.5, 0.25, distFromCenter);
-            vec3 colorWithVignette = finalColor * vignette;
-            gl_FragColor = vec4(colorWithVignette * 0.4, 1.0);
+            float vignette = smoothstep(0.7, 0.4, distFromCenter); // Stronger vignette
+            
+            gl_FragColor = vec4(finalColor * vignette, 1.0);
         }`;
 
     const patternMaterial = new THREE.ShaderMaterial({
@@ -151,8 +179,8 @@ function createBackgroundPattern() {
         fragmentShader: patternFragmentShader,
         uniforms: {
             time: { value: 0.0 },
-            color1: { value: new THREE.Color(0x080510) },
-            color2: { value: new THREE.Color(0x120818) },
+            color1: { value: new THREE.Color(0x020108) }, // Very dark blue/purple
+            color2: { value: new THREE.Color(0x0c0a1f) }, // Dark blue/purple nebula
         },
         side: THREE.DoubleSide,
         depthWrite: false,

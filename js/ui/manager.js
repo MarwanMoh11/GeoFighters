@@ -368,7 +368,7 @@ export function updateWeaponUI() {
     ui.weaponGrid.innerHTML = ''; // Clear existing
 
     // Create 6 slots
-    for (let i = 0; i < CONSTANTS.MAX_WEAPONS; i++) {
+    for (let i = 0; i < CONSTANTS.MAX_WEAPONS; i++) { // <-- CHANGED
         const weapon = state.playerWeapons[i];
         const slot = document.createElement('div');
         slot.classList.add('grid-slot');
@@ -393,7 +393,7 @@ export function updateItemUI() {
     ui.itemGrid.innerHTML = ''; // Clear existing
 
     // Create 6 slots
-    for (let i = 0; i < CONSTANTS.MAX_ITEMS; i++) {
+    for (let i = 0; i < CONSTANTS.MAX_ITEMS; i++) { // <-- CHANGED
         const item = state.playerItems[i];
         const slot = document.createElement('div');
         slot.classList.add('grid-slot');
@@ -708,7 +708,7 @@ function getAvailableUpgrades() {
     });
 
     // Check for new weapon unlocks
-    if (state.playerWeapons.length < CONSTANTS.MAX_WEAPONS) {
+    if (state.playerWeapons.length < CONSTANTS.MAX_WEAPONS) { // <-- USES CONSTANT
         Object.values(WEAPONS).forEach(w => {
             if (w.level === 0) {
                 availableUpgrades.push({ type: 'weapon_unlock', data: w });
@@ -717,7 +717,7 @@ function getAvailableUpgrades() {
     }
 
     // Check for new item unlocks
-    if (state.playerItems.length < CONSTANTS.MAX_ITEMS) {
+    if (state.playerItems.length < CONSTANTS.MAX_ITEMS) { // <-- USES CONSTANT
         Object.values(ITEMS).forEach(i => {
             if (i.level === 0) {
                 availableUpgrades.push({ type: 'item_unlock', data: i });
