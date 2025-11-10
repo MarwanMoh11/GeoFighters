@@ -338,9 +338,9 @@ function populateEvolutionBook() {
 }
 
 // --- MODIFIED: updateUI ---
-// Updates the new symmetrical HUD elements
+// Updates the new top-left HUD elements
 export function updateUI() {
-    // Update text fields
+    // Update simple text fields
     ui.shield.textContent = Math.max(0, state.playerShield).toFixed(0);
     ui.score.textContent = state.score;
     ui.levelText.textContent = state.playerLevel;
@@ -362,66 +362,52 @@ export function updateUI() {
 }
 
 // --- MODIFIED: updateWeaponUI ---
-// Fills the new weapon grid
+// Reverted to populate the top-right vertical list
 export function updateWeaponUI() {
-    if (!ui.weaponGrid) return;
-    ui.weaponGrid.innerHTML = ''; // Clear existing
+    if (!ui.weaponIndicator) return;
+    ui.weaponIndicator.innerHTML = ''; // Clear existing
 
-    // Create 6 slots
-    for (let i = 0; i < CONSTANTS.MAX_WEAPONS; i++) { // <-- CHANGED
-        const weapon = state.playerWeapons[i];
-        const slot = document.createElement('div');
-        slot.classList.add('grid-slot');
-
-        if (weapon) {
-            slot.classList.add(weapon.isEvolved ? 'evolved' : 'filled');
-            slot.innerHTML = `
-                <span class="slot-icon">${weapon.icon || '?'}</span>
-                <span class="slot-level">${weapon.isEvolved ? 'EVO' : 'L' + weapon.level}</span>
-            `;
-        } else {
-            // Empty slot
+    state.playerWeapons.forEach(weapon => {
+        if (weapon.level > 0) {
+            const iconDiv = document.createElement('div');
+            iconDiv.classList.add('icon-display');
+            if (weapon.isEvolved) iconDiv.classList.add('evolved');
+            iconDiv.innerHTML = `<span>${weapon.icon || '?'}</span> <span>${weapon.isEvolved ? 'EVO' : 'L' + weapon.level}</span>`;
+            ui.weaponIndicator.appendChild(iconDiv);
         }
-        ui.weaponGrid.appendChild(slot);
-    }
+    });
 }
 
 // --- MODIFIED: updateItemUI ---
-// Fills the new item grid
+// Reverted to populate the top-right vertical list
 export function updateItemUI() {
-    if (!ui.itemGrid) return;
-    ui.itemGrid.innerHTML = ''; // Clear existing
+    if (!ui.itemIndicator) return;
+    ui.itemIndicator.innerHTML = ''; // Clear existing
 
-    // Create 6 slots
-    for (let i = 0; i < CONSTANTS.MAX_ITEMS; i++) { // <-- CHANGED
-        const item = state.playerItems[i];
-        const slot = document.createElement('div');
-        slot.classList.add('grid-slot');
-
-        if (item) {
-            slot.classList.add('filled');
-            slot.innerHTML = `
-                <span class="slot-icon">${item.icon || '?'}</span>
-                <span class="slot-level">L${item.level}</span>
-            `;
-        } else {
-            // Empty slot
+    state.playerItems.forEach(item => {
+        if (item.level > 0) {
+            const iconDiv = document.createElement('div');
+            iconDiv.classList.add('icon-display');
+            iconDiv.innerHTML = `<span>${item.icon || '?'}</span> <span>L${item.level}</span>`;
+            ui.itemIndicator.appendChild(iconDiv);
         }
-        ui.itemGrid.appendChild(slot);
-    }
+    });
 }
 
+// --- MODIFIED: updateJoystickVisibility ---
+// This now *only* shows the pause button on mobile
 export function updateJoystickVisibility() {
     const showMovement = state.isTouchDevice && state.currentGameState === GameState.Playing && !state.isPaused;
     ui.joystickArea.style.display = showMovement ? 'block' : 'none';
-    const showButton = (state.isTouchDevice && (state.currentGameState === GameState.Playing || state.currentGameState === GameState.Paused)) || !state.isTouchDevice;
+
+    // Show button ONLY on touch devices, and ONLY if playing or paused.
+    const showButton = state.isTouchDevice && (state.currentGameState === GameState.Playing || state.currentGameState === GameState.Paused);
+
     ui.fullscreenButton.style.display = showButton ? 'block' : 'none';
+
     if (showButton) {
-        if (state.isTouchDevice) {
-            ui.fullscreenButton.textContent = (state.currentGameState === GameState.Playing && !state.isPaused) ? "☰" : "▶";
-        } else {
-            ui.fullscreenButton.textContent = document.fullscreenElement ? "Exit FS" : "Fullscreen";
-        }
+        // It's always a pause/resume button now.
+        ui.fullscreenButton.textContent = (state.currentGameState === GameState.Playing && !state.isPaused) ? "☰" : "▶";
     }
 }
 
@@ -484,7 +470,7 @@ function levelUp() {
 
 
 // --- MODIFIED: presentUpgradeOptions ---
-// Now includes logic for evolution hints
+// Includes logic for evolution hints
 function presentUpgradeOptions(permanentUpgrades, count = 3) {
     ui.upgradeOptions.innerHTML = '';
 
@@ -708,7 +694,7 @@ function getAvailableUpgrades() {
     });
 
     // Check for new weapon unlocks
-    if (state.playerWeapons.length < CONSTANTS.MAX_WEAPONS) { // <-- USES CONSTANT
+    if (state.playerWeapons.length < CONSTANTS.MAX_WEAPONS) {
         Object.values(WEAPONS).forEach(w => {
             if (w.level === 0) {
                 availableUpgrades.push({ type: 'weapon_unlock', data: w });
@@ -717,7 +703,7 @@ function getAvailableUpgrades() {
     }
 
     // Check for new item unlocks
-    if (state.playerItems.length < CONSTANTS.MAX_ITEMS) { // <-- USES CONSTANT
+    if (state.playerItems.length < CONSTANTS.MAX_ITEMS) {
         Object.values(ITEMS).forEach(i => {
             if (i.level === 0) {
                 availableUpgrades.push({ type: 'item_unlock', data: i });

@@ -7,13 +7,9 @@ export const ui = {
     xpBarFill: document.getElementById('xpBarFill'),
     shieldBarFill: document.getElementById('shieldBarFill'),
 
-    // New Grid elements
-    weaponGrid: document.getElementById('weapon-grid'),
-    itemGrid: document.getElementById('item-grid'),
-
-    // Old indicators removed
-    // weaponIndicator: document.getElementById('weaponIndicator'),
-    // itemIndicator: document.getElementById('itemIndicator'),
+    // Grids removed, indicators re-added
+    weaponIndicator: document.getElementById('weaponIndicator'),
+    itemIndicator: document.getElementById('itemIndicator'),
 
     fullscreenButton: document.getElementById('fullscreen-button'),
     damageNumbersContainer: document.getElementById('damage-numbers-container'),

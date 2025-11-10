@@ -217,19 +217,15 @@ export function handleResize() {
     }
 }
 
-
+// --- MODIFIED: toggleFullScreen ---
+// This function NO LONGER handles fullscreen. It is purely a mobile pause/resume button.
 export function toggleFullScreen() {
     if (state.isTouchDevice) {
-        if (state.currentGameState === GameState.Playing && !state.isPaused) pauseGame();
-        else if (state.currentGameState === GameState.Paused) resumeGame();
-        return;
+        if (state.currentGameState === GameState.Playing && !state.isPaused) {
+            pauseGame();
+        } else if (state.currentGameState === GameState.Paused) {
+            resumeGame();
+        }
     }
-    const elem = document.documentElement;
-    if (!document.fullscreenElement) {
-        if (elem.requestFullscreen) elem.requestFullscreen().catch(err => console.error(`FS Error: ${err.message}`));
-        else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
-    } else {
-        if (document.exitFullscreen) document.exitFullscreen();
-        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
-    }
+    // Desktop fullscreen logic has been removed as requested.
 }

@@ -22,8 +22,6 @@
     --color-bg-ui-light: rgba(20, 35, 55, 0.85);
     --color-border: #3070a0;
     --color-border-glow: rgba(0, 150, 255, 0.3);
-
-    --grid-slot-size: 52px;
 }
 
 
@@ -53,9 +51,70 @@ canvas {
     text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
 }
 
-/* --- NEW Game Info UI (HUD) --- */
+/* --- REVERTED/NEW Game Info UI (HUD) --- */
 
-/* Top Timer */
+/* Top Left Stats */
+#hud-top-left {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: var(--color-bg-ui);
+    padding: 10px 15px;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    backdrop-filter: blur(5px);
+    box-shadow: 0 0 10px var(--color-border-glow);
+    z-index: 1;
+    pointer-events: none;
+    font-family: var(--font-mono);
+    font-size: 15px;
+    line-height: 1.6;
+}
+
+#level-display {
+    display: flex;
+    align-items: center;
+    margin-top: 8px;
+    gap: 10px;
+}
+#levelText {
+    font-family: var(--font-main);
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--color-accent);
+}
+
+#xpBar, #shieldBar {
+    width: 160px;
+    height: 12px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--color-primary-faded);
+    border-radius: 3px;
+    overflow: hidden;
+    z-index: 1;
+}
+#shieldBar {
+    width: 100%; /* Take full width of parent */
+    height: 8px;
+    margin-top: 6px;
+    border-color: rgba(0, 255, 136, 0.4);
+}
+
+#xpBarFill {
+    width: 0;
+    height: 100%;
+    background: linear-gradient(90deg, var(--color-primary-dark), var(--color-primary));
+    transition: width 0.2s ease-out;
+}
+#shieldBarFill {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, #008044, var(--color-success));
+    transition: width 0.2s ease-out;
+}
+
+
+/* Top Center Timer */
 #hud-top-center {
     position: absolute;
     top: 10px;
@@ -77,158 +136,63 @@ canvas {
     color: var(--color-accent);
 }
 
-/* Bottom Bar */
-#hud-bottom-container {
+/* --- REMOVED BOTTOM BAR STYLES --- */
+#hud-bottom-container { display: none; }
+
+
+/* --- REVERTED/NEW Weapon & Item Indicators (Top Right) --- */
+.indicator-container {
     position: absolute;
-    bottom: 10px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 95%;
-    max-width: 800px;
-
+    top: 60px; /* Positioned below the pause button */
+    right: 10px;
     display: flex;
-    flex-direction: row; /* This is now the default */
-    justify-content: space-between;
+    flex-direction: column; /* Stack weapons and items vertically */
     align-items: flex-end;
-    gap: 15px;
+    gap: 8px;
+    z-index: 1;
     pointer-events: none;
-    z-index: 2;
 }
 
-/* Center Status Orb */
-#player-status-container {
-    background: var(--color-bg-ui);
-    border: 1px solid var(--color-border);
-    backdrop-filter: blur(5px);
-    box-shadow: 0 0 15px var(--color-border-glow);
-    border-radius: 12px;
-    padding: 10px 15px;
-    text-align: center;
-    width: 220px;
-    flex-shrink: 0;
-}
-
-#level-text-hud {
-    font-family: var(--font-main);
-    font-weight: 700;
-    font-size: 18px;
-    color: var(--color-accent);
-    margin-bottom: 5px;
-}
-#level-text-hud span {
-    font-family: var(--font-mono);
-    font-size: 20px;
-}
-
-#xpBar, #shieldBar {
-    width: 100%;
-    height: 12px;
-    background-color: rgba(255, 255, 255, 0.1);
-    border: 1px solid var(--color-primary-faded);
-    border-radius: 4px;
-    overflow: hidden;
-    margin-top: 5px;
-}
-#shieldBar {
-    height: 10px;
-    border-color: rgba(0, 255, 136, 0.4);
-}
-
-#xpBarFill {
-    width: 0;
-    height: 100%;
-    background: linear-gradient(90deg, var(--color-primary-dark), var(--color-primary));
-    transition: width 0.2s ease-out;
-}
-#shieldBarFill {
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, #008044, var(--color-success));
-    transition: width 0.2s ease-out;
-}
-
-#stats-text-hud {
+#weaponIndicator, #itemIndicator {
     display: flex;
-    justify-content: space-between;
-    font-family: var(--font-mono);
-    font-size: 13px;
-    color: var(--color-text-dim);
-    margin-top: 8px;
-}
-#stats-text-hud span {
-    color: var(--color-text);
+    flex-direction: column; /* Icons stack vertically */
+    align-items: flex-end;
+    gap: 5px;
+    max-width: 150px; /* Slim container */
 }
 
-
-/* Weapon/Item Grids */
-.hud-grid {
-    display: grid;
-    grid-template-columns: repeat(3, var(--grid-slot-size));
-    grid-template-rows: repeat(2, var(--grid-slot-size));
-    gap: 6px;
-    width: calc(var(--grid-slot-size) * 3 + 12px); /* 3 slots + 2 gaps */
-    flex-shrink: 0;
-}
-#weapon-grid {
-    justify-content: flex-start;
-}
-#item-grid {
-    justify-content: flex-end;
-}
-
-.grid-slot {
-    width: var(--grid-slot-size);
-    height: var(--grid-slot-size);
-    background: rgba(0, 0, 0, 0.3);
-    border: 2px solid var(--color-border);
-    border-radius: 8px;
-    position: relative;
-    overflow: hidden;
-    background-size: cover;
-    background-position: center;
-}
-.grid-slot.filled {
-    background: var(--color-bg-ui-light);
-    box-shadow: 0 0 8px var(--color-border-glow);
-}
-.grid-slot.evolved {
-    background: var(--color-bg-ui-light);
-    border-color: var(--color-accent);
-    box-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
-}
-
-.slot-icon {
+.icon-display {
+    background: var(--color-bg-ui);
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 14px;
     display: flex;
     align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 100%;
-    font-size: 28px;
-    line-height: 1;
+    gap: 8px; /* More space between icon and text */
+    border: 1px solid var(--color-border);
     color: var(--color-text);
-}
-.evolved .slot-icon {
-    color: var(--color-accent);
+    backdrop-filter: blur(5px);
+    box-shadow: 0 0 8px var(--color-border-glow);
+    width: auto; /* Allow to shrink-wrap content */
 }
 
-.slot-level {
-    position: absolute;
-    bottom: 2px;
-    right: 4px;
+.icon-display span:first-child { /* Icon */
+    font-size: 16px;
+    min-width: 16px;
+    text-align: center;
+}
+
+.icon-display span:last-child { /* Level text */
+    white-space: nowrap;
+    font-size: 12px;
     font-family: var(--font-mono);
-    font-size: 13px;
     font-weight: 700;
-    color: #fff;
-    text-shadow: 1px 1px 2px #000;
 }
-.evolved .slot-level {
+
+.icon-display.evolved {
+    border-color: var(--color-accent);
     color: var(--color-accent);
-}
-
-
-/* --- Old Indicators (HIDDEN) --- */
-.indicator-container {
-    display: none;
+    box-shadow: 0 0 8px rgba(255, 215, 0, 0.7);
 }
 
 
@@ -676,26 +640,27 @@ canvas {
 }
 #aim-joystick-area { display: none !important; }
 
-/* --- Fullscreen Button --- */
+/* --- Fullscreen Button (Now Mobile-Only Pause) --- */
 #fullscreen-button {
     position: absolute;
     top: 10px;
     right: 10px;
     padding: 8px 14px;
-    font-size: 15px;
-    font-family: var(--font-main);
-    font-weight: 600;
+    font-size: 20px; /* Larger icon */
+    font-family: var(--font-mono); /* Use mono for consistent icon */
+    font-weight: 700;
     background-color: var(--color-bg-ui);
     color: var(--color-text);
     border: 1px solid var(--color-border);
     border-radius: 8px;
     cursor: pointer;
     z-index: 101;
-    display: none;
+    display: none; /* Hidden by default, JS controls visibility */
     pointer-events: auto;
     backdrop-filter: blur(5px);
     box-shadow: 0 0 10px var(--color-border-glow);
     transition: all 0.2s ease-out;
+    line-height: 1;
 }
 #fullscreen-button:hover {
     background-color: var(--color-bg-ui-light);
@@ -706,9 +671,18 @@ canvas {
 
 /* --- MOBILE & SMALL SCREEN STYLES (REVISED) --- */
 @media (max-width: 768px) {
-    :root {
-        --grid-slot-size: 38px; /* Even Smaller slots for mobile */
+
+    #hud-top-left {
+        padding: 6px 8px;
+        font-size: 11px;
+        top: 5px;
+        left: 5px;
     }
+    #level-display { gap: 6px; margin-top: 5px; }
+    #levelText { font-size: 12px; }
+    #xpBar { width: 80px; height: 8px; }
+    #shieldBar { width: 100%; height: 6px; margin-top: 4px; }
+
 
     #hud-top-center { top: 5px; }
     #timer {
@@ -720,48 +694,29 @@ canvas {
         top: 5px;
         right: 5px;
         padding: 6px 10px;
-        font-size: 14px;
+        font-size: 18px; /* Slightly smaller icon for small screens */
     }
 
-    /* --- NEW Mobile Bottom Bar --- */
-    /* This is the key fix: We keep it as a row, just smaller */
-    #hud-bottom-container {
-        flex-direction: row; /* Keep as row */
-        align-items: flex-end; /* Align to bottom */
-        width: 98%; /* Use almost full width */
-        gap: 5px; /* Tighter gap */
-        bottom: 5px;
-        max-width: 100%; /* Override desktop max-width */
-    }
-
-    .hud-grid {
-        gap: 4px;
-        width: calc(var(--grid-slot-size) * 3 + 8px); /* 3 slots + 2 gaps */
-        /* No order property */
-    }
-
-    #player-status-container {
-        /* No order property */
-        width: 130px; /* Shrink center orb */
-        padding: 5px 8px;
-        flex-shrink: 1; /* Allow it to shrink if needed */
-    }
-    #level-text-hud { font-size: 13px; margin-bottom: 3px; }
-    #level-text-hud span { font-size: 14px; }
-    #xpBar, #shieldBar { height: 8px; }
-    #shieldBar { height: 6px; }
-    #stats-text-hud {
-        font-size: 9px;
-        margin-top: 4px;
-        /* Stack text inside the small orb */
-        flex-direction: column;
-        align-items: center;
-        gap: 1px;
-    }
-
-
+    /* Joystick position for portrait */
     #joystick-area { width: 100px; height: 100px; }
     #joystick-knob { width: 45px; height: 45px; }
+
+
+    /* Top-right indicators on mobile */
+    .indicator-container {
+        top: 50px; /* Tucked under pause button */
+        right: 5px;
+        gap: 4px;
+    }
+    .icon-display {
+        padding: 3px 5px; /* Slimmer */
+        font-size: 10px;
+        gap: 4px;
+        border-width: 1px;
+        border-radius: 4px;
+    }
+    .icon-display span:first-child { font-size: 12px; min-width: 12px; }
+    .icon-display span:last-child { font-size: 9px; }
 
 
     /* Menus */
@@ -797,6 +752,23 @@ canvas {
     .evolution-hint, .evolution-hint-needed { font-size: 0.8em; margin-left: 8px;}
 
 
-    /* --- REMOVED (orientation: portrait) block --- */
-    /* The base (max-width: 768px) now handles all small screens */
+    /* Portrait Orientation: Joystick at bottom */
+    @media (orientation: portrait) {
+        #joystick-area {
+            width: 110px;
+            height: 110px;
+            bottom: 20px;
+            left: 50%; /* Center it */
+            transform: translateX(-50%);
+        }
+        #joystick-knob {
+            width: 50px;
+            height: 50px;
+        }
+
+        /* When joystick is active, it moves to the touch. This is for the 'inactive' state */
+        #joystick-area:not(.active) {
+            opacity: 0.15; /* Make it slightly visible at the bottom */
+        }
+    }
 }
