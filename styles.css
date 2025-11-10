@@ -87,6 +87,7 @@ canvas {
     max-width: 800px;
 
     display: flex;
+    flex-direction: row; /* This is now the default */
     justify-content: space-between;
     align-items: flex-end;
     gap: 15px;
@@ -703,10 +704,10 @@ canvas {
 }
 
 
-/* --- MOBILE & SMALL SCREEN STYLES --- */
+/* --- MOBILE & SMALL SCREEN STYLES (REVISED) --- */
 @media (max-width: 768px) {
     :root {
-        --grid-slot-size: 40px; /* Smaller slots for mobile */
+        --grid-slot-size: 38px; /* Even Smaller slots for mobile */
     }
 
     #hud-top-center { top: 5px; }
@@ -722,33 +723,41 @@ canvas {
         font-size: 14px;
     }
 
-    /* --- Mobile Bottom Bar --- */
+    /* --- NEW Mobile Bottom Bar --- */
+    /* This is the key fix: We keep it as a row, just smaller */
     #hud-bottom-container {
+        flex-direction: row; /* Keep as row */
+        align-items: flex-end; /* Align to bottom */
+        width: 98%; /* Use almost full width */
+        gap: 5px; /* Tighter gap */
+        bottom: 5px;
+        max-width: 100%; /* Override desktop max-width */
+    }
+
+    .hud-grid {
+        gap: 4px;
+        width: calc(var(--grid-slot-size) * 3 + 8px); /* 3 slots + 2 gaps */
+        /* No order property */
+    }
+
+    #player-status-container {
+        /* No order property */
+        width: 130px; /* Shrink center orb */
+        padding: 5px 8px;
+        flex-shrink: 1; /* Allow it to shrink if needed */
+    }
+    #level-text-hud { font-size: 13px; margin-bottom: 3px; }
+    #level-text-hud span { font-size: 14px; }
+    #xpBar, #shieldBar { height: 8px; }
+    #shieldBar { height: 6px; }
+    #stats-text-hud {
+        font-size: 9px;
+        margin-top: 4px;
+        /* Stack text inside the small orb */
         flex-direction: column;
         align-items: center;
-        width: 100%;
-        gap: 8px;
-        bottom: 5px;
+        gap: 1px;
     }
-
-    /* Grids stack first */
-    .hud-grid {
-        gap: 5px;
-        width: calc(var(--grid-slot-size) * 3 + 10px);
-        order: 1; /* Grids first */
-    }
-
-    /* Center status bar goes *below* the grids */
-    #player-status-container {
-        order: 2; /* Status bar below grids */
-        width: 180px;
-        padding: 6px 10px;
-    }
-    #level-text-hud { font-size: 14px; margin-bottom: 4px; }
-    #level-text-hud span { font-size: 16px; }
-    #xpBar, #shieldBar { height: 10px; }
-    #shieldBar { height: 8px; }
-    #stats-text-hud { font-size: 10px; margin-top: 5px; }
 
 
     #joystick-area { width: 100px; height: 100px; }
@@ -788,21 +797,6 @@ canvas {
     .evolution-hint, .evolution-hint-needed { font-size: 0.8em; margin-left: 8px;}
 
 
-    /* Portrait Orientation */
-    @media (orientation: portrait) {
-        #joystick-area {
-            width: 110px;
-            height: 110px;
-            bottom: 20px;
-        }
-        #joystick-knob {
-            width: 50px;
-            height: 50px;
-        }
-
-        /* In portrait, stack the UI above the joystick */
-        #hud-bottom-container {
-            bottom: 140px; /* joystick height (110) + bottom gap (20) + desired space (10) */
-        }
-    }
+    /* --- REMOVED (orientation: portrait) block --- */
+    /* The base (max-width: 768px) now handles all small screens */
 }
