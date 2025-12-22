@@ -4,8 +4,17 @@ export const ui = {
     score: document.getElementById('score'),
     timer: document.getElementById('timer'),
     levelText: document.getElementById('level'),
-    xpBarFill: document.getElementById('xpBarFill'),
-    shieldBarFill: document.getElementById('shieldBarFill'),
+
+    // New VS-style HUD elements
+    xpBarFillFull: document.getElementById('xpBarFillFull'),
+    shieldBarFillNew: document.getElementById('shieldBarFillNew'),
+    killCount: document.getElementById('kill-count'),
+    weaponSlots: document.getElementById('weapon-slots'),
+    itemSlots: document.getElementById('item-slots'),
+
+    // Legacy (kept for compatibility)
+    xpBarFill: document.getElementById('xpBarFillFull'), // Alias
+    shieldBarFill: document.getElementById('shieldBarFillNew'), // Alias
 
     // Grids removed, indicators re-added
     weaponIndicator: document.getElementById('weaponIndicator'),
@@ -13,6 +22,11 @@ export const ui = {
 
     fullscreenButton: document.getElementById('fullscreen-button'),
     damageNumbersContainer: document.getElementById('damage-numbers-container'),
+    debugHud: document.getElementById('debug-hud'),
+    debugFps: document.getElementById('debug-fps'),
+    debugEnemyCount: document.getElementById('debug-enemy-count'),
+    debugProjectileCount: document.getElementById('debug-projectile-count'),
+    damageVignette: document.getElementById('damage-vignette'),
     mainMenu: document.getElementById('mainMenu'),
     upgradeMenu: document.getElementById('upgradeMenu'),
     levelSelectMenu: document.getElementById('levelSelectMenu'),
@@ -22,13 +36,22 @@ export const ui = {
     gameOver: document.getElementById('gameOver'),
     winScreen: document.getElementById('winScreen'),
     levelUpScreen: document.getElementById('levelUpScreen'),
-    cacheRewardPopup: document.getElementById('cacheRewardPopup'),
+    cacheRewardPopup: document.getElementById('cacheRewardPopup'), // legacy
     coresAmount: document.getElementById('coresAmount'),
     metaUpgradeList: document.getElementById('metaUpgradeList'),
     levelList: document.getElementById('levelList'),
     evolutionList: document.getElementById('evolutionList'),
     upgradeOptions: document.getElementById('upgradeOptions'),
-    cacheRewardsList: document.getElementById('cacheRewardsList'),
+    cacheRewardsList: document.getElementById('cacheRewardsList'), // legacy
+
+    // Casino chest overlay elements
+    chestCasinoOverlay: document.getElementById('chestCasinoOverlay'),
+    casinoRarityBanner: document.getElementById('casino-rarity-banner'),
+    casinoTitle: document.getElementById('casino-title'),
+    casinoSlotsContainer: document.getElementById('casino-slots-container'),
+    casinoRewardsDisplay: document.getElementById('casino-rewards-display'),
+    casinoContinueBtn: document.getElementById('casino-continue-btn'),
+
     finalScore: document.getElementById('finalScore'),
     winFinalScore: document.getElementById('winFinalScore'),
     startSimulationButton: document.getElementById('start-simulation-button'),

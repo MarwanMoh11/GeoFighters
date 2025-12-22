@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 // Game States Enum
-export const GameState = { MainMenu: 'MainMenu', LevelSelect: 'LevelSelect', UpgradeMenu: 'UpgradeMenu', Playing: 'Playing', Paused: 'Paused', LevelUp: 'LevelUp', Settings: 'Settings', GameOver: 'GameOver', Win: 'Win', EvolutionBook: 'EvolutionBook' };
+export const GameState = { MainMenu: 'MainMenu', LevelSelect: 'LevelSelect', UpgradeMenu: 'UpgradeMenu', Playing: 'Playing', Paused: 'Paused', LevelUp: 'LevelUp', Settings: 'Settings', GameOver: 'GameOver', Win: 'Win', EvolutionBook: 'EvolutionBook', CasinoChest: 'CasinoChest' };
 
 // --- Core State Management ---
 export let state = {
@@ -12,6 +12,10 @@ export let state = {
     isTouchDevice: false,
     gameTime: 0,
     currentLevelId: 1,
+
+    // Debug Mode
+    isDebugMode: false,
+    stressTestCount: 1000,
 
     // --- ADD THESE 3 LINES ---
     instancedMeshes: {}, // Will hold one InstancedMesh per enemy type
@@ -43,6 +47,11 @@ export let state = {
     // Audio
     audioContext: null,
 
+    // Screen Effects
+    screenShakeIntensity: 0,
+    screenShakeTime: 0,
+    vignetteFlashTime: 0,
+
     // Meta Progression
     dataCores: 0,
     baseDamageMultiplier: 1.0,
@@ -51,6 +60,7 @@ export let state = {
     playerShield: 100,
     MAX_PLAYER_SHIELD: 100,
     score: 0,
+    killCount: 0, // Track kills for HUD
     playerLevel: 1,
     currentXP: 0,
     xpToNextLevel: 60,
@@ -123,6 +133,7 @@ export function resetGameState() {
     state.gameTime = 0;
     state.isPaused = false;
     state.score = 0;
+    state.killCount = 0; // Reset kill counter
 
     // Player Stats
     state.playerLevel = 1;
@@ -166,11 +177,34 @@ export function resetGameState() {
 
     for (const typeId in state.instancedMeshes) {
         const instancedMesh = state.instancedMeshes[typeId];
-        instancedMesh.count = 0;
-        instancedMesh.instanceMatrix.needsUpdate = true; // Important to commit the change
-    }
+        const pool = state.objectPools[`pool_${typeId}`];
 
-    console.log("Game state has been reset for a new run.");
+        // Hide ALL instances by moving them off-screen (prevent ghosts)
+        state.dummy.position.set(0, -1000, 0);
+        state.dummy.scale.set(0, 0, 0);
+        state.dummy.rotation.set(0, 0, 0);
+        state.dummy.updateMatrix();
+
+        // Get the max instance count for this mesh type
+        const maxInstances = instancedMesh.instanceMatrix.count;
+
+        // Hide all possible instances
+        for (let i = 0; i < maxInstances; i++) {
+            instancedMesh.setMatrixAt(i, state.dummy.matrix);
+        }
+
+        // Reset count to 0
+        instancedMesh.count = 0;
+        instancedMesh.instanceMatrix.needsUpdate = true;
+
+        // Repopulate the pool with all available indices
+        if (pool) {
+            pool.length = 0;
+            for (let i = maxInstances - 1; i >= 0; i--) {
+                pool.push(i); // Add all indices back to pool
+            }
+        }
+    }
 }
 
 // --- Game Constants ---

@@ -5,12 +5,31 @@ import { setupEventListeners } from './utils/input.js';
 import { loadGameData } from './utils/saveLoad.js';
 import { initializeAudio } from './utils/audio.js';
 import { bindUIEvents } from './ui/manager.js';
-// Make sure this path is correct for your project structure!
-// It might be './systems/spawner.js'
+import { ui } from './ui/dom.js';
 import { initializePools, initializeDamageNumberPool, resetDamageNumberCounter } from './game/spawner.js';
+
+// FPS calculation
+let fpsFrameCount = 0;
+let fpsLastTime = 0;
+let currentFps = 0;
 
 function init() {
     state.isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+
+    // Parse URL parameters for debug mode
+    const urlParams = new URLSearchParams(window.location.search);
+    state.isDebugMode = urlParams.has('debug');
+    const stressParam = urlParams.get('stress');
+    if (stressParam) {
+        state.stressTestCount = Math.min(3000, Math.max(100, parseInt(stressParam, 10) || 1000));
+    }
+
+    // Show debug HUD if in debug mode
+    if (state.isDebugMode && ui.debugHud) {
+        ui.debugHud.style.display = 'block';
+        console.warn('--- DEBUG MODE ACTIVE ---');
+        console.warn(`Stress test count: ${state.stressTestCount}`);
+    }
 
     loadGameData();
     initializeAudio();
@@ -19,12 +38,12 @@ function init() {
     initializePools();
     initializeDamageNumberPool();
 
-
     setupEventListeners();
     bindUIEvents();
 
     // Set initial time for the game loop
     lastTime = performance.now();
+    fpsLastTime = performance.now();
     animate();
 }
 
@@ -41,6 +60,21 @@ function animate() {
     const currentTime = performance.now();
     let deltaTime = (currentTime - lastTime) / 1000;
     lastTime = currentTime;
+
+    // FPS calculation (update every 500ms)
+    fpsFrameCount++;
+    if (currentTime - fpsLastTime >= 500) {
+        currentFps = Math.round((fpsFrameCount * 1000) / (currentTime - fpsLastTime));
+        fpsFrameCount = 0;
+        fpsLastTime = currentTime;
+
+        // Update debug HUD
+        if (state.isDebugMode && ui.debugFps) {
+            ui.debugFps.textContent = currentFps;
+            ui.debugEnemyCount.textContent = state.shapes?.length || 0;
+            ui.debugProjectileCount.textContent = state.projectiles?.length || 0;
+        }
+    }
 
     if (deltaTime > MAX_FRAME_TIME) {
         deltaTime = MAX_FRAME_TIME;
@@ -80,6 +114,24 @@ function animate() {
     }
 
     applyFrustumCulling();
+
+    // --- SCREEN EFFECTS UPDATE ---
+    // Screen shake
+    if (state.screenShakeTime > 0) {
+        state.screenShakeTime -= deltaTime;
+        const shakeX = (Math.random() - 0.5) * state.screenShakeIntensity;
+        const shakeY = (Math.random() - 0.5) * state.screenShakeIntensity;
+        if (state.camera) {
+            state.camera.position.x += shakeX;
+            state.camera.position.y += shakeY;
+        }
+    }
+
+    // Vignette flash
+    if (state.vignetteFlashTime > 0 && ui.damageVignette) {
+        state.vignetteFlashTime -= deltaTime;
+        ui.damageVignette.style.opacity = Math.max(0, state.vignetteFlashTime / 0.3);
+    }
 
     if (state.renderer && state.scene && state.camera) {
         try {

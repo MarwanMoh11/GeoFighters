@@ -18,17 +18,38 @@ import { ENEMY_TYPES } from '../config/enemies.js';
 // Reusable vector to prevent creating new objects in the loop (anti-jank)
 const _knockbackDir = new THREE.Vector3();
 
+// --- OPTIMIZATION: Pooled Sets to prevent GC pressure during heavy load ---
+const _projectilesToRemove = new Set();
+const _shapesToRemove = new Set();
+const _repairNodesToRemove = new Set();
+const _energyCoresToRemove = new Set();
+const _dataFragmentsToRemove = new Set();
+const _megaDataFragmentsToRemove = new Set();
+const _projectilesConsumedThisFrame = new Set();
+
 export function checkCollisions() {
     if (!state.player || state.isPaused) return;
 
-    // Use Sets for efficient, duplicate-free tracking of objects to remove at the end of the frame.
-    const projectilesToRemove = new Set();
-    const shapesToRemove = new Set();
-    const repairNodesToRemove = new Set();
-    const energyCoresToRemove = new Set();
-    const dataFragmentsToRemove = new Set();
-    const megaDataFragmentsToRemove = new Set();
-    const projectilesConsumedThisFrame = new Set(); // Tracks non-piercing projectiles used this frame.
+    // Early exit if nothing to process
+    if (state.shapes.length === 0 && state.projectiles.length === 0) return;
+
+    // Clear pooled Sets (faster than creating new ones)
+    _projectilesToRemove.clear();
+    _shapesToRemove.clear();
+    _repairNodesToRemove.clear();
+    _energyCoresToRemove.clear();
+    _dataFragmentsToRemove.clear();
+    _megaDataFragmentsToRemove.clear();
+    _projectilesConsumedThisFrame.clear();
+
+    // Use pooled Sets
+    const projectilesToRemove = _projectilesToRemove;
+    const shapesToRemove = _shapesToRemove;
+    const repairNodesToRemove = _repairNodesToRemove;
+    const energyCoresToRemove = _energyCoresToRemove;
+    const dataFragmentsToRemove = _dataFragmentsToRemove;
+    const megaDataFragmentsToRemove = _megaDataFragmentsToRemove;
+    const projectilesConsumedThisFrame = _projectilesConsumedThisFrame;
 
     // --- 1. HIGH-PERFORMANCE COLLISION CHECK: ENEMY-CENTRIC LOOP ---
     // This is much faster than looping through every projectile.
@@ -75,8 +96,20 @@ export function checkCollisions() {
                     shapesToRemove.add(enemyIndex);
                     state.score += Math.max(1, Math.floor((enemyData.xpValue || 1) * 0.7));
                     if (enemyData.isBoss) winGame();
-                    if (enemyData.dropsCache) spawnGeometricCache(enemyData.position);
-                    else if (enemyData.type === 'SPHERE_SPLITTER') {
+
+                    // Chest drop logic - guaranteed from elites, random chance from any enemy
+                    let dropChest = false;
+                    if (enemyData.dropsCache) {
+                        dropChest = true; // Guaranteed from elites
+                    } else {
+                        // Random chest drop (VS-style: ~5-8% chance, increases over time)
+                        const baseChance = 0.05 + (state.gameTime / 600) * 0.03; // 5% base, +3% per 10 min
+                        dropChest = Math.random() < baseChance;
+                    }
+
+                    if (dropChest) {
+                        spawnGeometricCache(enemyData.position);
+                    } else if (enemyData.type === 'SPHERE_SPLITTER') {
                         spawnSplitterOffspring(enemyData.position, enemyData.generation || 1);
                         spawnSplitterOffspring(enemyData.position, enemyData.generation || 1);
                     } else {
@@ -102,6 +135,11 @@ export function checkCollisions() {
             if (typeData && state.player.position.distanceToSquared(enemyData.position) < playerCollisionThreshold * playerCollisionThreshold) {
                 state.playerShield -= (typeData.damageMultiplier || 1.0) * (5 + Math.floor(state.gameTime / 60));
                 playSoundSynth('player_hit', 0.6);
+
+                // Trigger screen effects
+                state.screenShakeIntensity = 0.3;
+                state.screenShakeTime = 0.2;
+                state.vignetteFlashTime = 0.3;
 
                 // OPTIMIZATION: Use the reusable vector for knockback to prevent garbage collection.
                 _knockbackDir.subVectors(state.player.position, enemyData.position).normalize().setY(0);

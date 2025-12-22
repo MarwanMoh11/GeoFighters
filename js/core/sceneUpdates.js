@@ -6,7 +6,7 @@ import { updateUI, gameOver, grantCacheRewards } from '../ui/manager.js';
 import { updateCamera } from './renderer.js';
 import { ENEMY_TYPES } from '../config/enemies.js';
 import { getItemModifier } from '../config/items.js';
-import { spawnDataFragment , returnEnemyToPool } from '../game/spawner.js';
+import { spawnDataFragment, returnEnemyToPool } from '../game/spawner.js';
 import * as THREE from 'three';
 // Initialize spatial grid on state if it doesn't exist.
 if (!state.spatialGrid) {
@@ -46,10 +46,6 @@ export function updatePlaying(deltaTime) {
     updatePlayer(deltaTime);
     updateCamera();
     updateAimTarget();
-    if (state.shapes.length > 0 && Math.random() < 0.01) {
-    if (state.shapes.length > 0) {
-        console.log(`[UPDATE_PLAYING] Calling updateEnemies. state.shapes count: ${state.shapes.length}`);
-    }}
     updateEnemies(deltaTime);
     updateProjectiles(deltaTime);
     updateWeapons(deltaTime);
@@ -92,23 +88,31 @@ export function applyFrustumCulling() {
 
 // This REPLACES your old 'updateShapes' function
 function updateEnemies(deltaTime) {
-    // --- DEBUG LOG ---
-    if (state.shapes.length > 0 && Math.random() < 0.05) { // Log 5% of frames to avoid spam
-        console.log(`[UPDATE_ENEMIES] Loop running. Processing ${state.shapes.length} enemies.`);
-    }
-    // --- NEW: Reverse loop to allow for easy removal ---
+    // Track which instance types need matrix updates (batched)
+    const typesNeedingMatrixUpdate = new Set();
+
+    // --- Reverse loop to allow for easy removal ---
     for (let i = state.shapes.length - 1; i >= 0; i--) {
         const enemy = state.shapes[i]; // 'enemy' is now a data object, not a mesh
 
         // --- NEW: Health check / Death logic ---
         // We check for death first.
         if (enemy.health <= 0) {
+            // Get enemy color for death effect
+            const typeData = ENEMY_TYPES[enemy.type];
+            const enemyColor = typeData?.color || 0xff0000;
+
+            // Spawn death explosion particles
+            spawnDeathExplosion(enemy.position, enemyColor, enemy.radius || 1);
+
+            // Increment kill count
+            state.killCount = (state.killCount || 0) + 1;
+
             // Spawn XP orbs, handle death effects, etc.
             spawnDataFragment(enemy.position, enemy.xpValue); // Use enemy.position
 
             // Handle death effects (like splitting)
             if (enemy.type === 'SPHERE_SPLITTER' && enemy.generation < 3) {
-                // We need to import spawnSplitterOffspring at the top of this file
                 spawnSplitterOffspring(enemy.position, enemy.generation);
                 spawnSplitterOffspring(enemy.position, enemy.generation);
             }
@@ -117,7 +121,7 @@ function updateEnemies(deltaTime) {
             }
 
             // Return the instance to the pool
-            returnEnemyToPool(enemy); // This is the new function from spawner.js
+            returnEnemyToPool(enemy);
 
             // Remove the data object from the active list
             state.shapes.splice(i, 1);
@@ -243,11 +247,8 @@ function updateEnemies(deltaTime) {
                         if (enemy.attackStateTimer <= 0) {
                             enemy.attackState = 'PULSING';
                             createTemporaryVisualEffect(enemy.position, bossParams.pulseRadius, bossParams.pulseColor, 0.4, true);
-                            // playSoundSynth('shoot_basic', 0.7, { pitch: 150 }); // You'll need to import playSoundSynth if you want sounds
                             if (state.player.position.distanceTo(enemy.position) < bossParams.pulseRadius + CONSTANTS.PLAYER_RADIUS) {
                                 state.playerShield -= bossParams.pulseDamage;
-                                // createHitEffect for player is different, this is fine
-                                // playSoundSynth('player_hit', 0.6);
                                 if (state.playerShield <= 0) { gameOver(); return; }
                             }
                         }
@@ -294,7 +295,6 @@ function updateEnemies(deltaTime) {
                             createTemporaryVisualEffect(enemy.position, bossParams.slamRadius, 0x00FFFF, 0.5, true);
                             if (state.player.position.distanceTo(enemy.position) < bossParams.slamRadius + CONSTANTS.PLAYER_RADIUS) {
                                 state.playerShield -= bossParams.slamDamage;
-                                // createHitEffect for player...
                                 if (state.playerShield <= 0) { gameOver(); return; }
                             }
                         }
@@ -307,10 +307,9 @@ function updateEnemies(deltaTime) {
                         enemy.attackStateTimer -= deltaTime;
                         if (enemy.attackStateTimer <= 0) {
                             enemy.attackState = 'SUMMONING';
-                            for(let j = 0; j < bossParams.summonCount; j++) {
+                            for (let j = 0; j < bossParams.summonCount; j++) {
                                 const angle = (j / bossParams.summonCount) * Math.PI * 2;
                                 const spawnPos = enemy.position.clone().add(new THREE.Vector3(Math.cos(angle) * 2, 0, Math.sin(angle) * 2));
-                                // --- THIS IS THE MISSING CALL ---
                                 spawnEnemyByType(bossParams.summonType, spawnPos);
                             }
                         }
@@ -348,42 +347,112 @@ function updateEnemies(deltaTime) {
         enemy.position.x = Math.max(-CONSTANTS.WORLD_BOUNDARY + enemy.radius, Math.min(CONSTANTS.WORLD_BOUNDARY - enemy.radius, enemy.position.x));
         enemy.position.z = Math.max(-CONSTANTS.WORLD_BOUNDARY + enemy.radius, Math.min(CONSTANTS.WORLD_BOUNDARY - enemy.radius, enemy.position.z));
 
-        // --- NEW: (CRITICAL) UPDATE THE INSTANCEDMESH ---
-        // After all logic, update the mesh's matrix
-        // In core/sceneUpdates.js, inside updateEnemies
+        // --- OPTIMIZED: UPDATE THE INSTANCEDMESH (batched) ---
         const instancedMesh = state.instancedMeshes[enemy.type];
         if (instancedMesh) {
             state.dummy.position.copy(enemy.position);
 
             // Re-apply scale if it's a splitter offspring
+            let baseScale = 1;
             if (enemy.generation > 1) {
                 const originalRadius = instancedMesh.userData.radius;
-                const scale = enemy.radius / originalRadius;
-                state.dummy.scale.set(scale, scale, scale);
-            } else {
-                state.dummy.scale.set(1, 1, 1);
+                baseScale = enemy.radius / originalRadius;
             }
 
-            // Apply rotation if needed
-            if (lookAtPosition) {
-                state.dummy.lookAt(lookAtPosition.x, enemy.position.y, lookAtPosition.z);
-            } else {
-                state.dummy.rotation.set(0, 0, 0); // Reset rotation
+            // === PERSONALITY ANIMATIONS ===
+            // Use spawn timestamp for unique phase offset
+            const timeOffset = enemy.spawnTimestamp || 0;
+            const animTime = state.gameTime + timeOffset;
+
+            // Type-specific animations
+            switch (enemy.type) {
+                case 'CUBE_CRUSHER':
+                    // Tumbling rotation
+                    state.dummy.rotation.x = animTime * 2.5;
+                    state.dummy.rotation.y = animTime * 1.5;
+                    break;
+                case 'TETRA_SWARMER':
+                    // Fast spinning
+                    state.dummy.rotation.y = animTime * 8;
+                    state.dummy.rotation.x = Math.sin(animTime * 3) * 0.5;
+                    break;
+                case 'ICOSAHEDRON_INVADER':
+                    // Slow menacing rotation
+                    state.dummy.rotation.y = animTime * 0.8;
+                    state.dummy.rotation.z = Math.sin(animTime * 2) * 0.2;
+                    break;
+                case 'SPHERE_SPLITTER':
+                    // Pulsing scale
+                    const pulseScale = 1 + Math.sin(animTime * 4) * 0.1;
+                    baseScale *= pulseScale;
+                    break;
+                case 'CYLINDER_CORRUPTER':
+                    // Upright with wobble
+                    state.dummy.rotation.x = Math.PI / 2;
+                    state.dummy.rotation.z = Math.sin(animTime * 5) * 0.3;
+                    break;
+                case 'PRISM_DASHER':
+                    // Tilted forward, spinning when dashing
+                    state.dummy.rotation.x = Math.PI / 4;
+                    state.dummy.rotation.y = enemy.isDashing ? animTime * 15 : animTime * 2;
+                    break;
+                case 'CONE_CASTER':
+                    // Points at player with hover bob
+                    if (lookAtPosition) {
+                        state.dummy.lookAt(lookAtPosition.x, enemy.position.y, lookAtPosition.z);
+                    }
+                    state.dummy.rotation.x -= Math.PI / 2;
+                    state.dummy.position.y += Math.sin(animTime * 3) * 0.15;
+                    break;
+                case 'DODECAHEDRON_DRIFTER':
+                    // Ethereal floating rotation
+                    state.dummy.rotation.x = animTime * 0.5;
+                    state.dummy.rotation.y = animTime * 0.7;
+                    state.dummy.rotation.z = animTime * 0.3;
+                    state.dummy.position.y += Math.sin(animTime * 2) * 0.2;
+                    break;
+                case 'PYRAMID_PIERCER':
+                    // Slow aggressive tilt
+                    state.dummy.rotation.y = animTime * 1.2;
+                    state.dummy.rotation.x = Math.sin(animTime) * 0.3;
+                    break;
+                case 'OCTAHEDRON_OBSTACLE':
+                    // Heavy slow rotation
+                    state.dummy.rotation.y = animTime * 0.4;
+                    state.dummy.rotation.x = animTime * 0.2;
+                    break;
+                case 'BOSS_OCTA_PRIME':
+                    // Epic slow rotation with breathing scale
+                    state.dummy.rotation.y = animTime * 0.3;
+                    state.dummy.rotation.x = Math.sin(animTime * 0.5) * 0.1;
+                    baseScale *= 1 + Math.sin(animTime * 1.5) * 0.05;
+                    break;
+                default:
+                    // Apply lookAt rotation if needed
+                    if (lookAtPosition) {
+                        state.dummy.lookAt(lookAtPosition.x, enemy.position.y, lookAtPosition.z);
+                    } else {
+                        state.dummy.rotation.y = animTime * 2;
+                    }
             }
+
+            state.dummy.scale.set(baseScale, baseScale, baseScale);
 
             state.dummy.updateMatrix();
             instancedMesh.setMatrixAt(enemy.instanceId, state.dummy.matrix);
-            instancedMesh.instanceMatrix.needsUpdate = true;
-
-            // --- CORRECTED LOGGING ---
-            if (i === 0 && Math.random() < 0.1) {
-                console.log(`[UPDATE_MATRIX] ID: ${enemy.instanceId} for ${enemy.type} set to pos [${enemy.position.x.toFixed(1)}, ${enemy.position.z.toFixed(1)}]`);
-            }
-            // --- END OF CORRECTION ---
-
+            // Mark type as needing update (batched - set once after loop)
+            typesNeedingMatrixUpdate.add(enemy.type);
         } else {
-            // --- THIS IS THE REAL ERROR LOG ---
             console.error(`[UPDATE_FAIL] No instancedMesh found for enemy type: ${enemy.type}!`);
+        }
+    }
+
+    // --- BATCHED MATRIX UPDATES (OPTIMIZATION) ---
+    // Set needsUpdate once per type instead of once per enemy
+    for (const typeId of typesNeedingMatrixUpdate) {
+        const mesh = state.instancedMeshes[typeId];
+        if (mesh) {
+            mesh.instanceMatrix.needsUpdate = true;
         }
     }
 }
@@ -446,7 +515,7 @@ function updateHitEffects(deltaTime) {
                 const mat = Array.isArray(effect.target.material) ? effect.target.material[0] : effect.target.material;
                 if (mat) {
                     if (effect.isEmissive && mat.emissive) mat.emissive.setHex(effect.originalColor);
-                    else if(mat.color) mat.color.setHex(effect.originalColor);
+                    else if (mat.color) mat.color.setHex(effect.originalColor);
                 }
             }
             state.hitEffects.splice(i, 1);
@@ -468,17 +537,213 @@ function updatePickups(deltaTime) {
     for (let i = state.geometricCaches.length - 1; i >= 0; i--) {
         const cache = state.geometricCaches[i];
         if (!cache?.mesh) { state.geometricCaches.splice(i, 1); continue; }
-        if (cache.mesh.userData.isOpeningCache) {
-            cache.mesh.userData.openAnimationTimer += deltaTime;
-            const progress = cache.mesh.userData.openAnimationTimer / cache.mesh.userData.openAnimationDuration;
+
+        const chestGroup = cache.mesh;
+
+        if (chestGroup.userData.isOpeningCache) {
+            // === OPENING ANIMATION ===
+            chestGroup.userData.openAnimationTimer += deltaTime;
+            const progress = chestGroup.userData.openAnimationTimer / chestGroup.userData.openAnimationDuration;
+
+            // Lid rotation (swing open like a treasure chest)
+            const lidPivot = chestGroup.userData.lidPivot;
+            if (lidPivot) {
+                const targetRotation = -Math.PI * 0.7; // 126 degrees open
+                const easeProgress = 1 - Math.pow(1 - Math.min(progress * 1.5, 1), 3); // Ease out
+                lidPivot.rotation.x = targetRotation * easeProgress;
+            }
+
+            // Glow expansion and fade
+            const glowRing = chestGroup.userData.glowRing;
+            if (glowRing) {
+                const expandScale = 1 + progress * 2;
+                glowRing.scale.set(expandScale, expandScale, 1);
+                glowRing.material.opacity = 0.5 * (1 - progress);
+            }
+
+            // Scale bounce at start
+            if (progress < 0.3) {
+                const bounceScale = 1 + Math.sin(progress * Math.PI * 3) * 0.1;
+                chestGroup.scale.set(bounceScale, bounceScale, bounceScale);
+            }
+
+            // Spawn particles during opening
+            if (progress > 0.2 && progress < 0.6 && Math.random() < 0.3) {
+                spawnChestParticle(chestGroup.position);
+            }
+
+            // Rise and float up slightly
+            chestGroup.position.y = cache.baseY + progress * 0.5;
+
             if (progress >= 1) {
-                grantCacheRewards();
-                state.scene.remove(cache.mesh);
-                cache.mesh.geometry?.dispose();
-                cache.mesh.material?.dispose();
+                // Final burst of particles (more for higher rarity)
+                const rarity = cache.rarity || { rewards: 1, name: 'Common' };
+                for (let p = 0; p < 10 + rarity.rewards * 5; p++) {
+                    spawnChestParticle(chestGroup.position);
+                }
+
+                grantCacheRewards(rarity.rewards, rarity.name);
+
+                // Cleanup all child geometries/materials
+                chestGroup.traverse((child) => {
+                    if (child.geometry) child.geometry.dispose();
+                    if (child.material) {
+                        if (Array.isArray(child.material)) {
+                            child.material.forEach(m => m.dispose());
+                        } else {
+                            child.material.dispose();
+                        }
+                    }
+                });
+                state.scene.remove(chestGroup);
                 state.geometricCaches.splice(i, 1);
             }
+        } else {
+            // === IDLE ANIMATION ===
+            // Bobbing
+            cache.bobTimer += deltaTime * 2;
+            chestGroup.position.y = cache.baseY + Math.sin(cache.bobTimer) * 0.1;
+
+            // Slow rotation
+            chestGroup.rotation.y += deltaTime * 0.5;
+
+            // Pulsing glow
+            cache.pulseTimer = (cache.pulseTimer || 0) + deltaTime * 3;
+            const glowRing = chestGroup.userData.glowRing;
+            if (glowRing && glowRing.material) {
+                glowRing.material.opacity = 0.2 + Math.sin(cache.pulseTimer) * 0.15;
+            }
+
+            // Emissive pulse on lid
+            const lidMesh = chestGroup.userData.lidMesh;
+            if (lidMesh && lidMesh.material) {
+                lidMesh.material.emissiveIntensity = 0.3 + Math.sin(cache.pulseTimer * 0.7) * 0.2;
+            }
         }
+    }
+}
+
+// Helper function to spawn golden particles from chest
+function spawnChestParticle(position) {
+    const particleGeometry = new THREE.SphereGeometry(0.08, 4, 4);
+    const particleMaterial = new THREE.MeshBasicMaterial({
+        color: 0xFFD700,
+        transparent: true,
+        opacity: 1
+    });
+    const particle = new THREE.Mesh(particleGeometry, particleMaterial);
+
+    particle.position.set(
+        position.x + (Math.random() - 0.5) * 0.5,
+        position.y + Math.random() * 0.5,
+        position.z + (Math.random() - 0.5) * 0.5
+    );
+
+    const velocity = new THREE.Vector3(
+        (Math.random() - 0.5) * 3,
+        2 + Math.random() * 3,
+        (Math.random() - 0.5) * 3
+    );
+
+    particle.userData.velocity = velocity;
+    particle.userData.life = 0.8 + Math.random() * 0.4;
+    particle.userData.update = (mesh, dt) => {
+        mesh.userData.life -= dt;
+        if (mesh.userData.life <= 0) {
+            state.scene.remove(mesh);
+            mesh.geometry.dispose();
+            mesh.material.dispose();
+            const idx = state.effectsToUpdate.indexOf(mesh);
+            if (idx > -1) state.effectsToUpdate.splice(idx, 1);
+            return;
+        }
+        mesh.userData.velocity.y -= 5 * dt; // Gravity
+        mesh.position.add(mesh.userData.velocity.clone().multiplyScalar(dt));
+        mesh.material.opacity = mesh.userData.life / 1.2;
+        mesh.scale.setScalar(mesh.userData.life);
+    };
+
+    state.scene.add(particle);
+    state.effectsToUpdate.push(particle);
+}
+
+// Enemy death explosion with color-coded particles
+function spawnDeathExplosion(position, color, size = 1) {
+    const particleCount = Math.min(12, Math.floor(6 + size * 3)); // Scale particles with enemy size
+
+    for (let i = 0; i < particleCount; i++) {
+        const particleGeometry = new THREE.TetrahedronGeometry(0.1 + Math.random() * 0.1, 0);
+        const particleMaterial = new THREE.MeshBasicMaterial({
+            color: color,
+            transparent: true,
+            opacity: 1
+        });
+        const particle = new THREE.Mesh(particleGeometry, particleMaterial);
+
+        // Random position around death point
+        particle.position.set(
+            position.x + (Math.random() - 0.5) * size * 0.5,
+            position.y + (Math.random() - 0.5) * size * 0.5,
+            position.z + (Math.random() - 0.5) * size * 0.5
+        );
+
+        // Random rotation
+        particle.rotation.set(
+            Math.random() * Math.PI * 2,
+            Math.random() * Math.PI * 2,
+            Math.random() * Math.PI * 2
+        );
+
+        // Explode outward
+        const angle = Math.random() * Math.PI * 2;
+        const upAngle = (Math.random() - 0.3) * Math.PI;
+        const speed = 3 + Math.random() * 4;
+
+        const velocity = new THREE.Vector3(
+            Math.cos(angle) * Math.cos(upAngle) * speed,
+            Math.sin(upAngle) * speed + 2,
+            Math.sin(angle) * Math.cos(upAngle) * speed
+        );
+
+        const rotationSpeed = new THREE.Vector3(
+            (Math.random() - 0.5) * 10,
+            (Math.random() - 0.5) * 10,
+            (Math.random() - 0.5) * 10
+        );
+
+        particle.userData.velocity = velocity;
+        particle.userData.rotationSpeed = rotationSpeed;
+        particle.userData.life = 0.4 + Math.random() * 0.3;
+        particle.userData.maxLife = particle.userData.life;
+
+        particle.userData.update = (mesh, dt) => {
+            mesh.userData.life -= dt;
+            if (mesh.userData.life <= 0) {
+                state.scene.remove(mesh);
+                mesh.geometry.dispose();
+                mesh.material.dispose();
+                const idx = state.effectsToUpdate.indexOf(mesh);
+                if (idx > -1) state.effectsToUpdate.splice(idx, 1);
+                return;
+            }
+
+            // Physics
+            mesh.userData.velocity.y -= 12 * dt; // Gravity
+            mesh.position.add(mesh.userData.velocity.clone().multiplyScalar(dt));
+
+            // Rotation
+            mesh.rotation.x += mesh.userData.rotationSpeed.x * dt;
+            mesh.rotation.y += mesh.userData.rotationSpeed.y * dt;
+            mesh.rotation.z += mesh.userData.rotationSpeed.z * dt;
+
+            // Fade and shrink
+            const lifeRatio = mesh.userData.life / mesh.userData.maxLife;
+            mesh.material.opacity = lifeRatio;
+            mesh.scale.setScalar(0.5 + lifeRatio * 0.5);
+        };
+
+        state.scene.add(particle);
+        state.effectsToUpdate.push(particle);
     }
 }
 

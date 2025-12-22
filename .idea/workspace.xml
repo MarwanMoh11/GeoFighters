@@ -4,10 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="524ebcd6-9740-4e55-8050-730dc68fef7d" name="Changes" comment="Massive UI improvements">
-      <change beforePath="$PROJECT_DIR$/js/core/renderer.js" beforeDir="false" afterPath="$PROJECT_DIR$/js/core/renderer.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/js/state.js" beforeDir="false" afterPath="$PROJECT_DIR$/js/state.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/js/ui/manager.js" beforeDir="false" afterPath="$PROJECT_DIR$/js/ui/manager.js" afterDir="false" />
+    <list default="true" id="524ebcd6-9740-4e55-8050-730dc68fef7d" name="Changes" comment="trying to improve for mobile compatibility">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -39,7 +37,7 @@
   }
 }</component>
   <component name="ProblemsViewState">
-    <option name="selectedTabId" value="AISelfReview" />
+    <option name="selectedTabId" value="CurrentFile" />
   </component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 2
@@ -105,7 +103,8 @@
       <workItem from="1762077745597" duration="921000" />
       <workItem from="1762114509717" duration="748000" />
       <workItem from="1762157584512" duration="5000" />
-      <workItem from="1762772324912" duration="1902000" />
+      <workItem from="1762772324912" duration="2757000" />
+      <workItem from="1764249948606" duration="237000" />
     </task>
     <task id="LOCAL-00001" summary="attempting addition of tetra">
       <option name="closed" value="true" />
@@ -299,7 +298,23 @@
       <option name="project" value="LOCAL" />
       <updated>1762773564354</updated>
     </task>
-    <option name="localTasksCounter" value="25" />
+    <task id="LOCAL-00025" summary="Massive UI improvements">
+      <option name="closed" value="true" />
+      <created>1762774232788</created>
+      <option name="number" value="00025" />
+      <option name="presentableId" value="LOCAL-00025" />
+      <option name="project" value="LOCAL" />
+      <updated>1762774232788</updated>
+    </task>
+    <task id="LOCAL-00026" summary="trying to improve for mobile compatibility">
+      <option name="closed" value="true" />
+      <created>1762774471613</created>
+      <option name="number" value="00026" />
+      <option name="presentableId" value="LOCAL-00026" />
+      <option name="project" value="LOCAL" />
+      <updated>1762774471613</updated>
+    </task>
+    <option name="localTasksCounter" value="27" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -320,6 +335,7 @@
     <MESSAGE value="fixed cleaning" />
     <MESSAGE value="easy mode" />
     <MESSAGE value="Massive UI improvements" />
-    <option name="LAST_COMMIT_MESSAGE" value="Massive UI improvements" />
+    <MESSAGE value="trying to improve for mobile compatibility" />
+    <option name="LAST_COMMIT_MESSAGE" value="trying to improve for mobile compatibility" />
   </component>
 </project>

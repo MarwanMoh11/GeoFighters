@@ -36,6 +36,7 @@ export function bindUIEvents() {
 
 /**
  * Instantly sets up a test environment with maxed-out gear and a horde of enemies.
+ * Uses state.stressTestCount for enemy spawn amount (configurable via URL ?stress=N)
  */
 function setupDebugState() {
     console.warn("--- DEBUG MODE ACTIVE ---");
@@ -62,12 +63,12 @@ function setupDebugState() {
         checkEvolution(weapon);
     });
 
-    // 4. Spawn a massive horde of enemies for stress testing
-    const spawnCount = 1000;
-    const spawnRadius = 30;
+    // 4. Spawn enemies for stress testing (uses configurable count)
+    const spawnCount = state.stressTestCount || 1000;
+    const spawnRadius = 50; // Enlarged for stress testing
     const spawnableEnemies = Object.keys(ENEMY_TYPES).filter(key => !ENEMY_TYPES[key].isBoss);
 
-    console.log(`Spawning ${spawnCount} enemies for debug mode...`);
+    console.warn(`Spawning ${spawnCount} enemies for stress testing...`);
     for (let i = 0; i < spawnCount; i++) {
         const randomType = spawnableEnemies[Math.floor(Math.random() * spawnableEnemies.length)];
 
@@ -82,6 +83,8 @@ function setupDebugState() {
 
     // 5. Instantly level up the player to see scaling
     state.playerLevel = 50;
+
+    console.warn(`Stress test complete. ${state.shapes.length} enemies active.`);
 }
 
 // --- Game Flow & State Management ---
@@ -139,7 +142,7 @@ export function startGame(levelId) {
     updateItemUI();
 
     Object.values(ui).forEach(element => {
-        if (element.classList?.contains('menu-overlay') || element.classList?.contains('popup-overlay')) {
+        if (element && element.classList?.contains('menu-overlay') || element?.classList?.contains('popup-overlay')) {
             element.style.display = 'none';
         }
     });
@@ -211,7 +214,7 @@ export function quitToMainMenu() {
     state.isPaused = true;
 
     Object.values(ui).forEach(element => {
-        if (element.classList?.contains('menu-overlay') || element.classList?.contains('popup-overlay') || element.id === 'gameUi') {
+        if (element && (element.classList?.contains('menu-overlay') || element.classList?.contains('popup-overlay') || element.id === 'gameUi')) {
             element.style.display = 'none';
         }
     });
@@ -337,18 +340,18 @@ function populateEvolutionBook() {
     }
 }
 
-// --- MODIFIED: updateUI ---
-// Updates the new top-left HUD elements
+// --- VS-STYLE: updateUI ---
+// Updates the new VS-style HUD elements
 export function updateUI() {
     // Update simple text fields
     ui.shield.textContent = Math.max(0, state.playerShield).toFixed(0);
     ui.score.textContent = state.score;
     ui.levelText.textContent = state.playerLevel;
 
-    // Update XP Bar
+    // Update XP Bar (full-width)
     ui.xpBarFill.style.width = `${Math.min(1, state.currentXP / state.xpToNextLevel) * 100}%`;
 
-    // Update new Shield Bar
+    // Update Shield Bar
     if (ui.shieldBarFill) {
         const shieldPercent = Math.min(1, Math.max(0, state.playerShield) / state.MAX_PLAYER_SHIELD) * 100;
         ui.shieldBarFill.style.width = `${shieldPercent}%`;
@@ -359,39 +362,72 @@ export function updateUI() {
     const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
     const seconds = String(totalSeconds % 60).padStart(2, '0');
     ui.timer.textContent = `${minutes}:${seconds}`;
+
+    // Update Kill Count
+    if (ui.killCount) {
+        ui.killCount.textContent = state.killCount || 0;
+    }
 }
 
-// --- MODIFIED: updateWeaponUI ---
-// Reverted to populate the top-right vertical list
+// --- VS-STYLE: updateWeaponUI ---
+// Populates the bottom-left weapon slots
 export function updateWeaponUI() {
-    if (!ui.weaponIndicator) return;
-    ui.weaponIndicator.innerHTML = ''; // Clear existing
+    if (!ui.weaponSlots) return;
+    ui.weaponSlots.innerHTML = '';
 
-    state.playerWeapons.forEach(weapon => {
-        if (weapon.level > 0) {
-            const iconDiv = document.createElement('div');
-            iconDiv.classList.add('icon-display');
-            if (weapon.isEvolved) iconDiv.classList.add('evolved');
-            iconDiv.innerHTML = `<span>${weapon.icon || '?'}</span> <span>${weapon.isEvolved ? 'EVO' : 'L' + weapon.level}</span>`;
-            ui.weaponIndicator.appendChild(iconDiv);
+    // Create 6 slots (max weapons)
+    for (let i = 0; i < 6; i++) {
+        const slot = document.createElement('div');
+        slot.classList.add('weapon-slot');
+
+        const weapon = state.playerWeapons[i];
+        if (weapon && weapon.level > 0) {
+            slot.classList.add('active');
+            if (weapon.isEvolved) slot.classList.add('evolved');
+
+            const icon = document.createElement('span');
+            icon.classList.add('slot-icon');
+            icon.textContent = weapon.icon || '?';
+            slot.appendChild(icon);
+
+            const level = document.createElement('span');
+            level.classList.add('slot-level');
+            level.textContent = weapon.isEvolved ? 'E' : weapon.level;
+            slot.appendChild(level);
         }
-    });
+
+        ui.weaponSlots.appendChild(slot);
+    }
 }
 
-// --- MODIFIED: updateItemUI ---
-// Reverted to populate the top-right vertical list
+// --- VS-STYLE: updateItemUI ---
+// Populates the bottom-right item slots
 export function updateItemUI() {
-    if (!ui.itemIndicator) return;
-    ui.itemIndicator.innerHTML = ''; // Clear existing
+    if (!ui.itemSlots) return;
+    ui.itemSlots.innerHTML = '';
 
-    state.playerItems.forEach(item => {
-        if (item.level > 0) {
-            const iconDiv = document.createElement('div');
-            iconDiv.classList.add('icon-display');
-            iconDiv.innerHTML = `<span>${item.icon || '?'}</span> <span>L${item.level}</span>`;
-            ui.itemIndicator.appendChild(iconDiv);
+    // Create 6 slots (max items)
+    for (let i = 0; i < 6; i++) {
+        const slot = document.createElement('div');
+        slot.classList.add('item-slot');
+
+        const item = state.playerItems[i];
+        if (item && item.level > 0) {
+            slot.classList.add('active');
+
+            const icon = document.createElement('span');
+            icon.classList.add('slot-icon');
+            icon.textContent = item.icon || '?';
+            slot.appendChild(icon);
+
+            const level = document.createElement('span');
+            level.classList.add('slot-level');
+            level.textContent = item.level;
+            slot.appendChild(level);
         }
-    });
+
+        ui.itemSlots.appendChild(slot);
+    }
 }
 
 // --- MODIFIED: updateJoystickVisibility ---
@@ -521,8 +557,8 @@ function presentUpgradeOptions(permanentUpgrades, count = 3) {
         // --- END: Evolution Hint Logic ---
 
 
-        if(optionWrapper.type.includes('weapon')) description = defaultGetUpgradeDescription.call(option);
-        else if(optionWrapper.type.includes('item')) description = defaultItemGetUpgradeDescription.call(option);
+        if (optionWrapper.type.includes('weapon')) description = defaultGetUpgradeDescription.call(option);
+        else if (optionWrapper.type.includes('item')) description = defaultItemGetUpgradeDescription.call(option);
         else description = `${option.name} ${option.icon || ''}`;
 
         button.innerHTML = description + evolutionHint; // <-- NEW: Append hint
@@ -614,22 +650,142 @@ export function openGeometricCache(cacheMesh) {
     cacheMesh.userData.openAnimationDuration = 0.8;
 }
 
-export function grantCacheRewards() {
-    const rewards = [];
-    // const numRewards = 1 + Math.floor(Math.random() * 2);
-    const potentialRewards = [];
-    state.playerItems.forEach(i => { if (i.level < i.maxLevel) potentialRewards.push({ type: 'item_upgrade', data: i }); });
-    if(potentialRewards.length > 0) rewards.push(potentialRewards[Math.floor(Math.random() * potentialRewards.length)]);
+export function grantCacheRewards(rewardCount = 1, rarityName = 'Common') {
+    // Pause the game
+    state.previousGameState = state.currentGameState;
+    state.currentGameState = GameState.CasinoChest;
+    state.isPaused = true;
 
-    ui.cacheRewardsList.innerHTML = '';
-    rewards.forEach(reward => {
-        const rewardSpan = document.createElement('span');
-        rewardSpan.textContent = reward.data.icon || '?';
-        ui.cacheRewardsList.appendChild(rewardSpan);
-        applyUpgradeLogic(reward);
+    // Build reward pool with WEIGHTED chances
+    // New weapons are 3x more likely than upgrades
+    const rewardPool = [];
+
+    // Add upgradeable items (weight: 1x)
+    state.playerItems.forEach(item => {
+        if (item.level < item.maxLevel) {
+            rewardPool.push({ type: 'item_upgrade', data: item, icon: item.icon, name: item.name });
+        }
     });
-    ui.cacheRewardPopup.style.display = 'block';
-    setTimeout(() => { ui.cacheRewardPopup.style.display = 'none'; }, 2500);
+
+    // Add upgradeable weapons (weight: 1x)
+    state.playerWeapons.forEach(weapon => {
+        if (weapon.level > 0 && weapon.level < weapon.maxLevel && !weapon.isEvolved) {
+            rewardPool.push({ type: 'weapon_upgrade', data: weapon, icon: weapon.icon, name: weapon.name });
+        }
+    });
+
+    // Add NEW weapons player doesn't have yet (weight: 3x - more likely!)
+    state.playerWeapons.forEach(weapon => {
+        if (weapon.level === 0) {
+            const newWeaponEntry = { type: 'new_weapon', data: weapon, icon: weapon.icon, name: `NEW: ${weapon.name}` };
+            rewardPool.push(newWeaponEntry); // Add 3 times for 3x weight
+            rewardPool.push(newWeaponEntry);
+            rewardPool.push(newWeaponEntry);
+        }
+    });
+
+    // Ensure we have something to show (fallback)
+    if (rewardPool.length === 0) {
+        rewardPool.push({ type: 'bonus_xp', icon: '⭐', name: 'Bonus XP' });
+    }
+
+    // Select rewards (avoiding duplicates)
+    const selectedRewards = [];
+    const usedWeapons = new Set();
+    for (let i = 0; i < rewardCount && rewardPool.length > 0; i++) {
+        let attempts = 0;
+        let idx, reward;
+        do {
+            idx = Math.floor(Math.random() * rewardPool.length);
+            reward = rewardPool[idx];
+            attempts++;
+        } while (usedWeapons.has(reward.data?.id || reward.name) && attempts < 20);
+
+        usedWeapons.add(reward.data?.id || reward.name);
+        selectedRewards.push(reward);
+        // Remove all instances of this reward from pool
+        for (let j = rewardPool.length - 1; j >= 0; j--) {
+            if (rewardPool[j].data?.id === reward.data?.id || rewardPool[j].name === reward.name) {
+                rewardPool.splice(j, 1);
+            }
+        }
+    }
+
+    // Show casino overlay
+    ui.chestCasinoOverlay.style.display = 'flex';
+    ui.casinoRarityBanner.textContent = rarityName.toUpperCase();
+    ui.casinoRarityBanner.className = rarityName.toLowerCase();
+    ui.casinoRewardsDisplay.innerHTML = '';
+    ui.casinoContinueBtn.style.display = 'none';
+
+    // Setup slot reels with spinning items
+    const slots = ui.casinoSlotsContainer.querySelectorAll('.casino-slot');
+    const visibleSlots = Math.min(rewardCount, 3);
+
+    slots.forEach((slot, i) => {
+        if (i < visibleSlots) {
+            slot.style.display = 'block';
+            slot.classList.remove('stopped');
+            const reel = slot.querySelector('.slot-reel');
+            reel.innerHTML = '';
+
+            // Add spinning items (random from pool + final reward)
+            const spinItems = [];
+            for (let j = 0; j < 20; j++) {
+                const randomReward = rewardPool.length > 0
+                    ? rewardPool[Math.floor(Math.random() * rewardPool.length)]
+                    : selectedRewards[i] || selectedRewards[0];
+                spinItems.push(randomReward);
+            }
+            spinItems.push(selectedRewards[i] || selectedRewards[0]); // Final item
+
+            spinItems.forEach(item => {
+                const slotItem = document.createElement('div');
+                slotItem.className = 'slot-item';
+                slotItem.innerHTML = `<span>${item.icon || '?'}</span><span class="slot-name">${item.name || ''}</span>`;
+                reel.appendChild(slotItem);
+            });
+
+            // Animate the spin
+            reel.style.transform = 'translateY(0)';
+            const slotHeight = 130; // Must match CSS .slot-item height
+            const targetY = -(spinItems.length - 1) * slotHeight;
+            const spinDuration = 2000 + i * 500; // Stagger stops
+
+            setTimeout(() => {
+                reel.style.transition = `transform ${spinDuration}ms cubic-bezier(0.12, 0, 0.39, 0)`;
+                reel.style.transform = `translateY(${targetY}px)`;
+            }, 100);
+
+            // Stop animation
+            setTimeout(() => {
+                slot.classList.add('stopped');
+
+                // Apply the reward directly (no display needed, already shown in slot)
+                const reward = selectedRewards[i] || selectedRewards[0];
+                applyUpgradeLogic(reward);
+            }, spinDuration + 200);
+        } else {
+            slot.style.display = 'none';
+        }
+    });
+
+    // Show continue button after all spins complete
+    const totalDuration = 2000 + (visibleSlots - 1) * 500 + 500;
+    setTimeout(() => {
+        ui.casinoContinueBtn.style.display = 'block';
+    }, totalDuration);
+}
+
+// Bind casino continue button
+if (ui.casinoContinueBtn) {
+    ui.casinoContinueBtn.onclick = () => {
+        ui.chestCasinoOverlay.style.display = 'none';
+        state.currentGameState = GameState.Playing;
+        state.isPaused = false;
+        updateWeaponUI();
+        updateItemUI();
+    };
 }
 
 function showUpgradeMenu() {
@@ -664,7 +820,7 @@ function populateUpgradeMenu() {
         const cost = calculateMetaUpgradeCost(key);
         const entryDiv = document.createElement('div');
         entryDiv.classList.add('upgrade-stat-entry');
-        entryDiv.innerHTML = `<span>${upgrade.name} (Lvl ${upgrade.level}/${upgrade.maxLevel})</span><div><span>${upgrade.level<upgrade.maxLevel?`Cost: <strong>${cost}</strong>`:`<strong style="color: #aaffaa;">MAX</strong>`}</span><button data-key="${key}" ${upgrade.level>=upgrade.maxLevel||state.dataCores<cost?'disabled':''}>Upgrade</button></div>`;
+        entryDiv.innerHTML = `<span>${upgrade.name} (Lvl ${upgrade.level}/${upgrade.maxLevel})</span><div><span>${upgrade.level < upgrade.maxLevel ? `Cost: <strong>${cost}</strong>` : `<strong style="color: #aaffaa;">MAX</strong>`}</span><button data-key="${key}" ${upgrade.level >= upgrade.maxLevel || state.dataCores < cost ? 'disabled' : ''}>Upgrade</button></div>`;
         ui.metaUpgradeList.appendChild(entryDiv);
     }
     ui.metaUpgradeList.querySelectorAll('button').forEach(button => {

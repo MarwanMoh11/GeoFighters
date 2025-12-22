@@ -13,18 +13,18 @@ import { ui } from '../ui/dom.js';
 const HORDE_TIMELINE = [
     // === PHASE 1: The Onslaught Begins (0:00 - 2:00) ===
     // Objective: Teach basic movement and dodging.
-    { startTime: 5,   duration: 50, type: 'CUBE_CRUSHER',  calmDuration: 15 }, // Standard intro. Ends at 1:10.
-    { startTime: 70,  duration: 60, type: 'TETRA_SWARMER', calmDuration: 20 }, // Introduce fast, numerous enemies. Ends at 2:10.
+    { startTime: 5, duration: 50, type: 'CUBE_CRUSHER', calmDuration: 15 }, // Standard intro. Ends at 1:10.
+    { startTime: 70, duration: 60, type: 'TETRA_SWARMER', calmDuration: 20 }, // Introduce fast, numerous enemies. Ends at 2:10.
 
     // === PHASE 2: New Threats (2:10 - 4:30) ===
     // Objective: Introduce special abilities and armor.
     { startTime: 150, duration: 10, type: 'SPHERE_SPLITTER', calmDuration: 25 }, // Short, intense wave to manage performance. Ends at 3:35.
-    { startTime: 150,   duration: 100, type: 'CUBE_CRUSHER',  calmDuration: 15 },
+    { startTime: 150, duration: 100, type: 'CUBE_CRUSHER', calmDuration: 15 },
     { startTime: 215, duration: 60, type: 'TETRA_SWARMER', calmDuration: 25 }, // Introduce the "Tough" enemy type. Ends at 4:20.
 
     // === PHASE 3: The Gauntlet (4:30 - 7:00) ===
     // Objective: Combine hordes to test player prioritization.
-    { startTime: 275, duration: 65, type: 'SPHERE_SPLITTER',  calmDuration: 20 }, // A full wave of easy enemies. Ends at 5:40.
+    { startTime: 275, duration: 65, type: 'SPHERE_SPLITTER', calmDuration: 20 }, // A full wave of easy enemies. Ends at 5:40.
     // ** OVERLAP! ** While dashers are still spawning, swarmers return.
     { startTime: 275, duration: 80, type: 'TETRA_SWARMER', calmDuration: 0, isMiniHorde: true }, // Swarmers create chaos for the dashers.
 
@@ -133,15 +133,13 @@ export function handleSpawning(deltaTime) {
 
 function transitionToHorde(hordeConfig) {
     if (hordeConfig.isMiniHorde) {
-        console.log(`%c-- Overlapping Mini-Horde: ${hordeConfig.type}`, 'color: red; font-weight: bold;');
-        // Don't change the main spawner state for mini-hordes
+        // Mini-horde: Don't change the main spawner state
     } else {
-        console.log(`%cStarting Main Horde: ${hordeConfig.type}`, 'color: orange; font-weight: bold;');
         state.spawnerState = 'HORDE_ACTIVE';
         state.hordeTimer = hordeConfig.duration;
     }
 
-    state.currentHordeEnemyType = hordeConfig.type; // This will be used by spawnHordeWave
+    state.currentHordeEnemyType = hordeConfig.type;
     state.hordeIndex++;
 }
 
@@ -158,7 +156,6 @@ function transitionToCalm() {
 
     // Only log and set timer if we aren't about to start another horde
     if (calmDuration > 0) {
-        console.log(`%cHorde complete. Calm phase for ${calmDuration}s.`, 'color: cyan;');
         state.spawnerState = 'CALM';
         state.hordeTimer = calmDuration;
         state.currentHordeEnemyType = null;
@@ -262,8 +259,8 @@ export function initializePools() {
     initializeDamageNumberPool();
 
     // Max number of one enemy type on screen at once.
-    // Adjust this based on your game's needs.
-    const MAX_INSTANCES_PER_TYPE = 250;
+    // Increased for heavy load stress testing.
+    const MAX_INSTANCES_PER_TYPE = 500;
 
     Object.keys(ENEMY_TYPES).forEach(typeId => {
         const typeData = ENEMY_TYPES[typeId];
@@ -309,7 +306,6 @@ export function initializePools() {
         // 3. Create the InstancedMesh
         const instancedMesh = new THREE.InstancedMesh(geometry, material, MAX_INSTANCES_PER_TYPE);
         instancedMesh.frustumCulled = false;
-        console.log(`[INIT] Created InstancedMesh for ${typeId}. frustumCulled = ${instancedMesh.frustumCulled}`);
         instancedMesh.count = 0; // Start with 0 active instances
         instancedMesh.userData.radius = geometry.boundingSphere.radius; // Store radius
         instancedMesh.userData.baseColor = new THREE.Color(typeData.color || 0xffffff);
@@ -336,8 +332,6 @@ export function initializePools() {
         instancedMesh.instanceMatrix.needsUpdate = true;
         instancedMesh.instanceColor.needsUpdate = true;
     });
-
-    console.log("All instanced meshes and index pools initialized.");
 }
 
 
@@ -480,9 +474,8 @@ export function spawnEnemyByType(typeId, forcedPosition = null) {
         spawnTimestamp: state.gameTime,
     };
 
-    // 6. Add the DATA to the main enemy list (replaces state.shapes.push)
-    state.shapes.push(enemyData); // Or state.enemies.push(enemyData) if you renamed it
-    console.log(`[SPAWN_SUCCESS] Spawned ${typeId} at [${spawnPosition.x.toFixed(1)}, ${spawnPosition.z.toFixed(1)}]. Assigned instanceId: ${instanceId}. New mesh count: ${instancedMesh.count}. state.shapes now: ${state.shapes.length}`);
+    // 6. Add the DATA to the main enemy list
+    state.shapes.push(enemyData);
 }
 
 export function spawnSplitterOffspring(position, generation) {
@@ -561,32 +554,112 @@ export function returnEnemyToPool(enemy) {
 
     if (!instancedMesh || !pool) return;
 
-    // 1. "Hide" the instance by setting its scale to 0
+    // 1. "Hide" the instance by moving it far off-screen AND setting scale to 0
+    // IMPORTANT: Reset position to prevent stale data in the matrix
+    state.dummy.position.set(0, -1000, 0); // Move far below the world
     state.dummy.scale.set(0, 0, 0);
+    state.dummy.rotation.set(0, 0, 0);
     state.dummy.updateMatrix();
     instancedMesh.setMatrixAt(instanceId, state.dummy.matrix);
     instancedMesh.instanceMatrix.needsUpdate = true;
 
     // 2. Return its index to the pool for reuse
     pool.push(instanceId);
+}
 
-    // 3. (Optional) You can shrink the 'count' but it's complex.
-    // For simplicity, we just leave the 'count' as the high-water mark.
+// Chest rarity tiers with colors and reward counts
+const CHEST_RARITIES = {
+    COMMON: { name: 'Common', color: 0x8B4513, glowColor: 0x8B4513, emissive: 0x331100, rewards: 1, weight: 60 },
+    UNCOMMON: { name: 'Uncommon', color: 0x228B22, glowColor: 0x00FF00, emissive: 0x003300, rewards: 1, weight: 25 },
+    RARE: { name: 'Rare', color: 0x4169E1, glowColor: 0x00BFFF, emissive: 0x001166, rewards: 2, weight: 10 },
+    EPIC: { name: 'Epic', color: 0x9932CC, glowColor: 0xFF00FF, emissive: 0x330033, rewards: 3, weight: 4 },
+    LEGENDARY: { name: 'Legendary', color: 0xFFD700, glowColor: 0xFFD700, emissive: 0x664400, rewards: 5, weight: 1 }
+};
+
+function rollChestRarity() {
+    const totalWeight = Object.values(CHEST_RARITIES).reduce((sum, r) => sum + r.weight, 0);
+    let roll = Math.random() * totalWeight;
+    for (const [key, rarity] of Object.entries(CHEST_RARITIES)) {
+        roll -= rarity.weight;
+        if (roll <= 0) return { key, ...rarity };
+    }
+    return { key: 'COMMON', ...CHEST_RARITIES.COMMON };
 }
 
 export function spawnGeometricCache(position) {
     const cacheSize = CONSTANTS.CACHE_RADIUS * 1.5;
-    const geometry = new THREE.DodecahedronGeometry(cacheSize, 0);
-    const material = new THREE.MeshStandardMaterial({ color: 0xDAA520, emissive: 0x443300, roughness: 0.3, metalness: 0.4 });
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.copy(position);
+    const rarity = rollChestRarity();
+
+    // Create a chest group with base and lid
+    const chestGroup = new THREE.Group();
+    chestGroup.position.copy(position);
     const baseY = cacheSize * 0.5;
-    mesh.position.y = baseY;
-    mesh.castShadow = true;
-    mesh.userData.isOpeningCache = false;
-    const cache = { mesh: mesh, baseY: baseY, bobTimer: Math.random() * Math.PI * 2 };
+    chestGroup.position.y = baseY;
+
+    // Scale based on rarity (legendary is bigger)
+    const rarityScale = 1 + (rarity.rewards - 1) * 0.15;
+
+    // Chest base (bottom half)
+    const baseGeometry = new THREE.BoxGeometry(cacheSize * 1.2 * rarityScale, cacheSize * 0.6 * rarityScale, cacheSize * 0.8 * rarityScale);
+    const baseMaterial = new THREE.MeshStandardMaterial({
+        color: rarity.color,
+        emissive: rarity.emissive,
+        emissiveIntensity: 0.3 + rarity.rewards * 0.1,
+        roughness: 0.3,
+        metalness: 0.6
+    });
+    const baseMesh = new THREE.Mesh(baseGeometry, baseMaterial);
+    baseMesh.position.y = -cacheSize * 0.15 * rarityScale;
+    chestGroup.add(baseMesh);
+
+    // Chest lid (top half)
+    const lidGeometry = new THREE.BoxGeometry(cacheSize * 1.2 * rarityScale, cacheSize * 0.4 * rarityScale, cacheSize * 0.8 * rarityScale);
+    const lidMaterial = new THREE.MeshStandardMaterial({
+        color: rarity.color,
+        emissive: rarity.glowColor,
+        emissiveIntensity: 0.4 + rarity.rewards * 0.15,
+        roughness: 0.2,
+        metalness: 0.7
+    });
+    const lidMesh = new THREE.Mesh(lidGeometry, lidMaterial);
+
+    // Lid pivot point (hinge at the back)
+    const lidPivot = new THREE.Group();
+    lidPivot.position.set(0, cacheSize * 0.15 * rarityScale, -cacheSize * 0.4 * rarityScale);
+    lidMesh.position.set(0, cacheSize * 0.2 * rarityScale, cacheSize * 0.4 * rarityScale);
+    lidPivot.add(lidMesh);
+    chestGroup.add(lidPivot);
+
+    // Glow ring around chest (brighter for higher rarity)
+    const glowGeometry = new THREE.RingGeometry(cacheSize * 0.8 * rarityScale, cacheSize * 1.4 * rarityScale, 32);
+    const glowMaterial = new THREE.MeshBasicMaterial({
+        color: rarity.glowColor,
+        transparent: true,
+        opacity: 0.3 + rarity.rewards * 0.1,
+        side: THREE.DoubleSide
+    });
+    const glowRing = new THREE.Mesh(glowGeometry, glowMaterial);
+    glowRing.rotation.x = -Math.PI / 2;
+    glowRing.position.y = -cacheSize * 0.4 * rarityScale;
+    chestGroup.add(glowRing);
+
+    chestGroup.castShadow = true;
+    chestGroup.userData.isOpeningCache = false;
+    chestGroup.userData.lidPivot = lidPivot;
+    chestGroup.userData.glowRing = glowRing;
+    chestGroup.userData.baseMesh = baseMesh;
+    chestGroup.userData.lidMesh = lidMesh;
+    chestGroup.userData.rarity = rarity;
+
+    const cache = {
+        mesh: chestGroup,
+        baseY: baseY,
+        bobTimer: Math.random() * Math.PI * 2,
+        pulseTimer: 0,
+        rarity: rarity
+    };
     state.geometricCaches.push(cache);
-    state.scene.add(mesh);
+    state.scene.add(chestGroup);
 }
 
 export function spawnDataFragment(position, value) {
@@ -661,7 +734,7 @@ export function initializeEffectPools() {
     // Pool for burst particles
     const burstPoolName = 'burstParticles';
     state.objectPools[burstPoolName] = [];
-    for (let i = 0; i < 300; i++) {
+    for (let i = 0; i < 600; i++) {
         const material = new THREE.MeshBasicMaterial({ color: 0xffffff });
         const mesh = new THREE.Mesh(particleGeometry, material);
         mesh.visible = false;
@@ -674,7 +747,7 @@ export function initializeEffectPools() {
     const tempEffectPoolName = 'tempVisualEffects';
     state.objectPools[tempEffectPoolName] = [];
     const tempEffectGeometry = new THREE.IcosahedronGeometry(1, 1);
-    for (let i = 0; i < 50; i++) {
+    for (let i = 0; i < 100; i++) {
         const material = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, wireframe: true });
         const mesh = new THREE.Mesh(tempEffectGeometry.clone(), material); // Clone geometry to be safe
         mesh.visible = false;
@@ -756,7 +829,7 @@ export function initializeDamageNumberPool() {
     if (!ui.damageNumbersContainer) return;
     const poolName = 'damageNumbers';
     state.objectPools[poolName] = [];
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < 100; i++) {
         const el = document.createElement('div');
         el.style.position = 'absolute';
         el.style.display = 'none';
