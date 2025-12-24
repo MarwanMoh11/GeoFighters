@@ -434,6 +434,8 @@ export function render() {
         if (el.type === 'button') renderButton(el);
         if (el.type === 'text') renderText(el);
     });
+
+    renderTutorialOverlay(w, h);
 }
 
 function renderButton(button) {
@@ -496,21 +498,67 @@ function renderMainMenu(w, h) {
 // TUTORIAL OVERLAY
 // =============================================================================
 function renderTutorialOverlay(w, h) {
-    if (!state.tutorialMessage || state.tutorialMessage === "") return;
+    let msg = state.tutorialMessage;
 
-    const msg = state.tutorialMessage;
-    const padding = 20;
+    // Override message for specific screens
+    if (activeScreen === 'levelUp') msg = "Select an Upgrade!";
+    // Casino message removed as per request
 
-    ctx.font = 'bold 24px sans-serif';
+    if (state.tutorialStep === 'COMPLETE') {
+        // Button Logic
+        const btnW = 220;
+        const btnH = 60;
+        const btnX = (w - btnW) / 2;
+        const btnY = h * 0.5;
+
+        if (!uiElements.some(el => el.id === 'tutStartBtn')) {
+            uiElements.push({
+                id: 'tutStartBtn',
+                type: 'button',
+                text: 'BEGIN MISSION',
+                bounds: { x: btnX, y: btnY, width: btnW, height: btnH },
+                onClick: () => {
+                    import('../config/levels.js').then(m => {
+                        const currentLevel = m.gameLevels.find(l => l.id === state.currentLevelId);
+                        if (currentLevel) currentLevel.isTutorial = false;
+                    });
+                    state.gameTime = 0;
+                    state.spawnerState = 'CALM';
+                    state.hordeIndex = 0; // CRITICAL FIX: Reset horde progression
+                    state.tutorialStep = 'INTRO';
+                    state.tutorialMessage = "";
+                    state.score = 0;
+
+                    // Remove button immediately
+                    const idx = uiElements.findIndex(el => el.id === 'tutStartBtn');
+                    if (idx !== -1) uiElements.splice(idx, 1);
+
+                    import('../ui/manager.js').then(m => m.showScreen('playing'));
+                }
+            });
+        }
+        // Force message if valid
+        if (!msg) msg = "MISSION READY";
+    } else {
+        // Remove button
+        const idx = uiElements.findIndex(el => el.id === 'tutStartBtn');
+        if (idx !== -1) uiElements.splice(idx, 1);
+    }
+
+    if (!msg || msg === "") return;
+
+    // Position below XP bar generally
+    const y = safeArea.top + 60;
+
+    ctx.font = 'bold 20px sans-serif'; // Slightly smaller font
     const textMetrics = ctx.measureText(msg);
     const textWidth = textMetrics.width;
-    const boxWidth = Math.min(w * 0.9, textWidth + 80);
-    const boxHeight = 60;
+    const boxWidth = Math.min(w * 0.95, textWidth + 40);
+    const boxHeight = 50;
     const x = (w - boxWidth) / 2;
-    const y = h * 0.15; // Top area
 
     // Semi-transparent bg
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'; // Darker for readability
     ctx.strokeStyle = COLORS.gold;
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -636,7 +684,6 @@ function renderHUD(w, h) {
 
     // === JOYSTICK INDICATOR ===
     renderJoystick(w, h);
-    renderTutorialOverlay(w, h);
 }
 
 // Render weapon and item slots
@@ -953,8 +1000,7 @@ function renderCasino(w, h) {
     let bannerColor = '#ccc';
     if (rarity === 'Legendary') bannerColor = '#ff4500';
     else if (rarity === 'Epic') bannerColor = '#b366ff';
-    else if (rarity === 'Rare') bannerColor = '#4169e1';
-    else bannerColor = '#32cd32';
+    else bannerColor = '#4169e1'; // Default to Rare
 
     ctx.fillStyle = bannerColor;
     ctx.font = 'bold 16px sans-serif';
@@ -962,7 +1008,7 @@ function renderCasino(w, h) {
 
     // Slot machine container
     // We display up to 3 slots
-    const slotsCount = Math.min(Math.max(count || 1, 1), 3);
+    const slotsCount = Math.min(Math.max(count || 1, 1), 5);
     const slotW = 85;
     const slotH = 110;
     const totalSlotW = slotsCount * slotW + (slotsCount - 1) * 15;

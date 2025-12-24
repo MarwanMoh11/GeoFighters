@@ -706,7 +706,7 @@ export function openGeometricCache(cacheMesh) {
     cacheMesh.userData.openAnimationDuration = 0.8;
 }
 
-export function grantCacheRewards(rewardCount = 1, rarityName = 'Common') {
+export function grantCacheRewards(rewardCount = 1, rarityName = 'Rare') {
     // Haptic feedback for chest opening
     triggerHaptic('success');
 
@@ -734,14 +734,17 @@ export function grantCacheRewards(rewardCount = 1, rarityName = 'Common') {
     });
 
     // Add NEW weapons player doesn't have yet (weight: 3x - more likely!)
-    state.playerWeapons.forEach(weapon => {
-        if (weapon.level === 0) {
-            const newWeaponEntry = { type: 'new_weapon', data: weapon, icon: weapon.icon, name: `NEW: ${weapon.name}` };
-            rewardPool.push(newWeaponEntry); // Add 3 times for 3x weight
-            rewardPool.push(newWeaponEntry);
-            rewardPool.push(newWeaponEntry);
-        }
-    });
+    if (state.playerWeapons.length < CONSTANTS.MAX_WEAPONS) {
+        Object.values(WEAPONS).forEach(weapon => {
+            const isAlreadyOwned = state.playerWeapons.some(pw => pw.id === weapon.id);
+            if (!isAlreadyOwned && weapon.level === 0) {
+                const newWeaponEntry = { type: 'weapon_unlock', data: weapon, icon: weapon.icon, name: `NEW: ${weapon.name}` };
+                rewardPool.push(newWeaponEntry); // Add 3 times for 3x weight
+                rewardPool.push(newWeaponEntry);
+                rewardPool.push(newWeaponEntry);
+            }
+        });
+    }
 
     // Ensure we have something to show (fallback)
     if (rewardPool.length === 0) {
@@ -789,7 +792,7 @@ export function grantCacheRewards(rewardCount = 1, rarityName = 'Common') {
 
     // Setup slot reels with spinning items
     const slots = ui.casinoSlotsContainer.querySelectorAll('.casino-slot');
-    const visibleSlots = Math.min(rewardCount, 3);
+    const visibleSlots = Math.min(rewardCount, 5);
 
     slots.forEach((slot, i) => {
         if (i < visibleSlots) {

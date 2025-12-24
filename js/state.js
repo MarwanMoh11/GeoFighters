@@ -84,6 +84,7 @@ export let state = {
     shapeSpawnInterval: 2.0,
     eliteSpawnTimer: 35,
     pickupSpawnTimer: 5,
+    pyramidSpawnTimer: 0,
 
     // Base Stats
     BASE_MAX_PLAYER_SHIELD: 100,
@@ -178,6 +179,7 @@ export function resetGameState() {
     state.shapeSpawnTimer = 0;
     state.eliteSpawnTimer = 0;
     state.pickupSpawnTimer = 0;
+    state.pyramidSpawnTimer = 0;
 
     // Reset player position
     if (state.player) {

@@ -195,6 +195,129 @@ export const WEAPONS = {
         id: 'SINGULARITY_LAUNCHER', name: 'Singularity Launcher', icon: '⚫', level: 0, maxLevel: 5, synergyItemId: null, tags: ['heavy'], shortDescription: "Launches slow, massive damage singularities.", baseFireRate: 2.5, baseDamage: 90, fireTimer: 0, isEvolved: false,
         fire: function (deltaTime) { const fireRateMod = getItemModifier('GLOBAL_FIRERATE_PERCENT'); this.fireTimer += deltaTime; if (this.fireTimer >= this.getFireRate() / fireRateMod.percent) { this.fireTimer = 0; fireGenericProjectile(this, { material: new THREE.MeshBasicMaterial({ color: 0x111111 }), damage: this.getDamage(), geometry: new THREE.SphereGeometry(CONSTANTS.PROJECTILE_RADIUS * 2.0, 12, 10), speed: CONSTANTS.BASE_PROJECTILE_SPEED * 0.5, tags: this.tags }); } },
         getFireRate: function () { return this.baseFireRate * Math.pow(0.95, this.level - 1); }, getDamage: function () { return this.baseDamage + (this.level - 1) * 28; }
+    },
+    GLYPH_STRIKE: {
+        id: 'GLYPH_STRIKE', name: 'Glyph Strike', icon: '卍', level: 0, maxLevel: 5, synergyItemId: null, tags: ['aoe'], shortDescription: "Summons ancient glyphs that pulse with energy.", baseFireRate: 1.5, baseDamage: 25, fireTimer: 0, isEvolved: false,
+        fire: function (deltaTime) {
+            const fireRateMod = getItemModifier('GLOBAL_FIRERATE_PERCENT');
+            this.fireTimer += deltaTime;
+            if (this.fireTimer >= this.getFireRate() / fireRateMod.percent) {
+                this.fireTimer = 0;
+                const target = findNearestEnemy(state.player.position, 40) || { position: state.player.position.clone().add(new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5).normalize().multiplyScalar(5)) };
+                const glyphPos = target.position.clone();
+                glyphPos.y = 0.5;
+                const glyphGeom = new THREE.TorusKnotGeometry(0.8, 0.2, 64, 8);
+                const glyphMat = new THREE.MeshStandardMaterial({ color: 0xFF00FF, emissive: 0xFF00FF, emissiveIntensity: 1, wireframe: true });
+                const glyphMesh = new THREE.Mesh(glyphGeom, glyphMat);
+                glyphMesh.position.copy(glyphPos);
+                state.scene.add(glyphMesh);
+
+                const damage = this.getDamage();
+                const duration = 2.5;
+                let elapsed = 0;
+
+                state.effectsToUpdate.push({
+                    update: (dt) => {
+                        elapsed += dt;
+                        glyphMesh.rotation.y += dt * 3;
+                        glyphMesh.scale.setScalar(1 + Math.sin(elapsed * 10) * 0.2);
+
+                        if (Math.floor(elapsed * 5) > Math.floor((elapsed - dt) * 5)) {
+                            state.shapes.forEach(shape => {
+                                if (shape.position.distanceTo(glyphPos) < 3) {
+                                    shape.health -= damage;
+                                    createHitEffect(shape, 0xFF00FF, 0.2);
+                                }
+                            });
+                        }
+
+                        if (elapsed >= duration) {
+                            state.scene.remove(glyphMesh);
+                            glyphGeom.dispose();
+                            glyphMat.dispose();
+                            return true;
+                        }
+                        return false;
+                    }
+                });
+            }
+        },
+        getFireRate: function () { return this.baseFireRate * Math.pow(0.9, this.level - 1); },
+        getDamage: function () { return this.baseDamage + (this.level - 1) * 8; }
+    },
+    SPIRAL_STINGER: {
+        id: 'SPIRAL_STINGER', name: 'Spiral Stinger', icon: '🌀', level: 0, maxLevel: 5, synergyItemId: null, tags: ['scatter'], shortDescription: "Fires stingers in an expanding spiral.", baseFireRate: 1.2, baseDamage: 12, fireTimer: 0, isEvolved: false,
+        fire: function (deltaTime) {
+            const fireRateMod = getItemModifier('GLOBAL_FIRERATE_PERCENT');
+            this.fireTimer += deltaTime;
+            if (this.fireTimer >= this.getFireRate() / fireRateMod.percent) {
+                this.fireTimer = 0;
+                const count = 12 + (this.level - 1) * 4;
+                const damage = this.getDamage();
+                for (let i = 0; i < count; i++) {
+                    setTimeout(() => {
+                        if (!state.player) return;
+                        const angle = (i / count) * Math.PI * 4;
+                        const dir = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
+                        fireGenericProjectile(this, {
+                            direction: dir,
+                            damage: damage,
+                            color: 0xFFFF00,
+                            emissiveColor: 0xFFAA00,
+                            speed: CONSTANTS.BASE_PROJECTILE_SPEED * (0.5 + (i / count)),
+                            geometry: new THREE.ConeGeometry(0.1, 0.4, 4)
+                        });
+                    }, i * 50);
+                }
+            }
+        },
+        getFireRate: function () { return this.baseFireRate * Math.pow(0.92, this.level - 1); },
+        getDamage: function () { return this.baseDamage + (this.level - 1) * 3; }
+    },
+    NULL_VOID: {
+        id: 'NULL_VOID', name: 'Null Void', icon: '🕳️', level: 0, maxLevel: 5, synergyItemId: null, tags: ['aoe'], shortDescription: "Creates a localized void that drains life.", baseFireRate: 3.0, baseDamage: 40, fireTimer: 0, isEvolved: false,
+        fire: function (deltaTime) {
+            const fireRateMod = getItemModifier('GLOBAL_FIRERATE_PERCENT');
+            this.fireTimer += deltaTime;
+            if (this.fireTimer >= this.getFireRate() / fireRateMod.percent) {
+                this.fireTimer = 0;
+                const voidPos = state.player.position.clone();
+                const voidGeom = new THREE.SphereGeometry(4, 32, 32);
+                const voidMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.4 });
+                const voidMesh = new THREE.Mesh(voidGeom, voidMat);
+                voidMesh.position.copy(voidPos);
+                state.scene.add(voidMesh);
+
+                const damage = this.getDamage();
+                const duration = 4 + (this.level - 1);
+                let elapsed = 0;
+
+                state.effectsToUpdate.push({
+                    update: (dt) => {
+                        elapsed += dt;
+                        voidMesh.scale.setScalar(Math.min(1, elapsed * 2));
+
+                        state.shapes.forEach(shape => {
+                            if (shape.position.distanceTo(voidPos) < 4) {
+                                shape.health -= damage * dt;
+                                // Slow effect simulation - assuming shape has speed or movement logic
+                                if (shape.velocity) shape.velocity.multiplyScalar(0.95);
+                            }
+                        });
+
+                        if (elapsed >= duration) {
+                            state.scene.remove(voidMesh);
+                            voidGeom.dispose();
+                            voidMat.dispose();
+                            return true;
+                        }
+                        return false;
+                    }
+                });
+            }
+        },
+        getFireRate: function () { return this.baseFireRate; },
+        getDamage: function () { return this.baseDamage + (this.level - 1) * 15; }
     }
 };
 
@@ -241,7 +364,7 @@ export const EVOLVED_WEAPONS = {
                 // Instead of creating a new array, just reset the length of the existing one.
                 this.enemiesHitThisInterval.length = 0;
             }
-        },getRadius: function () { const aoeMod = getItemModifier('AOE_RADIUS_PERCENT'); return this.baseRadius * aoeMod.percent; },
+        }, getRadius: function () { const aoeMod = getItemModifier('AOE_RADIUS_PERCENT'); return this.baseRadius * aoeMod.percent; },
         getDamage: function () { const orbitalMod = getItemModifier('ORBITAL_EFFECT_PERCENT'); const globalDmgMod = getItemModifier('GLOBAL_DAMAGE_PERCENT'); return this.baseDamage * orbitalMod.percent * globalDmgMod.percent; },
         getRotationSpeed: function () { return this.baseRotationSpeed; },
         getShapeCount: function () { const orbitalMod = getItemModifier('ORBITAL_EFFECT_PERCENT'); return Math.floor(this.baseShapeCount * orbitalMod.percent); },

@@ -1604,20 +1604,6 @@ canvas {
     }
 }
 
-#casino-rarity-banner.common {
-    background: linear-gradient(180deg, #a0522d 0%, #8B4513 50%, #654321 100%);
-    color: #FFF;
-    border: 2px solid #cd853f;
-    box-shadow: 0 4px 15px rgba(139, 69, 19, 0.5);
-}
-
-#casino-rarity-banner.uncommon {
-    background: linear-gradient(180deg, #32cd32 0%, #228B22 50%, #006400 100%);
-    color: #FFF;
-    border: 2px solid #00ff00;
-    box-shadow: 0 0 30px rgba(0, 255, 0, 0.5), 0 4px 15px rgba(0, 100, 0, 0.5);
-}
-
 #casino-rarity-banner.rare {
     background: linear-gradient(180deg, #6495ed 0%, #4169E1 50%, #0000cd 100%);
     color: #FFF;

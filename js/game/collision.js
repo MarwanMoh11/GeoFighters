@@ -98,14 +98,10 @@ export function checkCollisions() {
                     state.score += Math.max(1, Math.floor((enemyData.xpValue || 1) * 0.7));
                     if (enemyData.isBoss) winGame();
 
-                    // Chest drop logic - guaranteed from elites, random chance from any enemy
+                    // Chest drop logic - Only Pyramid Piercer has a chance to drop
                     let dropChest = false;
-                    if (enemyData.dropsCache) {
-                        dropChest = true; // Guaranteed from elites
-                    } else {
-                        // Random chest drop (VS-style: ~5-8% chance, increases over time)
-                        const baseChance = 0.05 + (state.gameTime / 600) * 0.03; // 5% base, +3% per 10 min
-                        dropChest = Math.random() < baseChance;
+                    if (enemyData.type === 'PYRAMID_PIERCER') {
+                        dropChest = Math.random() < 0.5; // 50% chance to drop a cache
                     }
 
                     if (dropChest) {

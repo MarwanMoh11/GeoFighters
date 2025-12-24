@@ -117,10 +117,29 @@ export function handleSpawning(deltaTime) {
 
     handleBossSpawnTrigger(); // Checks if it's time for the boss
 
+    // Pyramid Piercer periodic spawn: every 60s
+    state.pyramidSpawnTimer += deltaTime;
+    if (state.pyramidSpawnTimer >= 60) {
+        state.pyramidSpawnTimer = 0;
+        spawnEnemyByType('PYRAMID_PIERCER');
+    }
+
     // Always check for the next horde, even during a calm phase.
     const nextHorde = HORDE_TIMELINE[state.hordeIndex];
     if (nextHorde && state.gameTime >= nextHorde.startTime) {
         transitionToHorde(nextHorde);
+    }
+
+    // Process current spawner state
+    if (state.spawnerState === 'HORDE_ACTIVE') {
+        state.hordeTimer -= deltaTime;
+        handleActiveHorde(deltaTime);
+        if (state.hordeTimer <= 0) {
+            transitionToCalm();
+        }
+    } else if (state.spawnerState === 'CALM') {
+        state.hordeTimer -= deltaTime;
+        handleCalmPhase(deltaTime);
     }
 }
 
@@ -137,29 +156,35 @@ function handleTutorialSpawning(deltaTime) {
             if (state.player && (Math.abs(state.player.position.x) > 5 || Math.abs(state.player.position.z) > 5)) {
                 state.tutorialStep = 'SHOOT';
                 state.tutorialTimer = 0;
+                state.tutorialWaveSpawned = false; // Reset flag
                 playSoundSynth('powerup_spawn');
             }
             break;
 
         case 'SHOOT':
-            state.tutorialMessage = "Drag RIGHT Joystick to Shoot";
-            // Spawn a dummy target if none exists
-            if (state.shapes.length === 0 && state.tutorialTimer > 1.0) {
-                // Spawn a very slow cube
-                spawnEnemyByType('CUBE_CRUSHER'); // Ensure this function sets it up correctly
-                // Hack: Find the newly spawned enemy and nerf it
-                const enemy = state.shapes[state.shapes.length - 1];
-                if (enemy) {
-                    enemy.velocity.set(0, 0, 0); // Stationary
-                    enemy.baseSpeed = 0; // Prevent movement logic from pushing it
+            state.tutorialMessage = "Approach Enemies to Auto-Shoot";
+
+            // Spawn mini-horde close to player
+            if (!state.tutorialWaveSpawned && state.tutorialTimer > 0.5) {
+                const playerPos = state.player.position;
+                for (let i = 0; i < 5; i++) {
+                    const angle = (i / 5) * Math.PI * 2;
+                    const spawnDist = 12; // Close enough to see, far enough to not hit instantly
+                    const spawnPos = new THREE.Vector3(
+                        playerPos.x + Math.cos(angle) * spawnDist,
+                        0,
+                        playerPos.z + Math.sin(angle) * spawnDist
+                    );
+                    spawnEnemyByType('CUBE_CRUSHER', spawnPos);
                 }
+                state.tutorialWaveSpawned = true;
             }
-            // Check if killed
-            // If shapes is empty (and we spawned one), it means it was killed.
-            // But we check Timer > 1.5 to avoid instant transition if spawn delayed.
-            if (state.shapes.length === 0 && state.tutorialTimer > 2.0) {
+
+            // Check if killed (must have spawned first)
+            if (state.tutorialWaveSpawned && state.shapes.length === 0 && state.tutorialTimer > 2.0) {
                 state.tutorialStep = 'XP';
                 state.tutorialTimer = 0;
+                state.tutorialXPSpawned = false;
                 playSoundSynth('powerup_spawn');
             }
             break;
@@ -168,68 +193,75 @@ function handleTutorialSpawning(deltaTime) {
             state.tutorialMessage = "Collect Data to Level Up";
             // Spawn clean XP if none logic
             // Directly spawn a data fragment near player
-            if (state.dataFragments.length === 0 && state.tutorialTimer > 0.5 && state.tutorialTimer < 1.0) {
-                const playerPos = state.player.position;
-                const spawnPos = new THREE.Vector3(playerPos.x + 5, 0, playerPos.z + 5);
-                // We need to import spawnDataFragment or use existing one.
-                // It is imported in sceneUpdates.js but not exported here?
-                // Wait, spawnDataFragment IS exported from spawner.js, so we can call it internally?
-                // No, we are IN spawner.js. We can call it.
-                spawnDataFragment(spawnPos, 50); // Give 50 XP
+            if (!state.tutorialXPSpawned && state.tutorialTimer > 0.5 && state.tutorialTimer < 1.0) {
+                // Spawn 5 purple mega shards for very quick level up
+                for (let i = 0; i < 5; i++) {
+                    spawnMegaDataFragment(500);
+                }
+                state.tutorialXPSpawned = true;
             }
 
-            if (state.playerLevel > 0) {
-                state.tutorialStep = 'WAVE';
+            if (state.playerLevel > 1 || (state.playerLevel === 1 && state.currentXP > 0)) { // Adjusted for safety
+                // If level > 1 (started at 1, so level 2), we are good.
+                // Wait, starting level is 1. Next is 2.
+                if (state.playerLevel > 1) {
+                    state.tutorialStep = 'CHEST';
+                    state.tutorialTimer = 0;
+                    state.tutorialChestSpawned = false;
+                    playSoundSynth('powerup_spawn');
+                }
+            }
+            break;
+
+        case 'CHEST':
+            state.tutorialMessage = "Open Cache for Rewards";
+            if (!state.tutorialChestSpawned && state.tutorialTimer > 1.0) {
+                const playerPos = state.player.position;
+                const spawnPos = new THREE.Vector3(playerPos.x + 8, 0, playerPos.z);
+                // We need to import this function or ensure it's available
+                // It is exported from this file, so we can call it.
+                spawnGeometricCache(spawnPos);
+                state.tutorialChestSpawned = true;
+            }
+
+            // Check if chest is gone (meaning it was opened/collected)
+            if (state.tutorialChestSpawned && state.geometricCaches.length === 0) {
+                state.tutorialStep = 'COMBAT';
                 state.tutorialTimer = 0;
+                state.tutorialCombatSpawned = false;
                 playSoundSynth('powerup_spawn');
             }
             break;
 
-        case 'WAVE':
+        case 'COMBAT':
             state.tutorialMessage = "Defeat the Enemies!";
 
-            // Spawn 3 enemies over time
-            if (state.tutorialTimer > 1 && state.tutorialTimer < 1.2 && state.shapes.length < 1) spawnEnemyByType('CUBE_CRUSHER');
-            if (state.tutorialTimer > 3 && state.tutorialTimer < 3.2 && state.shapes.length < 2) spawnEnemyByType('CUBE_CRUSHER');
+            if (!state.tutorialCombatSpawned && state.tutorialTimer > 1.0) {
+                const playerPos = state.player.position;
+                for (let i = 0; i < 3; i++) {
+                    const angle = (i / 3) * Math.PI * 2;
+                    const spawnDist = 10;
+                    const spawnPos = new THREE.Vector3(
+                        playerPos.x + Math.cos(angle) * spawnDist,
+                        0,
+                        playerPos.z + Math.sin(angle) * spawnDist
+                    );
+                    spawnEnemyByType('CUBE_CRUSHER', spawnPos);
+                }
+                state.tutorialCombatSpawned = true;
+            }
 
-            // When timer > 5 and no enemies left, done
-            if (state.tutorialTimer > 5 && state.shapes.length === 0) {
+            if (state.tutorialCombatSpawned && state.shapes.length === 0 && state.tutorialTimer > 2.0) {
                 state.tutorialStep = 'COMPLETE';
                 state.tutorialTimer = 0;
             }
             break;
 
         case 'COMPLETE':
-            state.tutorialMessage = "Tutorial Complete!";
-            if (state.tutorialTimer > 3) {
-                // End tutorial mode, let normal game proceed or victory
-                state.tutorialMessage = "";
-                // Option A: Just disable tutorial flag and reset timer to 0 so regular hordes start
-                // But HORDE_TIMELINE starts at T=5.
-                // Let's just set gameTime to 0 effectively?
-                // Or just let it run.
-                // Simplest: 
-                const currentLevel = gameLevels.find(l => l.id === state.currentLevelId);
-                if (currentLevel) currentLevel.isTutorial = false;
-
-                // Show "Level Complete" or just resume
-                // Reset spawner state to start clean
-                state.gameTime = 0;
-                state.spawnerState = 'CALM';
-            }
+            state.tutorialMessage = "MISSION READY. STARTING ENGINE...";
+            // The UI will handle the button and state transition now.
+            // We just wait here.
             break;
-    }
-
-    // Process current state
-    if (state.spawnerState === 'HORDE_ACTIVE') {
-        state.hordeTimer -= deltaTime;
-        handleActiveHorde(deltaTime);
-        if (state.hordeTimer <= 0) {
-            transitionToCalm();
-        }
-    } else if (state.spawnerState === 'CALM') {
-        state.hordeTimer -= deltaTime;
-        handleCalmPhase(deltaTime);
     }
 }
 // =================================================================================
@@ -291,8 +323,6 @@ function handleCalmPhase(deltaTime) {
         // Spawn elites based on how far into the game we are
         if (state.gameTime > 400 && Math.random() < 0.3) {
             spawnEnemyByType('OCTAHEDRON_OBSTACLE');
-        } else if (state.gameTime > 180 && Math.random() < 0.5) {
-            spawnEnemyByType('PYRAMID_PIERCER');
         }
     }
 }
@@ -674,11 +704,10 @@ export function returnEnemyToPool(enemy) {
 
 // Chest rarity tiers with colors and reward counts
 const CHEST_RARITIES = {
-    COMMON: { name: 'Common', color: 0x8B4513, glowColor: 0x8B4513, emissive: 0x331100, rewards: 1, weight: 60 },
-    UNCOMMON: { name: 'Uncommon', color: 0x228B22, glowColor: 0x00FF00, emissive: 0x003300, rewards: 1, weight: 25 },
-    RARE: { name: 'Rare', color: 0x4169E1, glowColor: 0x00BFFF, emissive: 0x001166, rewards: 2, weight: 10 },
-    EPIC: { name: 'Epic', color: 0x9932CC, glowColor: 0xFF00FF, emissive: 0x330033, rewards: 3, weight: 4 },
-    LEGENDARY: { name: 'Legendary', color: 0xFFD700, glowColor: 0xFFD700, emissive: 0x664400, rewards: 5, weight: 1 }
+    COMMON: { name: 'Common', color: 0x8B4513, glowColor: 0xD2691E, emissive: 0x3D1F00, rewards: 1, weight: 60 },
+    RARE: { name: 'Rare', color: 0x4169E1, glowColor: 0x00BFFF, emissive: 0x001166, rewards: 3, weight: 30 },
+    EPIC: { name: 'Epic', color: 0x9932CC, glowColor: 0xFF00FF, emissive: 0x330033, rewards: 4, weight: 8 },
+    LEGENDARY: { name: 'Legendary', color: 0xFFD700, glowColor: 0xFFD700, emissive: 0x664400, rewards: 5, weight: 2 }
 };
 
 function rollChestRarity() {
