@@ -376,6 +376,9 @@ export function render() {
 }
 
 function renderButton(button) {
+    // Skip if this button has custom rendering handled elsewhere
+    if (button.customRender) return;
+
     const { bounds, text, pressed } = button;
     const { x, y, width, height } = bounds;
 
@@ -1032,15 +1035,20 @@ export function showScreen(screenName, isManual = false) {
                 });
             } else {
                 // Create buttons for each upgrade option
+                const w = window.innerWidth;
+                const cardWidth = Math.min(300, w * 0.9);
+                const cardX = (w - cardWidth) / 2;
+
                 levelUpOptions.forEach((option, i) => {
-                    const yPos = h * (0.25 + i * 0.18);
-                    const cardHeight = 65;
+                    // Match dimensions exactly with renderLevelUpScreen
+                    const yPos = h * (0.22 + i * 0.22);
+                    const cardHeight = 75;
 
                     // Custom card-style button
                     const card = {
                         type: 'button',
-                        text: '',
-                        bounds: { x: buttonX - 10, y: yPos, width: buttonWidth + 20, height: cardHeight },
+                        text: '', // Text handled by custom renderer
+                        bounds: { x: cardX, y: yPos, width: cardWidth, height: cardHeight },
                         onClick: () => {
                             console.log('[MobileUI] Selected upgrade:', option.name);
                             // Pass the actual option wrapper object (with type and data)
@@ -1051,10 +1059,13 @@ export function showScreen(screenName, isManual = false) {
                             });
                         },
                         pressed: false,
-                        // Custom render data
-                        icon: option.icon || '⬆️',
-                        title: option.name || 'Upgrade',
-                        description: option.description || ''
+                        // Data for custom renderer
+                        ...option,
+                        // Disable default button rendering by setting type to 'custom-interactive'
+                        // but keeping 'button' so touch handler works is tricky.
+                        // Instead, we'll keep type='button' but add a flag 'customRender: true'
+                        // and update renderButton to skip if this flag is set.
+                        customRender: true
                     };
                     uiElements.push(card);
                 });
