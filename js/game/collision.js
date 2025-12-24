@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { state, GameState, CONSTANTS } from '../state.js';
 import { gameOver, winGame, collectXP, openGeometricCache } from '../ui/manager.js';
 import { playSoundSynth } from '../utils/audio.js';
+import { triggerHaptic } from '../utils/input.js';
 import {
     createHitEffect,
     createBurstEffect,
@@ -135,6 +136,7 @@ export function checkCollisions() {
             if (typeData && state.player.position.distanceToSquared(enemyData.position) < playerCollisionThreshold * playerCollisionThreshold) {
                 state.playerShield -= (typeData.damageMultiplier || 1.0) * (5 + Math.floor(state.gameTime / 60));
                 playSoundSynth('player_hit', 0.6);
+                triggerHaptic('medium'); // Haptic feedback for damage
 
                 // Trigger screen effects
                 state.screenShakeIntensity = 0.3;

@@ -1,0 +1,24 @@
+{
+    "name": "Geometry Fighters",
+    "short_name": "GeoFighters",
+    "description": "A fast-paced survival game where you fight geometric shapes",
+    "start_url": "/",
+    "display": "standalone",
+    "orientation": "landscape",
+    "background_color": "#030510",
+    "theme_color": "#00ffff",
+    "icons": [
+        {
+            "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%23030510' width='192' height='192'/><polygon fill='%2300ffff' points='96,20 172,140 20,140'/></svg>",
+            "sizes": "192x192",
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect fill='%23030510' width='512' height='512'/><polygon fill='%2300ffff' points='256,50 460,380 52,380'/></svg>",
+            "sizes": "512x512",
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
+        }
+    ]
+}

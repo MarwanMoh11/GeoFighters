@@ -128,3 +128,98 @@ export function playSoundSynth(type = 'hit', volume = 0.3, options = {}) {
             break;
     }
 }
+
+// =================================================================================
+// --- AMBIENT MUSIC SYSTEM ---
+// =================================================================================
+
+let musicGainNode = null;
+let musicOscillators = [];
+let isMusicPlaying = false;
+
+/**
+ * Starts an ambient synthwave-style music loop.
+ * Uses multiple oscillators to create a layered atmosphere.
+ */
+export function startAmbientMusic() {
+    if (!state.audioContext || isMusicPlaying) return;
+
+    const ctx = state.audioContext;
+    if (ctx.state === 'suspended') return; // Don't start if audio isn't unlocked
+
+    isMusicPlaying = true;
+
+    // Master gain for music
+    musicGainNode = ctx.createGain();
+    musicGainNode.gain.setValueAtTime(0, ctx.currentTime);
+    musicGainNode.gain.linearRampToValueAtTime(0.08, ctx.currentTime + 2); // Fade in over 2s
+    musicGainNode.connect(ctx.destination);
+
+    // Bass drone
+    const bassOsc = ctx.createOscillator();
+    bassOsc.type = 'sine';
+    bassOsc.frequency.setValueAtTime(55, ctx.currentTime); // A1
+    const bassGain = ctx.createGain();
+    bassGain.gain.setValueAtTime(0.4, ctx.currentTime);
+    bassOsc.connect(bassGain);
+    bassGain.connect(musicGainNode);
+    bassOsc.start();
+    musicOscillators.push({ osc: bassOsc, gain: bassGain });
+
+    // Pad layer 1
+    const padOsc1 = ctx.createOscillator();
+    padOsc1.type = 'triangle';
+    padOsc1.frequency.setValueAtTime(110, ctx.currentTime); // A2
+    const padGain1 = ctx.createGain();
+    padGain1.gain.setValueAtTime(0.15, ctx.currentTime);
+    padOsc1.connect(padGain1);
+    padGain1.connect(musicGainNode);
+    padOsc1.start();
+    musicOscillators.push({ osc: padOsc1, gain: padGain1 });
+
+    // Pad layer 2 (detuned for width)
+    const padOsc2 = ctx.createOscillator();
+    padOsc2.type = 'triangle';
+    padOsc2.frequency.setValueAtTime(111.5, ctx.currentTime); // Slightly detuned
+    const padGain2 = ctx.createGain();
+    padGain2.gain.setValueAtTime(0.1, ctx.currentTime);
+    padOsc2.connect(padGain2);
+    padGain2.connect(musicGainNode);
+    padOsc2.start();
+    musicOscillators.push({ osc: padOsc2, gain: padGain2 });
+
+    // High shimmer
+    const shimmerOsc = ctx.createOscillator();
+    shimmerOsc.type = 'sine';
+    shimmerOsc.frequency.setValueAtTime(880, ctx.currentTime); // A5
+    const shimmerGain = ctx.createGain();
+    shimmerGain.gain.setValueAtTime(0.02, ctx.currentTime);
+    shimmerOsc.connect(shimmerGain);
+    shimmerGain.connect(musicGainNode);
+    shimmerOsc.start();
+    musicOscillators.push({ osc: shimmerOsc, gain: shimmerGain });
+}
+
+/**
+ * Fades out and stops the ambient music.
+ * @param {number} fadeTime - Fade duration in seconds (default: 1.5)
+ */
+export function stopAmbientMusic(fadeTime = 1.5) {
+    if (!musicGainNode || !isMusicPlaying) return;
+
+    const ctx = state.audioContext;
+    const now = ctx.currentTime;
+
+    // Fade out
+    musicGainNode.gain.linearRampToValueAtTime(0, now + fadeTime);
+
+    // Stop oscillators after fade
+    setTimeout(() => {
+        musicOscillators.forEach(({ osc }) => {
+            try { osc.stop(); } catch (e) { /* Already stopped */ }
+        });
+        musicOscillators = [];
+        musicGainNode = null;
+        isMusicPlaying = false;
+    }, fadeTime * 1000 + 100);
+}

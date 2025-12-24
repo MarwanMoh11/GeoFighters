@@ -5,7 +5,7 @@ import { ITEMS, GENERIC_UPGRADES, metaUpgrades } from '../config/items.js';
 import { WEAPONS, EVOLVED_WEAPONS } from '../config/weapons.js';
 import { saveData, applyMetaUpgradesToGame } from '../utils/saveLoad.js';
 import { initializeAudio, playSoundSynth } from '../utils/audio.js';
-import { toggleFullScreen } from '../utils/input.js';
+import { toggleFullScreen, triggerHaptic } from '../utils/input.js';
 import { checkEvolution } from '../game/evolution.js';
 import { recalculatePlayerStats } from '../game/player.js';
 import { ENEMY_TYPES } from '../config/enemies.js';
@@ -16,20 +16,23 @@ import * as THREE from 'three';
 
 // --- Event Binding ---
 export function bindUIEvents() {
-    ui.startSimulationButton.onclick = showLevelSelect;
-    ui.metaUpgradesButton.onclick = showUpgradeMenu;
-    ui.settingsButtonMain.onclick = () => showSettings('MainMenu');
-    ui.applyMetaUpgradesButton.onclick = applyMetaUpgradesAndReturn;
-    ui.levelSelectBackButton.onclick = hideLevelSelect;
-    ui.resumeButton.onclick = resumeGame;
-    ui.evolutionsButton.onclick = showEvolutionBook;
-    ui.settingsButtonPaused.onclick = () => showSettings('Paused');
-    ui.exitSimulationButton.onclick = quitToMainMenu;
-    ui.settingsBackButton.onclick = hideSettings;
-    ui.evolutionBookBackButton.onclick = hideEvolutionBook;
-    ui.gameOverReturnButton.onclick = quitToMainMenu;
-    ui.winScreenReturnButton.onclick = quitToMainMenu;
-    ui.fullscreenButton.onclick = toggleFullScreen;
+    // Wrap each button click with haptic feedback
+    const withHaptic = (fn) => () => { triggerHaptic('light'); fn(); };
+
+    ui.startSimulationButton.onclick = withHaptic(showLevelSelect);
+    ui.metaUpgradesButton.onclick = withHaptic(showUpgradeMenu);
+    ui.settingsButtonMain.onclick = withHaptic(() => showSettings('MainMenu'));
+    ui.applyMetaUpgradesButton.onclick = withHaptic(applyMetaUpgradesAndReturn);
+    ui.levelSelectBackButton.onclick = withHaptic(hideLevelSelect);
+    ui.resumeButton.onclick = withHaptic(resumeGame);
+    ui.evolutionsButton.onclick = withHaptic(showEvolutionBook);
+    ui.settingsButtonPaused.onclick = withHaptic(() => showSettings('Paused'));
+    ui.exitSimulationButton.onclick = withHaptic(quitToMainMenu);
+    ui.settingsBackButton.onclick = withHaptic(hideSettings);
+    ui.evolutionBookBackButton.onclick = withHaptic(hideEvolutionBook);
+    ui.gameOverReturnButton.onclick = withHaptic(quitToMainMenu);
+    ui.winScreenReturnButton.onclick = withHaptic(quitToMainMenu);
+    ui.fullscreenButton.onclick = withHaptic(toggleFullScreen);
 }
 
 // PASTE THIS ENTIRE FUNCTION into src/ui/manager.js
@@ -651,6 +654,9 @@ export function openGeometricCache(cacheMesh) {
 }
 
 export function grantCacheRewards(rewardCount = 1, rarityName = 'Common') {
+    // Haptic feedback for chest opening
+    triggerHaptic('success');
+
     // Pause the game
     state.previousGameState = state.currentGameState;
     state.currentGameState = GameState.CasinoChest;

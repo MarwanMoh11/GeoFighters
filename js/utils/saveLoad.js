@@ -79,3 +79,34 @@ export function applyMetaUpgradesToGame() {
     // Update any UI elements that might display these base stats.
     updateUI();
 }
+
+/**
+ * Resets all progress data (meta-upgrades and currency).
+ * Use with caution - this is irreversible!
+ * @returns {boolean} Whether the reset was successful
+ */
+export function resetAllProgress() {
+    try {
+        // Clear localStorage
+        localStorage.removeItem(SAVE_KEY);
+
+        // Reset state
+        state.dataCores = 0;
+
+        // Reset all meta upgrades to level 0
+        for (const key in metaUpgrades) {
+            if (Object.hasOwnProperty.call(metaUpgrades, key)) {
+                metaUpgrades[key].level = 0;
+            }
+        }
+
+        // Apply the reset to game stats
+        applyMetaUpgradesToGame();
+
+        console.log('[SaveLoad] All progress has been reset');
+        return true;
+    } catch (e) {
+        console.error("Error resetting progress:", e);
+        return false;
+    }
+}

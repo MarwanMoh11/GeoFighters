@@ -3,9 +3,12 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#030510">
+    <link rel="manifest" href="manifest.json">
     <title>Geometry Fighters</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -202,6 +205,23 @@
     </div>
     <div id="aim-joystick-area">
         <div id="aim-joystick-knob"></div>
+    </div>
+
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">INITIALIZING...</div>
+        </div>
+    </div>
+
+    <!-- Tap to Start Overlay (for audio unlock) -->
+    <div id="tap-to-start-overlay" style="display: none;">
+        <div class="tap-content">
+            <div class="tap-icon">▶</div>
+            <div class="tap-text">TAP TO START</div>
+        </div>
     </div>
 
     <script type="module" src="js/main.js"></script>

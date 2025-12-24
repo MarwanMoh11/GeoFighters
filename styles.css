@@ -37,10 +37,95 @@ body {
     -webkit-user-select: none;
     -ms-user-select: none;
     user-select: none;
+    touch-action: none;
+    /* Prevent pull-to-refresh, scrolling */
+    -webkit-touch-callout: none;
 }
 
 canvas {
     display: block;
+    touch-action: none;
+}
+
+/* ===============================================
+   LOADING & TAP-TO-START OVERLAYS
+   =============================================== */
+
+#loading-overlay,
+#tap-to-start-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #030510 0%, #0a1525 50%, #030510 100%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    transition: opacity 0.5s ease, visibility 0.5s ease;
+}
+
+#loading-overlay.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.loading-content,
+.tap-content {
+    text-align: center;
+}
+
+.loading-spinner {
+    width: 60px;
+    height: 60px;
+    border: 4px solid rgba(0, 255, 255, 0.2);
+    border-top: 4px solid var(--color-primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 20px;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+.loading-text,
+.tap-text {
+    font-family: var(--font-main);
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--color-primary);
+    letter-spacing: 4px;
+    text-transform: uppercase;
+}
+
+.tap-icon {
+    font-size: 60px;
+    color: var(--color-primary);
+    margin-bottom: 20px;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    50% {
+        transform: scale(1.1);
+        opacity: 0.8;
+    }
 }
 
 #ui-container {
@@ -599,12 +684,21 @@ canvas {
     display: none;
     overflow-y: auto;
     opacity: 0;
-    transition: opacity 0.3s ease-out;
+    transition: opacity 0.25s ease-out, transform 0.25s ease-out;
 }
 
-/* Style for when menu is shown */
+/* Style for when menu is shown - pop in effect */
 .menu-overlay[style*="display: flex;"] {
     opacity: 1;
+}
+
+.menu-overlay .menu-box {
+    transform: scale(0.95);
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.menu-overlay[style*="display: flex;"] .menu-box {
+    transform: scale(1);
 }
 
 /* New subtle grid background for menus */

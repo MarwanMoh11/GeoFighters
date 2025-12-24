@@ -52,6 +52,10 @@ export let state = {
     screenShakeTime: 0,
     vignetteFlashTime: 0,
 
+    // Performance & Mobile Optimization
+    lowPowerMode: false,
+    hitStopTime: 0, // Freeze frame duration
+
     // Meta Progression
     dataCores: 0,
     baseDamageMultiplier: 1.0,

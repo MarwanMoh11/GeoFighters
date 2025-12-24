@@ -2,6 +2,35 @@ import { state, GameState } from '../state.js';
 import { ui } from '../ui/dom.js';
 import { pauseGame, resumeGame, hideSettings, hideEvolutionBook, hideLevelSelect } from '../ui/manager.js';
 
+// =================================================================================
+// --- HAPTIC FEEDBACK ---
+// =================================================================================
+
+/**
+ * Triggers haptic feedback on supported devices.
+ * @param {number} duration - Vibration duration in milliseconds (default: 10ms)
+ * @param {string} type - 'light' (5-10ms), 'medium' (15-25ms), 'heavy' (30-50ms)
+ */
+export function triggerHaptic(type = 'light') {
+    if (!navigator.vibrate) return;
+
+    let duration;
+    switch (type) {
+        case 'light': duration = 8; break;
+        case 'medium': duration = 20; break;
+        case 'heavy': duration = 40; break;
+        case 'success': duration = [10, 50, 10]; break; // Double tap
+        case 'error': duration = [50, 30, 50]; break; // Warning pattern
+        default: duration = 8;
+    }
+
+    try {
+        navigator.vibrate(duration);
+    } catch (e) {
+        // Vibration not supported or failed silently
+    }
+}
+
 export function setupEventListeners() {
     window.addEventListener('resize', onWindowResize, false);
     document.addEventListener('keydown', onKeyDown, false);
@@ -112,8 +141,8 @@ function handleTouchStart(e) {
             // Store this initial touch point as the joystick's "center"
             state.joystickCenter.set(tx, ty);
         }
-            // --- SECOND PRIORITY: AIMING CONTROL ---
-            // If a movement joystick is ALREADY active, and no aiming touch is active,
+        // --- SECOND PRIORITY: AIMING CONTROL ---
+        // If a movement joystick is ALREADY active, and no aiming touch is active,
         // this new touch becomes the aiming control.
         else if (state.aimPointerId === null) {
             e.preventDefault();
@@ -177,7 +206,16 @@ function handleTouchEnd(e) {
         if (touch.identifier === state.movePointerId) {
             state.joystickActive = false;
             state.movePointerId = null;
-            ui.joystickArea.classList.remove('active');
+
+            // Fade out animation for joystick
+            ui.joystickArea.style.transition = 'opacity 0.2s ease-out';
+            ui.joystickArea.style.opacity = '0';
+            setTimeout(() => {
+                ui.joystickArea.classList.remove('active');
+                ui.joystickArea.style.transition = '';
+                ui.joystickArea.style.opacity = '';
+            }, 200);
+
             ui.joystickKnob.style.transform = 'translate(0px, 0px)';
             Object.keys(state.moveState).forEach(key => state.moveState[key] = 0);
         }

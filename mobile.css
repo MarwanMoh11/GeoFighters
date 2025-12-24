@@ -4,6 +4,33 @@
    ========================================================================== */
 
 /* =====================================================
+   SAFE AREA & TOUCH HANDLING (All Mobile)
+   ===================================================== */
+
+/* Safe area padding for notched devices */
+html {
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+body {
+    /* Extend background behind notches */
+    background-color: #030510;
+}
+
+/* Ensure UI elements respect safe areas */
+#hud-bottom-left {
+    padding-left: max(10px, env(safe-area-inset-left));
+}
+
+#hud-bottom-right {
+    padding-right: max(10px, env(safe-area-inset-right));
+}
+
+#fullscreen-button {
+    right: max(8px, env(safe-area-inset-right));
+}
+
+/* =====================================================
    TABLET & MOBILE (max-width: 1024px)
    ===================================================== */
 @media (max-width: 1024px) {
