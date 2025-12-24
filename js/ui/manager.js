@@ -518,13 +518,58 @@ function presentUpgradeOptions(permanentUpgrades, count = 3) {
 
     const optionsToShow = allAvailableUpgrades.sort(() => 0.5 - Math.random()).slice(0, count);
 
-    // Store in state for mobile UI to access
-    state.upgradeOptions = optionsToShow.map(optionWrapper => ({
-        ...optionWrapper,
-        name: optionWrapper.data?.name || 'Upgrade',
-        icon: optionWrapper.data?.icon || '⬆️',
-        description: optionWrapper.data?.shortDescription || ''
-    }));
+    // Store in state for mobile UI to access (with evolution hints)
+    state.upgradeOptions = optionsToShow.map(optionWrapper => {
+        const option = optionWrapper.data;
+        let evolutionHint = '';
+        let evolutionStatus = 'none'; // 'none', 'ready', 'has_synergy', 'needs_synergy'
+
+        try {
+            if (optionWrapper.type.includes('weapon')) {
+                const synergyItem = ITEMS[option.synergyItemId];
+                if (synergyItem) {
+                    const playerHasItem = state.playerItems.some(i => i.id === option.synergyItemId && i.level > 0);
+                    if (option.level === option.maxLevel - 1 && playerHasItem) {
+                        evolutionHint = `✨ READY TO EVOLVE!`;
+                        evolutionStatus = 'ready';
+                    } else if (playerHasItem) {
+                        evolutionHint = `Evolves with ${synergyItem.icon}`;
+                        evolutionStatus = 'has_synergy';
+                    } else {
+                        evolutionHint = `Needs ${synergyItem.icon} to evolve`;
+                        evolutionStatus = 'needs_synergy';
+                    }
+                }
+            } else if (optionWrapper.type.includes('item')) {
+                const synergyWeapon = WEAPONS[option.synergyWeaponId];
+                if (synergyWeapon) {
+                    const playerHasWeapon = state.playerWeapons.find(w => w.id === option.synergyWeaponId);
+                    if (playerHasWeapon && !playerHasWeapon.isEvolved) {
+                        if (playerHasWeapon.level === playerHasWeapon.maxLevel) {
+                            evolutionHint = `✨ READY TO EVOLVE ${synergyWeapon.icon}!`;
+                            evolutionStatus = 'ready';
+                        } else {
+                            evolutionHint = `Evolves ${synergyWeapon.icon} at Lvl ${synergyWeapon.maxLevel}`;
+                            evolutionStatus = 'has_synergy';
+                        }
+                    }
+                }
+            }
+        } catch (e) { }
+
+        return {
+            ...optionWrapper,
+            name: option?.name || 'Upgrade',
+            icon: option?.icon || '⬆️',
+            description: option?.shortDescription || '',
+            evolutionHint,
+            evolutionStatus,
+            isWeapon: optionWrapper.type.includes('weapon'),
+            isItem: optionWrapper.type.includes('item'),
+            level: option?.level || 0,
+            maxLevel: option?.maxLevel || 5
+        };
+    });
 
     optionsToShow.forEach(optionWrapper => {
         const option = optionWrapper.data;

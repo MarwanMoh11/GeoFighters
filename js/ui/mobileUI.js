@@ -659,63 +659,108 @@ function renderPauseMenu(w, h) {
 
 function renderLevelUpScreen(w, h) {
     // Dim background
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.92)';
     ctx.fillRect(0, 0, w, h);
 
     // Golden glow
-    const gradient = ctx.createRadialGradient(w / 2, h * 0.15, 10, w / 2, h * 0.15, 150);
-    gradient.addColorStop(0, 'rgba(255, 215, 0, 0.3)');
+    const gradient = ctx.createRadialGradient(w / 2, h * 0.12, 10, w / 2, h * 0.12, 200);
+    gradient.addColorStop(0, 'rgba(255, 215, 0, 0.4)');
     gradient.addColorStop(1, 'rgba(255, 215, 0, 0)');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, w, h);
 
     // Title
-    ctx.fillStyle = COLORS.gold;
-    ctx.font = 'bold 26px sans-serif';
+    ctx.fillStyle = '#ffd700';
+    ctx.font = 'bold 28px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('⬆️ LEVEL UP! ⬆️', w / 2, h * 0.12);
+    ctx.fillText('⬆️ LEVEL UP! ⬆️', w / 2, h * 0.10);
 
     // Subtitle
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-    ctx.font = '14px sans-serif';
-    ctx.fillText('Choose an upgrade', w / 2, h * 0.18);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+    ctx.font = '15px sans-serif';
+    ctx.fillText('Choose an upgrade', w / 2, h * 0.16);
 
-    // Render upgrade cards from uiElements (created in showScreen)
+    // Render upgrade cards
     const options = state.upgradeOptions || [];
-    const buttonWidth = Math.min(260, w * 0.8);
-    const buttonX = (w - buttonWidth - 20) / 2;
+    const cardWidth = Math.min(300, w * 0.9);
+    const cardX = (w - cardWidth) / 2;
 
     options.forEach((option, i) => {
-        const yPos = h * (0.25 + i * 0.18);
-        const cardHeight = 65;
-        const x = buttonX;
+        const yPos = h * (0.22 + i * 0.22);
+        const cardHeight = 75;
 
-        // Card background
-        ctx.fillStyle = 'rgba(30, 40, 60, 0.95)';
-        ctx.strokeStyle = COLORS.primary;
-        ctx.lineWidth = 2;
+        // Card color based on type
+        let bgColor1, bgColor2, borderColor;
+        if (option.evolutionStatus === 'ready') {
+            bgColor1 = 'rgba(255, 200, 50, 0.35)';
+            bgColor2 = 'rgba(255, 150, 0, 0.25)';
+            borderColor = '#ffd700';
+        } else if (option.isWeapon) {
+            bgColor1 = 'rgba(0, 200, 255, 0.3)';
+            bgColor2 = 'rgba(0, 100, 200, 0.2)';
+            borderColor = '#00ffff';
+        } else if (option.isItem) {
+            bgColor1 = 'rgba(180, 100, 255, 0.3)';
+            bgColor2 = 'rgba(100, 50, 200, 0.2)';
+            borderColor = '#b366ff';
+        } else {
+            bgColor1 = 'rgba(100, 255, 150, 0.3)';
+            bgColor2 = 'rgba(50, 150, 100, 0.2)';
+            borderColor = '#66ff99';
+        }
+
+        // Card background gradient
+        const cardGrad = ctx.createLinearGradient(cardX, yPos, cardX + cardWidth, yPos + cardHeight);
+        cardGrad.addColorStop(0, bgColor1);
+        cardGrad.addColorStop(1, bgColor2);
+        ctx.fillStyle = cardGrad;
+        ctx.strokeStyle = borderColor;
+        ctx.lineWidth = 3;
         ctx.beginPath();
-        ctx.roundRect(x, yPos, buttonWidth + 20, cardHeight, 12);
+        ctx.roundRect(cardX, yPos, cardWidth, cardHeight, 14);
         ctx.fill();
         ctx.stroke();
 
+        // Icon background circle
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+        ctx.beginPath();
+        ctx.arc(cardX + 35, yPos + cardHeight / 2, 22, 0, Math.PI * 2);
+        ctx.fill();
+
         // Icon
-        ctx.fillStyle = COLORS.text;
+        ctx.fillStyle = '#ffffff';
         ctx.font = '28px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(option.icon || '⬆️', x + 30, yPos + cardHeight / 2 + 10);
+        ctx.fillText(option.icon || '⬆️', cardX + 35, yPos + cardHeight / 2 + 10);
 
         // Title
-        ctx.fillStyle = COLORS.text;
-        ctx.font = 'bold 14px sans-serif';
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 16px sans-serif';
         ctx.textAlign = 'left';
-        ctx.fillText(option.name || 'Upgrade', x + 55, yPos + 25);
+        ctx.fillText(option.name || 'Upgrade', cardX + 65, yPos + 24);
+
+        // Level indicator
+        if (option.level !== undefined && option.maxLevel) {
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+            ctx.font = '11px sans-serif';
+            ctx.fillText(`Lvl ${option.level + 1}/${option.maxLevel}`, cardX + cardWidth - 55, yPos + 18);
+        }
 
         // Description
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-        ctx.font = '11px sans-serif';
-        const desc = (option.description || '').substring(0, 35);
-        ctx.fillText(desc, x + 55, yPos + 45);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+        ctx.font = '12px sans-serif';
+        const desc = (option.description || '').substring(0, 40);
+        ctx.fillText(desc, cardX + 65, yPos + 42);
+
+        // Evolution hint
+        if (option.evolutionHint) {
+            const hintColor = option.evolutionStatus === 'ready' ? '#ffd700' :
+                option.evolutionStatus === 'has_synergy' ? '#66ff99' :
+                    'rgba(255, 255, 255, 0.5)';
+            ctx.fillStyle = hintColor;
+            ctx.font = option.evolutionStatus === 'ready' ? 'bold 11px sans-serif' : '10px sans-serif';
+            ctx.fillText(option.evolutionHint, cardX + 65, yPos + 60);
+        }
     });
 }
 
