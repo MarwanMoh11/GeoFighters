@@ -23,8 +23,10 @@ body {
 
     /* ===========================================
        FIX #1: MAIN MENU - Center and Scale
+       Only apply when menu is actually displayed
        =========================================== */
-    .menu-overlay {
+    .menu-overlay[style*="display: flex"],
+    .menu-overlay[style*="display:flex"] {
         position: fixed !important;
         top: 0 !important;
         left: 0 !important;
@@ -32,12 +34,25 @@ body {
         bottom: 0 !important;
         width: 100% !important;
         height: 100% !important;
-        display: flex !important;
         justify-content: center !important;
         align-items: center !important;
         padding: 10px !important;
         box-sizing: border-box !important;
         z-index: 3000 !important;
+        pointer-events: auto !important;
+    }
+
+    .menu-overlay[style*="display: flex"] .menu-box,
+    .menu-overlay[style*="display:flex"] .menu-box {
+        pointer-events: auto !important;
+    }
+
+    .menu-overlay[style*="display: flex"] button,
+    .menu-overlay[style*="display:flex"] button,
+    .menu-overlay[style*="display: flex"] .level-button,
+    .menu-overlay[style*="display:flex"] .level-button {
+        pointer-events: auto !important;
+        cursor: pointer !important;
     }
 
     .menu-box {
