@@ -265,18 +265,33 @@ function handleTouchEnd(e) {
         }
 
         // Check for button taps
-        uiElements.forEach((el) => {
+        let buttonHit = false;
+        uiElements.forEach((el, i) => {
             el.pressed = false;
-            if (el.type === 'button' && isPointInRect(endPos, el.bounds)) {
-                if (el.onClick) {
-                    triggerHaptic();
-                    el.onClick();
+            if (el.type === 'button') {
+                const hit = isPointInRect(endPos, el.bounds);
+                // Debug specific for level up to trace issues
+                if (activeScreen === 'levelUp') {
+                    console.log(`[MobileUI] Btn ${i} bounds:`, el.bounds, 'touch:', endPos, 'hit:', hit, 'custom:', el.customRender);
+                }
+
+                if (hit) {
+                    buttonHit = true;
+                    if (el.onClick) {
+                        console.log('[MobileUI] EXECUTING onClick for:', el.text || 'Custom');
+                        triggerHaptic();
+                        el.onClick();
+                        // Prevent multiple clicks
+                        return;
+                    }
                 }
             }
         });
-    }
 
-    render();
+        console.log('[MobileUI] Touch processed. Hit button?', buttonHit);
+
+        render();
+    }
 }
 
 function isPointInRect(point, rect) {
@@ -1074,11 +1089,17 @@ export function showScreen(screenName, isManual = false) {
                         bounds: { x: cardX, y: yPos, width: cardWidth, height: cardHeight },
                         onClick: () => {
                             console.log('[MobileUI] Selected upgrade:', option.name);
+                            // Immediate feedback
+                            triggerHaptic();
+
                             // Pass the actual option wrapper object (with type and data)
                             import('../ui/manager.js').then(m => {
                                 if (m.selectUpgrade) {
                                     m.selectUpgrade(option);
                                 }
+                                // Force return to playing immediately
+                                manualScreenOverride = false;
+                                showScreen('playing');
                             });
                         },
                         pressed: false,
