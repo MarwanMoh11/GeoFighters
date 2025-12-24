@@ -295,6 +295,12 @@ export function render() {
         case 'levelSelect':
             renderLevelSelect(w, h);
             break;
+        case 'settings':
+            renderSettings(w, h);
+            break;
+        case 'upgrades':
+            renderUpgrades(w, h);
+            break;
     }
 
     // Render all UI elements
@@ -358,56 +364,219 @@ function renderMainMenu(w, h) {
 }
 
 function renderHUD(w, h) {
-    // Only render HUD elements, not background
-    const top = safeArea.top + 10;
+    const top = safeArea.top + 8;
 
-    // XP Bar
-    const xpBarWidth = w - 40;
-    const xpPercent = state.currentXP / state.xpToNextLevel;
+    // === XP BAR (full width at top) ===
+    const xpBarWidth = w - 20;
+    const xpPercent = (state.currentXP || 0) / (state.xpToNextLevel || 100);
 
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-    ctx.fillRect(20, top, xpBarWidth, 8);
+    // XP bar background
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+    ctx.beginPath();
+    ctx.roundRect(10, top, xpBarWidth, 10, 5);
+    ctx.fill();
 
-    ctx.fillStyle = COLORS.primary;
-    ctx.fillRect(20, top, xpBarWidth * xpPercent, 8);
+    // XP bar fill with gradient
+    const xpGradient = ctx.createLinearGradient(10, 0, 10 + xpBarWidth, 0);
+    xpGradient.addColorStop(0, '#00ffff');
+    xpGradient.addColorStop(1, '#00ff88');
+    ctx.fillStyle = xpGradient;
+    ctx.beginPath();
+    ctx.roundRect(10, top, xpBarWidth * Math.min(xpPercent, 1), 10, 5);
+    ctx.fill();
 
     // Level badge
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    ctx.fillRect(20, top + 14, 40, 18);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+    ctx.beginPath();
+    ctx.roundRect(10, top + 14, 36, 16, 4);
+    ctx.fill();
     ctx.fillStyle = COLORS.primary;
-    ctx.font = FONTS.tiny;
+    ctx.font = 'bold 10px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(`LV ${state.playerLevel}`, 40, top + 23);
+    ctx.fillText(`LV ${state.playerLevel || 1}`, 28, top + 23);
+
+    // === STATS ROW ===
+    const statsY = top + 16;
+
+    // Health icon + bar
+    ctx.fillStyle = COLORS.text;
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('❤️', 55, statsY + 6);
+
+    const healthPercent = (state.playerShield || 100) / (state.MAX_PLAYER_SHIELD || 100);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+    ctx.beginPath();
+    ctx.roundRect(72, statsY, 50, 8, 4);
+    ctx.fill();
+    ctx.fillStyle = healthPercent > 0.3 ? '#4ade80' : '#ef4444';
+    ctx.beginPath();
+    ctx.roundRect(72, statsY, 50 * Math.min(healthPercent, 1), 8, 4);
+    ctx.fill();
 
     // Timer (center)
     ctx.fillStyle = COLORS.text;
-    ctx.font = FONTS.body;
+    ctx.font = 'bold 16px sans-serif';
     ctx.textAlign = 'center';
-    const mins = Math.floor(state.gameTime / 60);
-    const secs = Math.floor(state.gameTime % 60);
-    ctx.fillText(`${mins}:${secs.toString().padStart(2, '0')}`, w / 2, top + 20);
+    const mins = Math.floor((state.gameTime || 0) / 60);
+    const secs = Math.floor((state.gameTime || 0) % 60);
+    ctx.fillText(`${mins}:${secs.toString().padStart(2, '0')}`, w / 2, statsY + 8);
 
-    // Health bar (left of timer)
-    const healthPercent = state.playerShield / state.MAX_PLAYER_SHIELD;
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-    ctx.fillRect(w / 2 - 80, top + 12, 50, 8);
-    ctx.fillStyle = healthPercent > 0.3 ? COLORS.success : COLORS.danger;
-    ctx.fillRect(w / 2 - 80, top + 12, 50 * healthPercent, 8);
+    // Score (right of timer)
+    ctx.fillStyle = COLORS.gold;
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(`💰 ${state.score || 0}`, w - 55, statsY + 8);
 
-    // Pause button (top right)
-    const pauseX = w - safeArea.right - 50;
-    const pauseY = top + 5;
+    // === PAUSE BUTTON ===
+    const pauseX = w - safeArea.right - 42;
+    const pauseY = top + 2;
+
+    // Register pause button for touch
+    if (!uiElements.some(el => el.id === 'pauseBtn')) {
+        const pauseBtn = {
+            id: 'pauseBtn',
+            type: 'button',
+            text: '',
+            bounds: { x: pauseX, y: pauseY, width: 36, height: 36 },
+            onClick: () => {
+                import('../ui/manager.js').then(m => m.pauseGame());
+            },
+            pressed: false,
+        };
+        uiElements.push(pauseBtn);
+    }
+
     ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    ctx.strokeStyle = COLORS.primaryDim;
+    ctx.strokeStyle = 'rgba(0, 255, 255, 0.5)';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.roundRect(pauseX, pauseY, 40, 40, 8);
+    ctx.roundRect(pauseX, pauseY, 36, 36, 8);
     ctx.fill();
     ctx.stroke();
     ctx.fillStyle = COLORS.text;
-    ctx.font = FONTS.heading;
+    ctx.font = '18px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('⏸', pauseX + 20, pauseY + 22);
+    ctx.fillText('⏸', pauseX + 18, pauseY + 22);
+
+    // === WEAPON/ITEM SLOTS (bottom corners) ===
+    renderSlots(w, h);
+
+    // === JOYSTICK INDICATOR ===
+    renderJoystick(w, h);
+}
+
+// Render weapon and item slots
+function renderSlots(w, h) {
+    const bottom = h - safeArea.bottom - 15;
+    const slotSize = 20;
+    const slotGap = 3;
+
+    // Left side - Weapons
+    const leftX = safeArea.left + 8;
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.beginPath();
+    ctx.roundRect(leftX - 2, bottom - 50, 72, 52, 6);
+    ctx.fill();
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.font = '8px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('WEAPONS', leftX, bottom - 54);
+
+    // Draw weapon slots (3x2 grid)
+    const weapons = state.playerWeapons || [];
+    for (let i = 0; i < 6; i++) {
+        const row = Math.floor(i / 3);
+        const col = i % 3;
+        const x = leftX + col * (slotSize + slotGap);
+        const y = bottom - 44 + row * (slotSize + slotGap);
+
+        ctx.fillStyle = weapons[i] ? 'rgba(0, 255, 255, 0.3)' : 'rgba(50, 50, 50, 0.5)';
+        ctx.strokeStyle = weapons[i] ? COLORS.primary : 'rgba(100, 100, 100, 0.5)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(x, y, slotSize, slotSize, 3);
+        ctx.fill();
+        ctx.stroke();
+
+        if (weapons[i]) {
+            ctx.fillStyle = COLORS.text;
+            ctx.font = '12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(weapons[i].icon || '⚔️', x + slotSize / 2, y + slotSize / 2 + 4);
+        }
+    }
+
+    // Right side - Items
+    const rightX = w - safeArea.right - 78;
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.beginPath();
+    ctx.roundRect(rightX - 2, bottom - 50, 72, 52, 6);
+    ctx.fill();
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.font = '8px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('ITEMS', rightX, bottom - 54);
+
+    // Draw item slots (3x2 grid)
+    const items = state.playerItems || [];
+    for (let i = 0; i < 6; i++) {
+        const row = Math.floor(i / 3);
+        const col = i % 3;
+        const x = rightX + col * (slotSize + slotGap);
+        const y = bottom - 44 + row * (slotSize + slotGap);
+
+        ctx.fillStyle = items[i] ? 'rgba(255, 215, 0, 0.3)' : 'rgba(50, 50, 50, 0.5)';
+        ctx.strokeStyle = items[i] ? COLORS.gold : 'rgba(100, 100, 100, 0.5)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(x, y, slotSize, slotSize, 3);
+        ctx.fill();
+        ctx.stroke();
+
+        if (items[i]) {
+            ctx.fillStyle = COLORS.text;
+            ctx.font = '12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(items[i].icon || '💎', x + slotSize / 2, y + slotSize / 2 + 4);
+        }
+    }
+}
+
+// Render joystick indicator
+function renderJoystick(w, h) {
+    const joyX = safeArea.left + 80;
+    const joyY = h - safeArea.bottom - 100;
+    const outerRadius = 50;
+    const innerRadius = 22;
+
+    // Outer ring
+    ctx.strokeStyle = 'rgba(0, 255, 255, 0.25)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(joyX, joyY, outerRadius, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Inner knob (follow touch if active)
+    let knobX = joyX;
+    let knobY = joyY;
+
+    // Get joystick position from state if available
+    if (state.joystickVector) {
+        knobX = joyX + state.joystickVector.x * outerRadius * 0.7;
+        knobY = joyY + state.joystickVector.y * outerRadius * 0.7;
+    }
+
+    ctx.fillStyle = 'rgba(0, 255, 255, 0.5)';
+    ctx.beginPath();
+    ctx.arc(knobX, knobY, innerRadius, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = 'rgba(0, 255, 255, 0.8)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
 }
 
 function renderPauseMenu(w, h) {
@@ -448,14 +617,126 @@ function renderGameOver(w, h) {
     ctx.fillText(`Score: ${state.score}`, w / 2, h * 0.4);
 }
 
+// Casino slot animation state
+let casinoSlots = [null, null, null];
+let casinoAnimating = false;
+let casinoAnimationProgress = 0;
+
 function renderCasino(w, h) {
     ctx.fillStyle = 'rgba(0, 0, 0, 0.95)';
     ctx.fillRect(0, 0, w, h);
 
+    // Golden glow effect
+    const gradient = ctx.createRadialGradient(w / 2, h * 0.4, 10, w / 2, h * 0.4, 200);
+    gradient.addColorStop(0, 'rgba(255, 215, 0, 0.2)');
+    gradient.addColorStop(1, 'rgba(255, 215, 0, 0)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, w, h);
+
+    // Title
     ctx.fillStyle = COLORS.gold;
-    ctx.font = FONTS.title;
+    ctx.font = 'bold 24px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('CHEST OPENED!', w / 2, h * 0.2);
+    ctx.fillText('🎰 CHEST OPENED! 🎰', w / 2, h * 0.15);
+
+    // Slot machine container
+    const containerWidth = Math.min(280, w * 0.85);
+    const containerHeight = 140;
+    const containerX = (w - containerWidth) / 2;
+    const containerY = h * 0.22;
+
+    ctx.fillStyle = 'rgba(30, 30, 50, 0.9)';
+    ctx.strokeStyle = COLORS.gold;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.roundRect(containerX, containerY, containerWidth, containerHeight, 12);
+    ctx.fill();
+    ctx.stroke();
+
+    // Three slot windows
+    const slotWidth = 70;
+    const slotHeight = 90;
+    const slotGap = 15;
+    const totalSlotsWidth = slotWidth * 3 + slotGap * 2;
+    const startX = (w - totalSlotsWidth) / 2;
+    const slotY = containerY + (containerHeight - slotHeight) / 2;
+
+    for (let i = 0; i < 3; i++) {
+        const x = startX + i * (slotWidth + slotGap);
+
+        // Slot background
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(x, slotY, slotWidth, slotHeight, 8);
+        ctx.fill();
+        ctx.stroke();
+
+        // Slot content
+        const item = state.casinoRewards ? state.casinoRewards[i] : null;
+        if (item) {
+            ctx.fillStyle = COLORS.text;
+            ctx.font = '32px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(item.icon || '?', x + slotWidth / 2, slotY + slotHeight / 2 + 12);
+
+            // Item name
+            ctx.font = '9px sans-serif';
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+            const name = (item.name || 'Item').substring(0, 10);
+            ctx.fillText(name, x + slotWidth / 2, slotY + slotHeight - 8);
+        } else {
+            // Spinning animation
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.font = '28px sans-serif';
+            ctx.textAlign = 'center';
+            const spinIcons = ['⚔️', '🛡️', '💎', '🔮', '⭐'];
+            const iconIndex = Math.floor((Date.now() / 100 + i * 2) % spinIcons.length);
+            ctx.fillText(spinIcons[iconIndex], x + slotWidth / 2, slotY + slotHeight / 2 + 10);
+        }
+    }
+
+    // Rarity banner
+    if (state.chestRarity) {
+        const rarityColors = {
+            'common': '#888888',
+            'rare': '#4a90d9',
+            'epic': '#9b59b6',
+            'legendary': '#f39c12'
+        };
+        ctx.fillStyle = rarityColors[state.chestRarity] || '#888888';
+        ctx.font = 'bold 14px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(state.chestRarity?.toUpperCase() || 'REWARDS', w / 2, containerY + containerHeight + 25);
+    }
+}
+
+function renderSettings(w, h) {
+    ctx.fillStyle = COLORS.bg;
+    ctx.fillRect(0, 0, w, h);
+
+    ctx.fillStyle = COLORS.text;
+    ctx.font = 'bold 24px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('⚙️ SETTINGS', w / 2, h * 0.12);
+
+    // Settings options rendered by showScreen buttons
+}
+
+function renderUpgrades(w, h) {
+    ctx.fillStyle = COLORS.bg;
+    ctx.fillRect(0, 0, w, h);
+
+    ctx.fillStyle = COLORS.gold;
+    ctx.font = 'bold 24px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('💎 META UPGRADES', w / 2, h * 0.1);
+
+    // Currency display
+    ctx.fillStyle = COLORS.text;
+    ctx.font = '16px sans-serif';
+    ctx.fillText(`Coins: ${state.metaCurrency || 0}`, w / 2, h * 0.16);
 }
 
 function renderLevelSelect(w, h) {
@@ -491,17 +772,54 @@ export function showScreen(screenName, isManual = false) {
 
     switch (screenName) {
         case 'mainMenu':
-            manualScreenOverride = false; // Reset when going back to main menu
-            createButton('START GAME', buttonX, h * 0.4, buttonWidth, 54, () => {
+            manualScreenOverride = false;
+            createButton('START GAME', buttonX, h * 0.38, buttonWidth, 52, () => {
                 showScreen('levelSelect', true);
             });
-            createButton('UPGRADES', buttonX, h * 0.5, buttonWidth, 54, () => {
-                // Show upgrades menu - for now just log
-                console.log('[MobileUI] Upgrades clicked');
+            createButton('UPGRADES', buttonX, h * 0.48, buttonWidth, 52, () => {
+                showScreen('upgrades', true);
             });
-            createButton('SETTINGS', buttonX, h * 0.6, buttonWidth, 54, () => {
-                // Show settings - for now just log
-                console.log('[MobileUI] Settings clicked');
+            createButton('SETTINGS', buttonX, h * 0.58, buttonWidth, 52, () => {
+                showScreen('settings', true);
+            });
+            break;
+
+        case 'settings':
+            createButton('MUSIC: ON', buttonX, h * 0.25, buttonWidth, 48, () => {
+                console.log('[MobileUI] Toggle music');
+            });
+            createButton('SFX: ON', buttonX, h * 0.33, buttonWidth, 48, () => {
+                console.log('[MobileUI] Toggle SFX');
+            });
+            createButton('HAPTICS: ON', buttonX, h * 0.41, buttonWidth, 48, () => {
+                console.log('[MobileUI] Toggle haptics');
+            });
+            createButton('RESET PROGRESS', buttonX, h * 0.52, buttonWidth, 48, () => {
+                if (confirm('Reset all progress?')) {
+                    import('../utils/saveLoad.js').then(m => m.resetAllProgress && m.resetAllProgress());
+                }
+            });
+            createButton('BACK', buttonX, h * 0.65, buttonWidth, 48, () => {
+                showScreen('mainMenu');
+            });
+            break;
+
+        case 'upgrades':
+            // Upgrade cards will be dynamically generated based on state.metaUpgrades
+            const upgrades = [
+                { name: 'Max Health', cost: 100, icon: '❤️' },
+                { name: 'XP Boost', cost: 150, icon: '⭐' },
+                { name: 'Start Weapon', cost: 200, icon: '⚔️' },
+            ];
+
+            upgrades.forEach((upgrade, i) => {
+                createButton(`${upgrade.icon} ${upgrade.name} (${upgrade.cost})`, buttonX, h * (0.24 + i * 0.1), buttonWidth, 46, () => {
+                    console.log('[MobileUI] Purchase:', upgrade.name);
+                });
+            });
+
+            createButton('BACK', buttonX, h * 0.65, buttonWidth, 48, () => {
+                showScreen('mainMenu');
             });
             break;
 
