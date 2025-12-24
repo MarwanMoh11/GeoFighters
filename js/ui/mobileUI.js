@@ -119,16 +119,47 @@ function detectSafeArea() {
 }
 
 function hideHTMLUI() {
-    // Hide all HTML menus and overlays on mobile
+    // Hide ALL HTML UI elements on mobile - be very aggressive
     const elementsToHide = [
         '#mainMenu', '#upgradeMenu', '#levelSelectMenu', '#pauseMenu',
         '#settingsMenu', '#evolutionBookMenu', '#gameOver', '#winScreen',
-        '#levelUpScreen', '#chestCasinoOverlay', '#gameUi'
+        '#levelUpScreen', '#chestCasinoOverlay', '#gameUi',
+        '.menu-overlay', '.popup-overlay', '#hud-xp-container',
+        '#hud-stats-row', '#hud-bottom-left', '#hud-bottom-right',
+        '#fullscreen-button', '#joystick-area', '#loading-overlay',
+        '#tap-to-start-overlay'
     ];
+
     elementsToHide.forEach(selector => {
-        const el = document.querySelector(selector);
-        if (el) el.style.display = 'none';
+        const elements = document.querySelectorAll(selector);
+        elements.forEach(el => {
+            el.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important; pointer-events: none !important;';
+        });
     });
+
+    // Add a style tag to ensure HTML UI stays hidden
+    if (!document.getElementById('mobile-ui-hide-style')) {
+        const style = document.createElement('style');
+        style.id = 'mobile-ui-hide-style';
+        style.textContent = `
+            @media (max-width: 1024px) {
+                .menu-overlay, .popup-overlay, #mainMenu, #upgradeMenu,
+                #levelSelectMenu, #pauseMenu, #settingsMenu, #evolutionBookMenu,
+                #gameOver, #winScreen, #levelUpScreen, #chestCasinoOverlay,
+                #gameUi, #hud-xp-container, #hud-stats-row, #hud-bottom-left,
+                #hud-bottom-right, #fullscreen-button, #loading-overlay,
+                #tap-to-start-overlay {
+                    display: none !important;
+                    visibility: hidden !important;
+                    opacity: 0 !important;
+                    pointer-events: none !important;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    console.log('[MobileUI] HTML UI hidden');
 }
 
 // =============================================================================
