@@ -604,7 +604,8 @@ function renderSlots(w, h) {
             ctx.fillStyle = COLORS.text;
             ctx.font = '12px sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText(weapons[i].icon || '⚔️', x + slotSize / 2, y + slotSize / 2 + 4);
+            ctx.textBaseline = 'middle';
+            ctx.fillText(weapons[i].icon || '⚔️', x + slotSize / 2, y + slotSize / 2 + 1); // +1 visual adjustment
         }
     }
 
@@ -640,7 +641,8 @@ function renderSlots(w, h) {
             ctx.fillStyle = COLORS.text;
             ctx.font = '12px sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText(items[i].icon || '💎', x + slotSize / 2, y + slotSize / 2 + 4);
+            ctx.textBaseline = 'middle';
+            ctx.fillText(items[i].icon || '💎', x + slotSize / 2, y + slotSize / 2 + 1); // +1 visual adjustment
         }
     }
 }
