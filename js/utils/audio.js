@@ -1,20 +1,51 @@
 import { state } from '../state.js';
 
+// Persistent flag to track if audio has been unlocked
+let audioUnlocked = false;
+
 export function initializeAudio() {
     if (!state.audioContext && (window.AudioContext || window.webkitAudioContext)) {
         state.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        if (state.audioContext.state === 'suspended') {
-            const resumeAudio = () => {
-                if (state.audioContext.state === 'suspended') {
-                    state.audioContext.resume().catch(e => console.error("AudioContext resume error:", e));
-                }
-                document.body.removeEventListener('click', resumeAudio);
-                document.body.removeEventListener('touchstart', resumeAudio);
-            };
-            document.body.addEventListener('click', resumeAudio, { once: true });
-            document.body.addEventListener('touchstart', resumeAudio, { once: true });
-        }
     }
+
+    // Set up persistent unlock listeners for mobile
+    if (state.audioContext && !audioUnlocked) {
+        const unlockAudio = () => {
+            if (state.audioContext.state === 'suspended') {
+                state.audioContext.resume().then(() => {
+                    console.log('[Audio] Context unlocked via user interaction');
+                    audioUnlocked = true;
+                }).catch(e => console.error("AudioContext resume error:", e));
+            } else if (state.audioContext.state === 'running') {
+                audioUnlocked = true;
+            }
+        };
+
+        // Listen for ANY user interaction to unlock
+        const interactionEvents = ['touchstart', 'touchend', 'click', 'keydown'];
+        interactionEvents.forEach(event => {
+            document.addEventListener(event, unlockAudio, { passive: true });
+        });
+
+        // Also try to unlock on visibility change (when returning to tab)
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden && state.audioContext?.state === 'suspended') {
+                unlockAudio();
+            }
+        });
+    }
+}
+
+/**
+ * Call this before playing any sound to ensure AudioContext is ready.
+ * Returns true if audio is available.
+ */
+export function ensureAudioReady() {
+    if (!state.audioContext) return false;
+    if (state.audioContext.state === 'suspended') {
+        state.audioContext.resume().catch(() => { });
+    }
+    return state.audioContext.state === 'running';
 }
 
 export function playSoundSynth(type = 'hit', volume = 0.3, options = {}) {
