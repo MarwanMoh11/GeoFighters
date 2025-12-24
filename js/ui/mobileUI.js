@@ -78,7 +78,9 @@ export function initMobileUI() {
 
     // Touch events
     canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+    canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
     canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+    canvas.addEventListener('touchcancel', handleTouchEnd, { passive: false });
 
     // Detect safe area
     detectSafeArea();
@@ -167,49 +169,115 @@ function hideHTMLUI() {
 // =============================================================================
 
 let touchStartPos = { x: 0, y: 0 };
+let joystickTouch = null; // Track joystick touch separately
+let joystickCenter = { x: 0, y: 0 };
+const JOYSTICK_RADIUS = 50;
+
+function getJoystickCenter() {
+    return {
+        x: safeArea.left + 80,
+        y: window.innerHeight - safeArea.bottom - 100
+    };
+}
+
+function isInJoystickArea(pos) {
+    const center = getJoystickCenter();
+    const dx = pos.x - center.x;
+    const dy = pos.y - center.y;
+    return Math.sqrt(dx * dx + dy * dy) < JOYSTICK_RADIUS * 1.5;
+}
 
 function handleTouchStart(e) {
     e.preventDefault();
-    const touch = e.touches[0];
-    touchStartPos = { x: touch.clientX, y: touch.clientY };
 
-    console.log('[MobileUI] Touch START at:', touchStartPos);
-    console.log('[MobileUI] UI Elements count:', uiElements.length);
+    for (let i = 0; i < e.touches.length; i++) {
+        const touch = e.touches[i];
+        const pos = { x: touch.clientX, y: touch.clientY };
 
-    // Highlight pressed buttons
-    uiElements.forEach((el, i) => {
-        if (el.type === 'button') {
-            const hit = isPointInRect(touchStartPos, el.bounds);
-            console.log(`[MobileUI] Button ${i} "${el.text}" bounds:`, el.bounds, 'hit:', hit);
-            if (hit) {
-                el.pressed = true;
-            }
+        // Check if this is a joystick touch (only during gameplay)
+        if (activeScreen === 'playing' && !joystickTouch && isInJoystickArea(pos)) {
+            joystickTouch = {
+                id: touch.identifier,
+                startX: pos.x,
+                startY: pos.y
+            };
+            joystickCenter = getJoystickCenter();
+            continue;
         }
-    });
+
+        // Otherwise check for button presses
+        touchStartPos = pos;
+        uiElements.forEach((el) => {
+            if (el.type === 'button') {
+                if (isPointInRect(pos, el.bounds)) {
+                    el.pressed = true;
+                }
+            }
+        });
+    }
 
     render();
 }
 
+function handleTouchMove(e) {
+    e.preventDefault();
+
+    for (let i = 0; i < e.touches.length; i++) {
+        const touch = e.touches[i];
+
+        // Handle joystick movement
+        if (joystickTouch && touch.identifier === joystickTouch.id) {
+            const dx = touch.clientX - joystickCenter.x;
+            const dy = touch.clientY - joystickCenter.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            const maxDistance = JOYSTICK_RADIUS;
+
+            // Normalize and clamp
+            let normX = dx / maxDistance;
+            let normY = dy / maxDistance;
+
+            if (distance > maxDistance) {
+                normX = dx / distance;
+                normY = dy / distance;
+            }
+
+            // Update state for movement
+            state.joystickVector = { x: normX, y: normY };
+            state.moveDirection = { x: normX, y: -normY }; // Invert Y for game coordinates
+        }
+    }
+
+    if (activeScreen === 'playing') {
+        render();
+    }
+}
+
 function handleTouchEnd(e) {
     e.preventDefault();
-    const touch = e.changedTouches[0];
-    const endPos = { x: touch.clientX, y: touch.clientY };
 
-    console.log('[MobileUI] Touch END at:', endPos);
+    for (let i = 0; i < e.changedTouches.length; i++) {
+        const touch = e.changedTouches[i];
+        const endPos = { x: touch.clientX, y: touch.clientY };
 
-    // Check for button taps
-    uiElements.forEach((el, i) => {
-        el.pressed = false;
-        if (el.type === 'button') {
-            const hit = isPointInRect(endPos, el.bounds);
-            console.log(`[MobileUI] Button ${i} "${el.text}" hit:`, hit, 'hasOnClick:', !!el.onClick);
-            if (hit && el.onClick) {
-                console.log('[MobileUI] EXECUTING onClick for:', el.text);
-                triggerHaptic();
-                el.onClick();
-            }
+        // Check if joystick touch ended
+        if (joystickTouch && touch.identifier === joystickTouch.id) {
+            joystickTouch = null;
+            state.joystickVector = { x: 0, y: 0 };
+            state.moveDirection = { x: 0, y: 0 };
+            continue;
         }
-    });
+
+        // Check for button taps
+        uiElements.forEach((el) => {
+            el.pressed = false;
+            if (el.type === 'button' && isPointInRect(endPos, el.bounds)) {
+                if (el.onClick) {
+                    triggerHaptic();
+                    el.onClick();
+                }
+            }
+        });
+    }
 
     render();
 }
