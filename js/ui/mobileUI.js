@@ -67,7 +67,13 @@ export function initMobileUI() {
 
     // Handle resize
     resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
+    window.addEventListener('resize', () => {
+        resizeCanvas();
+        // Re-render current screen after resize
+        if (activeScreen) {
+            showScreen(activeScreen);
+        }
+    });
 
     // Touch events
     canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
@@ -79,7 +85,10 @@ export function initMobileUI() {
     // Hide HTML UI elements on mobile
     hideHTMLUI();
 
-    console.log('[MobileUI] Canvas UI initialized');
+    // Show initial main menu
+    showScreen('mainMenu');
+
+    console.log('[MobileUI] Canvas UI initialized with main menu');
 }
 
 function resizeCanvas() {
