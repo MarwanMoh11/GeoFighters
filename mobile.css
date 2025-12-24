@@ -200,11 +200,11 @@ body {
     }
 
     .slot {
-        width: 22px !important;
-        height: 22px !important;
-        min-width: 22px !important;
-        min-height: 22px !important;
-        border-radius: 3px !important;
+        width: 16px !important;
+        height: 16px !important;
+        min-width: 16px !important;
+        min-height: 16px !important;
+        border-radius: 2px !important;
         border-width: 1px !important;
     }
 
@@ -273,10 +273,10 @@ body {
 
     /* ===========================================
        FIX #5: CASINO CHEST - Center Properly
+       Reset all positioning from popup-overlay
        =========================================== */
-    #chestCasinoOverlay,
-    #chestCasinoOverlay[style*="display: flex"],
-    #chestCasinoOverlay[style*="display:flex"] {
+    #chestCasinoOverlay.popup-overlay,
+    #chestCasinoOverlay {
         position: fixed !important;
         top: 0 !important;
         left: 0 !important;
@@ -284,6 +284,8 @@ body {
         bottom: 0 !important;
         width: 100vw !important;
         height: 100vh !important;
+        transform: none !important;
+        /* Reset popup-overlay centering */
         display: flex !important;
         justify-content: center !important;
         align-items: center !important;
@@ -293,7 +295,7 @@ body {
         background: rgba(0, 0, 0, 0.95) !important;
     }
 
-    /* Hide when not visible via inline style */
+    /* Override display:none when set */
     #chestCasinoOverlay[style*="display: none"],
     #chestCasinoOverlay[style*="display:none"] {
         display: none !important;
@@ -418,27 +420,27 @@ body {
     }
 
     .slot {
-        width: 18px !important;
-        height: 18px !important;
+        width: 14px !important;
+        height: 14px !important;
     }
 
     .casino-slot {
-        width: 45px !important;
-        height: 60px !important;
+        width: 40px !important;
+        height: 55px !important;
     }
 
     .slot-item {
-        height: 60px !important;
-        font-size: 18px !important;
+        height: 55px !important;
+        font-size: 16px !important;
     }
 
     .upgrade-icon {
-        width: 30px !important;
-        height: 30px !important;
+        width: 28px !important;
+        height: 28px !important;
     }
 
     #casino-container {
         max-width: 95vw !important;
-        padding: 10px !important;
+        padding: 8px !important;
     }
 }
