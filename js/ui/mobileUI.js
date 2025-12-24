@@ -264,31 +264,48 @@ function handleTouchEnd(e) {
             continue;
         }
 
-        // Check for button taps
-        let buttonHit = false;
-        uiElements.forEach((el, i) => {
-            el.pressed = false;
-            if (el.type === 'button') {
-                const hit = isPointInRect(endPos, el.bounds);
-                // Debug specific for level up to trace issues
-                if (activeScreen === 'levelUp') {
-                    console.log(`[MobileUI] Btn ${i} bounds:`, el.bounds, 'touch:', endPos, 'hit:', hit, 'custom:', el.customRender);
-                }
+        // DIRECT handling for level up cards (bypasses uiElements)
+        if (activeScreen === 'levelUp') {
+            const options = state.upgradeOptions || [];
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+            const cardWidth = Math.min(300, w * 0.9);
+            const cardX = (w - cardWidth) / 2;
+            const cardHeight = 75;
 
-                if (hit) {
-                    buttonHit = true;
-                    if (el.onClick) {
-                        console.log('[MobileUI] EXECUTING onClick for:', el.text || 'Custom');
-                        triggerHaptic();
-                        el.onClick();
-                        // Prevent multiple clicks
-                        return;
-                    }
+            for (let idx = 0; idx < options.length; idx++) {
+                const yPos = h * (0.22 + idx * 0.22);
+                const bounds = { x: cardX, y: yPos, width: cardWidth, height: cardHeight };
+
+                if (isPointInRect(endPos, bounds)) {
+                    console.log('[MobileUI] Direct card hit:', idx, options[idx].name);
+                    triggerHaptic();
+
+                    // Apply upgrade
+                    import('../ui/manager.js').then(m => {
+                        if (m.selectUpgrade) {
+                            m.selectUpgrade(options[idx]);
+                        }
+                        manualScreenOverride = false;
+                        showScreen('playing');
+                    });
+
+                    render();
+                    return; // Done processing this touch
+                }
+            }
+        }
+
+        // Check for regular button taps (for other screens)
+        uiElements.forEach((el) => {
+            el.pressed = false;
+            if (el.type === 'button' && isPointInRect(endPos, el.bounds)) {
+                if (el.onClick) {
+                    triggerHaptic();
+                    el.onClick();
                 }
             }
         });
-
-        console.log('[MobileUI] Touch processed. Hit button?', buttonHit);
 
         render();
     }
@@ -1060,60 +1077,19 @@ export function showScreen(screenName, isManual = false) {
             break;
 
         case 'levelUp':
-            // Get upgrade options from game state
+            // Upgrade card clicks are handled directly in handleTouchEnd
+            // No buttons needed - the cards rendered in renderLevelUpScreen ARE the clickable elements
+            // Just ensure we have a fallback continue button if no options
             const levelUpOptions = state.upgradeOptions || [];
-
             if (levelUpOptions.length === 0) {
-                // Fallback if no options available
                 createButton('CONTINUE', buttonX, h * 0.5, buttonWidth, 54, () => {
                     state.currentGameState = GameState.Playing;
                     state.isPaused = false;
                     manualScreenOverride = false;
                     showScreen('playing');
                 });
-            } else {
-                // Create buttons for each upgrade option
-                const w = window.innerWidth;
-                const cardWidth = Math.min(300, w * 0.9);
-                const cardX = (w - cardWidth) / 2;
-
-                levelUpOptions.forEach((option, i) => {
-                    // Match dimensions exactly with renderLevelUpScreen
-                    const yPos = h * (0.22 + i * 0.22);
-                    const cardHeight = 75;
-
-                    // Custom card-style button
-                    const card = {
-                        type: 'button',
-                        text: '', // Text handled by custom renderer
-                        bounds: { x: cardX, y: yPos, width: cardWidth, height: cardHeight },
-                        onClick: () => {
-                            console.log('[MobileUI] Selected upgrade:', option.name);
-                            // Immediate feedback
-                            triggerHaptic();
-
-                            // Pass the actual option wrapper object (with type and data)
-                            import('../ui/manager.js').then(m => {
-                                if (m.selectUpgrade) {
-                                    m.selectUpgrade(option);
-                                }
-                                // Force return to playing immediately
-                                manualScreenOverride = false;
-                                showScreen('playing');
-                            });
-                        },
-                        pressed: false,
-                        // Data for custom renderer
-                        ...option,
-                        // Disable default button rendering by setting type to 'custom-interactive'
-                        // but keeping 'button' so touch handler works is tricky.
-                        // Instead, we'll keep type='button' but add a flag 'customRender: true'
-                        // and update renderButton to skip if this flag is set.
-                        customRender: true
-                    };
-                    uiElements.push(card);
-                });
             }
+            // Cards are clickable directly via handleTouchEnd
             break;
 
         case 'casino':
