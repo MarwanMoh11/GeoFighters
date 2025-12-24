@@ -13,6 +13,11 @@ export let state = {
     gameTime: 0,
     currentLevelId: 1,
 
+    // Tutorial State
+    tutorialStep: 'INTRO', // INTRO, MOVE, SHOOT, XP, WAVE, COMPLETE
+    tutorialMessage: '',
+    tutorialTimer: 0,
+
     // Debug Mode
     isDebugMode: false,
     stressTestCount: 1000,

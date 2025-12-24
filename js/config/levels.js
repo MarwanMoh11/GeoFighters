@@ -69,7 +69,7 @@ function setupLevel1Map() {
 }
 
 export const gameLevels = [
-    { id: 1, name: "Sector Prime", description: "The starting point. Anomalies are relatively sparse.", unlocked: true, mapSetup: setupLevel1Map },
+    { id: 1, name: "Sector Prime", description: "The starting point. Anomalies are relatively sparse.", unlocked: true, mapSetup: setupLevel1Map, isTutorial: true },
     { id: 2, name: "Crystalline Maze", description: "Denser formations and more aggressive geometries.", unlocked: false, mapSetup: null },
     { id: 3, name: "The Void Edge", description: "Unstable energies and powerful entities.", unlocked: false, mapSetup: null },
 ];

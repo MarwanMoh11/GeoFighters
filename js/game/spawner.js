@@ -3,6 +3,7 @@ import { state, CONSTANTS } from '../state.js';
 import { ENEMY_TYPES } from '../config/enemies.js';
 import { playSoundSynth } from '../utils/audio.js';
 import { ui } from '../ui/dom.js';
+import { gameLevels } from '../config/levels.js';
 
 // --- Horde Progression Timeline ---
 // This defines the entire spawning flow for a run.
@@ -102,6 +103,13 @@ export function createDamageNumber(position, amount, isCritical = false) {
 // =================================================================================
 
 export function handleSpawning(deltaTime) {
+    // Tutorial Interception
+    const currentLevel = gameLevels?.find(l => l.id === state.currentLevelId);
+    if (currentLevel?.isTutorial) {
+        handleTutorialSpawning(deltaTime);
+        return;
+    }
+
     if (state.isBossWave) {
         handleBossWave(deltaTime);
         return;
@@ -113,6 +121,103 @@ export function handleSpawning(deltaTime) {
     const nextHorde = HORDE_TIMELINE[state.hordeIndex];
     if (nextHorde && state.gameTime >= nextHorde.startTime) {
         transitionToHorde(nextHorde);
+    }
+}
+
+// =================================================================================
+// --- TUTORIAL LOGIC ---
+// =================================================================================
+function handleTutorialSpawning(deltaTime) {
+    state.tutorialTimer += deltaTime;
+
+    switch (state.tutorialStep) {
+        case 'INTRO':
+            state.tutorialMessage = "Drag LEFT Joystick to Move";
+            // Check for movement
+            if (state.player && (Math.abs(state.player.position.x) > 5 || Math.abs(state.player.position.z) > 5)) {
+                state.tutorialStep = 'SHOOT';
+                state.tutorialTimer = 0;
+                playSoundSynth('powerup_spawn');
+            }
+            break;
+
+        case 'SHOOT':
+            state.tutorialMessage = "Drag RIGHT Joystick to Shoot";
+            // Spawn a dummy target if none exists
+            if (state.shapes.length === 0 && state.tutorialTimer > 1.0) {
+                // Spawn a very slow cube
+                spawnEnemyByType('CUBE_CRUSHER'); // Ensure this function sets it up correctly
+                // Hack: Find the newly spawned enemy and nerf it
+                const enemy = state.shapes[state.shapes.length - 1];
+                if (enemy) {
+                    enemy.velocity.set(0, 0, 0); // Stationary
+                    enemy.baseSpeed = 0; // Prevent movement logic from pushing it
+                }
+            }
+            // Check if killed
+            // If shapes is empty (and we spawned one), it means it was killed.
+            // But we check Timer > 1.5 to avoid instant transition if spawn delayed.
+            if (state.shapes.length === 0 && state.tutorialTimer > 2.0) {
+                state.tutorialStep = 'XP';
+                state.tutorialTimer = 0;
+                playSoundSynth('powerup_spawn');
+            }
+            break;
+
+        case 'XP':
+            state.tutorialMessage = "Collect Data to Level Up";
+            // Spawn clean XP if none logic
+            // Directly spawn a data fragment near player
+            if (state.dataFragments.length === 0 && state.tutorialTimer > 0.5 && state.tutorialTimer < 1.0) {
+                const playerPos = state.player.position;
+                const spawnPos = new THREE.Vector3(playerPos.x + 5, 0, playerPos.z + 5);
+                // We need to import spawnDataFragment or use existing one.
+                // It is imported in sceneUpdates.js but not exported here?
+                // Wait, spawnDataFragment IS exported from spawner.js, so we can call it internally?
+                // No, we are IN spawner.js. We can call it.
+                spawnDataFragment(spawnPos, 50); // Give 50 XP
+            }
+
+            if (state.playerLevel > 0) {
+                state.tutorialStep = 'WAVE';
+                state.tutorialTimer = 0;
+                playSoundSynth('powerup_spawn');
+            }
+            break;
+
+        case 'WAVE':
+            state.tutorialMessage = "Defeat the Enemies!";
+
+            // Spawn 3 enemies over time
+            if (state.tutorialTimer > 1 && state.tutorialTimer < 1.2 && state.shapes.length < 1) spawnEnemyByType('CUBE_CRUSHER');
+            if (state.tutorialTimer > 3 && state.tutorialTimer < 3.2 && state.shapes.length < 2) spawnEnemyByType('CUBE_CRUSHER');
+
+            // When timer > 5 and no enemies left, done
+            if (state.tutorialTimer > 5 && state.shapes.length === 0) {
+                state.tutorialStep = 'COMPLETE';
+                state.tutorialTimer = 0;
+            }
+            break;
+
+        case 'COMPLETE':
+            state.tutorialMessage = "Tutorial Complete!";
+            if (state.tutorialTimer > 3) {
+                // End tutorial mode, let normal game proceed or victory
+                state.tutorialMessage = "";
+                // Option A: Just disable tutorial flag and reset timer to 0 so regular hordes start
+                // But HORDE_TIMELINE starts at T=5.
+                // Let's just set gameTime to 0 effectively?
+                // Or just let it run.
+                // Simplest: 
+                const currentLevel = gameLevels.find(l => l.id === state.currentLevelId);
+                if (currentLevel) currentLevel.isTutorial = false;
+
+                // Show "Level Complete" or just resume
+                // Reset spawner state to start clean
+                state.gameTime = 0;
+                state.spawnerState = 'CALM';
+            }
+            break;
     }
 
     // Process current state

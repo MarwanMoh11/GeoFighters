@@ -492,6 +492,49 @@ function renderMainMenu(w, h) {
     ctx.fillText('Mobile Edition', w / 2, h * 0.26);
 }
 
+// =============================================================================
+// TUTORIAL OVERLAY
+// =============================================================================
+function renderTutorialOverlay(w, h) {
+    if (!state.tutorialMessage || state.tutorialMessage === "") return;
+
+    const msg = state.tutorialMessage;
+    const padding = 20;
+
+    ctx.font = 'bold 24px sans-serif';
+    const textMetrics = ctx.measureText(msg);
+    const textWidth = textMetrics.width;
+    const boxWidth = Math.min(w * 0.9, textWidth + 80);
+    const boxHeight = 60;
+    const x = (w - boxWidth) / 2;
+    const y = h * 0.15; // Top area
+
+    // Semi-transparent bg
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+    ctx.strokeStyle = COLORS.gold;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(x, y, boxWidth, boxHeight, 10);
+    ctx.fill();
+    ctx.stroke();
+
+    // Text
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(msg, w / 2, y + boxHeight / 2);
+
+    // Pulse effect
+    const pulse = (Math.sin(Date.now() / 300) + 1) / 2;
+    ctx.globalAlpha = 0.2 + pulse * 0.2;
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.globalAlpha = 1.0;
+
+    ctx.textBaseline = 'alphabetic'; // Reset
+}
+
 function renderHUD(w, h) {
     const top = safeArea.top + 8;
 
@@ -593,6 +636,7 @@ function renderHUD(w, h) {
 
     // === JOYSTICK INDICATOR ===
     renderJoystick(w, h);
+    renderTutorialOverlay(w, h);
 }
 
 // Render weapon and item slots
