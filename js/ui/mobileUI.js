@@ -264,6 +264,35 @@ function handleTouchEnd(e) {
             continue;
         }
 
+        // DIRECT handling for Casino (Tap to claim/skip)
+        if (activeScreen === 'casino' && state.casinoState) {
+            const { startTime, spinDuration, count } = state.casinoState;
+            const totalDuration = spinDuration + (Math.min(count, 3) - 1) * 500;
+            const elapsed = Date.now() - startTime;
+
+            if (elapsed < totalDuration) {
+                // Tap to skip animation?
+                // For now, let's just let it play out or speed it up.
+                // Setting startTime back makes it finish instantly
+                state.casinoState.startTime = Date.now() - totalDuration - 100;
+            } else {
+                // Tap to collect
+                triggerHaptic();
+                state.currentGameState = GameState.Playing;
+                state.isPaused = false;
+                manualScreenOverride = false;
+                showScreen('playing');
+
+                // Also ensure manager.js knows about it? 
+                // manager.js has a timeout that applies rewards. 
+                // If we exit early, manager.js logic applies anyway when timeout fires?
+                // Actually manager.js sets state to Playing in its onclick. 
+                // We are doing same here.
+            }
+            render();
+            return;
+        }
+
         // DIRECT handling for level up cards (bypasses uiElements)
         if (activeScreen === 'levelUp') {
             const options = state.upgradeOptions || [];
@@ -844,92 +873,136 @@ let casinoAnimating = false;
 let casinoAnimationProgress = 0;
 
 function renderCasino(w, h) {
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.95)';
+    // Safety check - if no state, render placeholder or wait
+    if (!state.casinoState) {
+        ctx.fillStyle = 'rgba(0,0,0,0.95)';
+        ctx.fillRect(0, 0, w, h);
+        return;
+    }
+
+    const { rewards, rarity, startTime, spinDuration, count } = state.casinoState;
+    const now = Date.now();
+    const elapsed = now - startTime;
+
+    // Background
+    ctx.fillStyle = 'rgba(10, 10, 15, 0.96)';
     ctx.fillRect(0, 0, w, h);
 
     // Golden glow effect
-    const gradient = ctx.createRadialGradient(w / 2, h * 0.4, 10, w / 2, h * 0.4, 200);
-    gradient.addColorStop(0, 'rgba(255, 215, 0, 0.2)');
-    gradient.addColorStop(1, 'rgba(255, 215, 0, 0)');
+    const gradient = ctx.createRadialGradient(w / 2, h * 0.4, 10, w / 2, h * 0.4, 250);
+    const glowColor = rarity === 'Legendary' ? 'rgba(255, 100, 0, 0.3)' :
+        rarity === 'Epic' ? 'rgba(180, 50, 255, 0.3)' : 'rgba(255, 215, 0, 0.25)';
+    gradient.addColorStop(0, glowColor);
+    gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, w, h);
 
     // Title
     ctx.fillStyle = COLORS.gold;
-    ctx.font = 'bold 24px sans-serif';
+    ctx.font = 'bold 28px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('🎰 CHEST OPENED! 🎰', w / 2, h * 0.15);
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText('🎰 CASINO CHEST 🎰', w / 2, h * 0.12);
+
+    // Rarity Banner
+    const bannerY = h * 0.17;
+    let bannerColor = '#ccc';
+    if (rarity === 'Legendary') bannerColor = '#ff4500';
+    else if (rarity === 'Epic') bannerColor = '#b366ff';
+    else if (rarity === 'Rare') bannerColor = '#4169e1';
+    else bannerColor = '#32cd32';
+
+    ctx.fillStyle = bannerColor;
+    ctx.font = 'bold 16px sans-serif';
+    ctx.fillText(rarity.toUpperCase(), w / 2, bannerY);
 
     // Slot machine container
-    const containerWidth = Math.min(280, w * 0.85);
-    const containerHeight = 140;
-    const containerX = (w - containerWidth) / 2;
-    const containerY = h * 0.22;
+    // We display up to 3 slots
+    const slotsCount = Math.min(Math.max(count || 1, 1), 3);
+    const slotW = 85;
+    const slotH = 110;
+    const totalSlotW = slotsCount * slotW + (slotsCount - 1) * 15;
+    const startX = (w - totalSlotW) / 2;
+    const slotY = h * 0.25;
 
-    ctx.fillStyle = 'rgba(30, 30, 50, 0.9)';
-    ctx.strokeStyle = COLORS.gold;
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.roundRect(containerX, containerY, containerWidth, containerHeight, 12);
-    ctx.fill();
-    ctx.stroke();
+    let allStopped = true;
 
-    // Three slot windows
-    const slotWidth = 70;
-    const slotHeight = 90;
-    const slotGap = 15;
-    const totalSlotsWidth = slotWidth * 3 + slotGap * 2;
-    const startX = (w - totalSlotsWidth) / 2;
-    const slotY = containerY + (containerHeight - slotHeight) / 2;
+    for (let i = 0; i < slotsCount; i++) {
+        const x = startX + i * (slotW + 15);
+        const stopTime = spinDuration + i * 500;
+        const isSpinning = elapsed < stopTime;
 
-    for (let i = 0; i < 3; i++) {
-        const x = startX + i * (slotWidth + slotGap);
+        if (isSpinning) allStopped = false;
 
-        // Slot background
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-        ctx.lineWidth = 2;
+        // Slot Frame
+        ctx.fillStyle = 'rgba(20, 20, 30, 0.9)';
+        ctx.strokeStyle = isSpinning ? '#444' : COLORS.gold;
+        ctx.lineWidth = isSpinning ? 2 : 4;
+
+        if (!isSpinning) {
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = bannerColor;
+        }
+
         ctx.beginPath();
-        ctx.roundRect(x, slotY, slotWidth, slotHeight, 8);
+        ctx.roundRect(x, slotY, slotW, slotH, 8);
         ctx.fill();
         ctx.stroke();
+        ctx.shadowBlur = 0;
 
-        // Slot content
-        const item = state.casinoRewards ? state.casinoRewards[i] : null;
-        if (item) {
-            ctx.fillStyle = COLORS.text;
-            ctx.font = '32px sans-serif';
+        // Content
+        if (isSpinning) {
+            // Render fast scrolling random icons
+            const randomIcons = ['⚔️', '🛡️', '💎', '🔫', '💣', '⚡', '💊'];
+            const iconIndex = Math.floor(elapsed / 80 + i) % randomIcons.length;
+
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.font = '40px sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText(item.icon || '?', x + slotWidth / 2, slotY + slotHeight / 2 + 12);
+            ctx.textBaseline = 'middle';
+            const jitterY = Math.sin(elapsed / 20) * 5;
+            ctx.fillText(randomIcons[iconIndex], x + slotW / 2, slotY + slotH / 2 + jitterY);
 
-            // Item name
-            ctx.font = '9px sans-serif';
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-            const name = (item.name || 'Item').substring(0, 10);
-            ctx.fillText(name, x + slotWidth / 2, slotY + slotHeight - 8);
         } else {
-            // Spinning animation
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-            ctx.font = '28px sans-serif';
+            // Final Reward
+            const reward = rewards[i] || rewards[0];
+
+            // Icon
+            ctx.fillStyle = '#fff';
+            ctx.font = '42px sans-serif';
             ctx.textAlign = 'center';
-            const spinIcons = ['⚔️', '🛡️', '💎', '🔮', '⭐'];
-            const iconIndex = Math.floor((Date.now() / 100 + i * 2) % spinIcons.length);
-            ctx.fillText(spinIcons[iconIndex], x + slotWidth / 2, slotY + slotHeight / 2 + 10);
+            ctx.textBaseline = 'middle';
+            ctx.fillText(reward.icon || '🎁', x + slotW / 2, slotY + slotH / 2 - 15);
+
+            // Name
+            ctx.fillStyle = '#fff';
+            ctx.textBaseline = 'alphabetic';
+            ctx.font = 'bold 10px sans-serif';
+            const name = reward.name || 'Reward';
+            const displayName = name.length > 12 ? name.substring(0, 10) + '..' : name;
+            ctx.fillText(displayName, x + slotW / 2, slotY + slotH - 10);
         }
     }
 
-    // Rarity banner
-    if (state.chestRarity) {
-        const rarityColors = {
-            'common': '#888888',
-            'rare': '#4a90d9',
-            'epic': '#9b59b6',
-            'legendary': '#f39c12'
-        };
-        ctx.fillStyle = rarityColors[state.chestRarity] || '#888888';
-        ctx.font = 'bold 14px sans-serif';
+    ctx.textBaseline = 'alphabetic';
+
+    // "Tap to Collect" logic
+    if (allStopped) {
+        const pulse = (Math.sin(now / 300) + 1) / 2;
+        ctx.fillStyle = `rgba(255, 255, 255, ${0.5 + pulse * 0.5})`;
+        ctx.font = 'bold 20px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(state.chestRarity?.toUpperCase() || 'REWARDS', w / 2, containerY + containerHeight + 25);
+        ctx.fillText('TAP TO COLLECT', w / 2, h * 0.65);
+
+        // Show detailed list below
+        const descY = h * 0.72;
+        ctx.fillStyle = '#ccc';
+        ctx.font = '14px sans-serif';
+        rewards.forEach((r, k) => {
+            if (k < 3) {
+                ctx.fillText(`+ ${r.name}`, w / 2, descY + k * 20);
+            }
+        });
     }
 }
 
@@ -1145,6 +1218,8 @@ export function syncWithGameState() {
             break;
         case GameState.CasinoChest:
             if (activeScreen !== 'casino') showScreen('casino');
+            // Force re-render for animation
+            render();
             break;
         case GameState.LevelSelect:
             if (activeScreen !== 'levelSelect') showScreen('levelSelect');

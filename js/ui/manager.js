@@ -770,10 +770,20 @@ export function grantCacheRewards(rewardCount = 1, rarityName = 'Common') {
         }
     }
 
-    // Show casino overlay
+    // Show casino overlay (Desktop)
     ui.chestCasinoOverlay.style.display = 'flex';
     ui.casinoRarityBanner.textContent = rarityName.toUpperCase();
     ui.casinoRarityBanner.className = rarityName.toLowerCase();
+
+    // Store state for Mobile UI
+    state.casinoState = {
+        rewards: selectedRewards.map(r => ({ ...r, icon: r.icon || r.data?.icon, name: r.name || r.data?.name })),
+        rarity: rarityName,
+        startTime: Date.now(),
+        count: rewardCount,
+        spinDuration: 2500 // Base spin duration
+    };
+
     ui.casinoRewardsDisplay.innerHTML = '';
     ui.casinoContinueBtn.style.display = 'none';
 
