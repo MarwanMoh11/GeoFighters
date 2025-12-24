@@ -1,6 +1,6 @@
 /* ==========================================================================
-   MOBILE-FIRST RESPONSIVE UI - COMPLETE REWRITE
-   GeoFighters - Aggressive Mobile Fixes
+   MOBILE-FIRST RESPONSIVE UI - FIXED VERSION
+   GeoFighters - Comprehensive Mobile Fixes
    ========================================================================== */
 
 /* =====================================================
@@ -10,7 +10,6 @@
 html,
 body {
     overflow: hidden;
-    touch-action: none;
     -webkit-touch-callout: none;
     -webkit-user-select: none;
     user-select: none;
@@ -22,7 +21,7 @@ body {
 @media (max-width: 768px) {
 
     /* ===========================================
-       FIX #1: MAIN MENU - Center and Scale
+       FIX #1: MENUS - Center and Scale
        Only apply when menu is actually displayed
        =========================================== */
     .menu-overlay[style*="display: flex"],
@@ -42,19 +41,6 @@ body {
         pointer-events: auto !important;
     }
 
-    .menu-overlay[style*="display: flex"] .menu-box,
-    .menu-overlay[style*="display:flex"] .menu-box {
-        pointer-events: auto !important;
-    }
-
-    .menu-overlay[style*="display: flex"] button,
-    .menu-overlay[style*="display:flex"] button,
-    .menu-overlay[style*="display: flex"] .level-button,
-    .menu-overlay[style*="display:flex"] .level-button {
-        pointer-events: auto !important;
-        cursor: pointer !important;
-    }
-
     .menu-box {
         position: relative !important;
         width: 90vw !important;
@@ -66,16 +52,17 @@ body {
         overflow-x: hidden !important;
         box-sizing: border-box !important;
         transform: none !important;
+        pointer-events: auto !important;
     }
 
     .menu-box h1 {
-        font-size: 1.4rem !important;
+        font-size: 1.3rem !important;
         margin-bottom: 12px !important;
         text-align: center !important;
     }
 
     .menu-box h2 {
-        font-size: 1.1rem !important;
+        font-size: 1rem !important;
         margin-bottom: 10px !important;
     }
 
@@ -84,57 +71,62 @@ body {
         width: 100% !important;
         max-width: none !important;
         padding: 12px 16px !important;
-        font-size: 0.9rem !important;
+        font-size: 0.85rem !important;
         margin: 6px 0 !important;
         box-sizing: border-box !important;
+        pointer-events: auto !important;
+        cursor: pointer !important;
     }
 
     /* ===========================================
-       FIX #2: TOP HUD - Push Down from Edge
+       FIX #2: TOP HUD - Below iPhone Notch
+       Using safe-area-inset for proper positioning
        =========================================== */
     #hud-xp-container {
         position: fixed !important;
-        top: 8px !important;
+        top: calc(env(safe-area-inset-top, 0px) + 5px) !important;
         left: 0 !important;
         right: 0 !important;
-        height: 10px !important;
+        height: 8px !important;
         z-index: 100 !important;
     }
 
     #xp-level-badge {
         position: fixed !important;
-        top: 22px !important;
+        top: calc(env(safe-area-inset-top, 0px) + 16px) !important;
         left: 8px !important;
-        font-size: 10px !important;
-        padding: 2px 6px !important;
+        font-size: 9px !important;
+        padding: 2px 5px !important;
         z-index: 101 !important;
     }
 
     #hud-stats-row {
         position: fixed !important;
-        top: 22px !important;
+        top: calc(env(safe-area-inset-top, 0px) + 16px) !important;
         left: 0 !important;
         right: 0 !important;
-        padding: 4px 8px !important;
+        padding: 3px 8px !important;
         z-index: 99 !important;
-        display: grid !important;
-        grid-template-columns: 1fr auto 1fr !important;
+        display: flex !important;
+        justify-content: center !important;
         align-items: center !important;
+        gap: 8px !important;
     }
 
     #hud-health-container {
-        justify-self: start !important;
-        margin-left: 45px !important;
+        margin-left: 35px !important;
         gap: 3px !important;
+        display: flex !important;
+        align-items: center !important;
     }
 
     #health-icon {
-        font-size: 12px !important;
+        font-size: 11px !important;
     }
 
     #shieldBarNew {
-        width: 50px !important;
-        height: 8px !important;
+        width: 40px !important;
+        height: 6px !important;
     }
 
     #shield-text {
@@ -142,56 +134,58 @@ body {
     }
 
     #timer-container {
-        justify-self: center !important;
-        padding: 2px 10px !important;
+        padding: 2px 8px !important;
     }
 
     #timer {
-        font-size: 14px !important;
+        font-size: 13px !important;
     }
 
     #score-display {
-        justify-self: end !important;
-        margin-right: 40px !important;
-        padding: 2px 6px !important;
+        margin-right: 35px !important;
+        padding: 2px 5px !important;
     }
 
     #score-icon,
     #score {
-        font-size: 11px !important;
+        font-size: 10px !important;
     }
 
-    /* Pause Button - Clearly Visible */
+    /* Pause Button - Always visible, fixed position */
     #fullscreen-button {
         position: fixed !important;
-        top: 22px !important;
-        right: 8px !important;
-        width: 32px !important;
-        height: 32px !important;
-        font-size: 16px !important;
-        z-index: 200 !important;
-        background: rgba(0, 0, 0, 0.7) !important;
-        border: 2px solid rgba(255, 255, 255, 0.5) !important;
-        border-radius: 8px !important;
+        top: calc(env(safe-area-inset-top, 0px) + 14px) !important;
+        right: calc(env(safe-area-inset-right, 0px) + 8px) !important;
+        width: 30px !important;
+        height: 30px !important;
+        font-size: 14px !important;
+        z-index: 500 !important;
+        background: rgba(0, 0, 0, 0.8) !important;
+        border: 2px solid rgba(0, 255, 255, 0.6) !important;
+        border-radius: 6px !important;
+        pointer-events: auto !important;
     }
 
     /* ===========================================
-       FIX #3: WEAPON/ITEM SLOTS - Prevent Overlap
+       FIX #3: WEAPON/ITEM SLOTS - Compact & Clean
        =========================================== */
     #hud-bottom-left,
     #hud-bottom-right {
         position: fixed !important;
-        bottom: 15px !important;
+        bottom: calc(env(safe-area-inset-bottom, 0px) + 10px) !important;
         z-index: 80 !important;
+        background: rgba(0, 0, 0, 0.5) !important;
+        border-radius: 6px !important;
+        padding: 4px !important;
     }
 
     #hud-bottom-left {
-        left: 8px !important;
+        left: calc(env(safe-area-inset-left, 0px) + 6px) !important;
         right: auto !important;
     }
 
     #hud-bottom-right {
-        right: 8px !important;
+        right: calc(env(safe-area-inset-right, 0px) + 6px) !important;
         left: auto !important;
     }
 
@@ -200,65 +194,65 @@ body {
     }
 
     .slot-grid {
-        display: flex !important;
-        flex-direction: row !important;
-        flex-wrap: wrap !important;
-        gap: 3px !important;
-        max-width: 80px !important;
+        display: grid !important;
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 2px !important;
     }
 
     .slot {
-        width: 24px !important;
-        height: 24px !important;
-        min-width: 24px !important;
-        min-height: 24px !important;
-        flex-shrink: 0 !important;
+        width: 22px !important;
+        height: 22px !important;
+        min-width: 22px !important;
+        min-height: 22px !important;
+        border-radius: 3px !important;
+        border-width: 1px !important;
     }
 
     .slot img {
         width: 100% !important;
         height: 100% !important;
         object-fit: contain !important;
-        padding: 2px !important;
+        padding: 1px !important;
         box-sizing: border-box !important;
     }
 
     .slot-level {
-        font-size: 8px !important;
-        bottom: -2px !important;
+        font-size: 7px !important;
+        bottom: -1px !important;
         right: 0 !important;
+        padding: 0 2px !important;
     }
 
     /* ===========================================
-       FIX #4: UPGRADE MENU - Proper Mobile Layout
+       FIX #4: UPGRADE MENU - Scrollable List
        =========================================== */
     #upgradeOptions {
         display: flex !important;
         flex-direction: column !important;
-        gap: 10px !important;
+        gap: 8px !important;
         width: 100% !important;
-        max-height: 55vh !important;
+        max-height: 50vh !important;
         overflow-y: auto !important;
-        padding: 5px !important;
+        padding: 4px !important;
         box-sizing: border-box !important;
     }
 
     .upgrade-option {
         width: 100% !important;
-        min-height: 70px !important;
-        padding: 10px !important;
+        min-height: 60px !important;
+        padding: 8px !important;
         display: flex !important;
         flex-direction: row !important;
         align-items: center !important;
-        gap: 10px !important;
+        gap: 8px !important;
         box-sizing: border-box !important;
     }
 
     .upgrade-icon {
-        width: 40px !important;
-        height: 40px !important;
-        min-width: 40px !important;
-        font-size: 20px !important;
+        width: 36px !important;
+        height: 36px !important;
+        min-width: 36px !important;
+        font-size: 18px !important;
         flex-shrink: 0 !important;
     }
 
@@ -268,75 +262,88 @@ body {
     }
 
     .upgrade-info h3 {
-        font-size: 0.9rem !important;
-        margin: 0 0 4px 0 !important;
+        font-size: 0.85rem !important;
+        margin: 0 0 3px 0 !important;
     }
 
     .upgrade-description {
-        font-size: 0.75rem !important;
+        font-size: 0.7rem !important;
         line-height: 1.2 !important;
     }
 
     /* ===========================================
-       FIX #5: CASINO CHEST - Full Screen Centered
-       Only apply layout when actually displayed via JS
+       FIX #5: CASINO CHEST - Center Properly
        =========================================== */
+    #chestCasinoOverlay,
     #chestCasinoOverlay[style*="display: flex"],
-    #chestCasinoOverlay[style*="display:flex"],
-    #chestCasinoOverlay.visible {
+    #chestCasinoOverlay[style*="display:flex"] {
         position: fixed !important;
         top: 0 !important;
         left: 0 !important;
         right: 0 !important;
         bottom: 0 !important;
-        width: 100% !important;
-        height: 100% !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        display: flex !important;
         justify-content: center !important;
         align-items: center !important;
-        padding: 10px !important;
+        padding: 15px !important;
         box-sizing: border-box !important;
         z-index: 4000 !important;
         background: rgba(0, 0, 0, 0.95) !important;
     }
 
+    /* Hide when not visible via inline style */
+    #chestCasinoOverlay[style*="display: none"],
+    #chestCasinoOverlay[style*="display:none"] {
+        display: none !important;
+    }
+
     #casino-container {
         position: relative !important;
-        width: 95vw !important;
-        max-width: 340px !important;
-        max-height: 85vh !important;
-        padding: 15px !important;
+        width: 90vw !important;
+        max-width: 300px !important;
+        max-height: 80vh !important;
+        padding: 12px !important;
         overflow-y: auto !important;
         overflow-x: hidden !important;
         box-sizing: border-box !important;
         display: flex !important;
         flex-direction: column !important;
         align-items: center !important;
+        background: linear-gradient(135deg, #1a1a2e, #16213e) !important;
+        border: 2px solid rgba(0, 255, 255, 0.4) !important;
+        border-radius: 12px !important;
     }
 
     #casino-title,
     #casino-rarity-banner {
-        font-size: 1.1rem !important;
-        margin-bottom: 10px !important;
+        font-size: 1rem !important;
+        margin-bottom: 8px !important;
         text-align: center !important;
+        width: 100% !important;
     }
 
     #casino-slots-container {
         display: flex !important;
         justify-content: center !important;
         align-items: center !important;
-        gap: 8px !important;
-        padding: 10px !important;
-        margin: 10px 0 !important;
+        gap: 6px !important;
+        padding: 8px !important;
+        margin: 8px 0 !important;
         width: 100% !important;
         box-sizing: border-box !important;
     }
 
     .casino-slot {
-        width: 60px !important;
-        height: 80px !important;
-        min-width: 60px !important;
+        width: 55px !important;
+        height: 70px !important;
+        min-width: 55px !important;
         overflow: hidden !important;
         position: relative !important;
+        background: rgba(0, 0, 0, 0.5) !important;
+        border: 1px solid rgba(255, 255, 255, 0.3) !important;
+        border-radius: 6px !important;
     }
 
     .slot-reel {
@@ -346,23 +353,23 @@ body {
         overflow: hidden !important;
     }
 
+    /* Ensure slot items are visible both during animation AND when settled */
     .slot-item {
         width: 100% !important;
-        height: 80px !important;
+        height: 70px !important;
         display: flex !important;
         flex-direction: column !important;
         justify-content: center !important;
         align-items: center !important;
-        font-size: 24px !important;
-        position: absolute !important;
-        left: 0 !important;
+        font-size: 22px !important;
         box-sizing: border-box !important;
+        padding: 4px !important;
     }
 
     .slot-item .slot-name {
-        font-size: 8px !important;
+        font-size: 7px !important;
         text-align: center !important;
-        margin-top: 4px !important;
+        margin-top: 2px !important;
         max-width: 100% !important;
         overflow: hidden !important;
         text-overflow: ellipsis !important;
@@ -371,27 +378,22 @@ body {
 
     #casino-continue-btn {
         width: 100% !important;
-        max-width: 280px !important;
-        padding: 14px !important;
-        font-size: 1rem !important;
-        margin-top: 15px !important;
+        max-width: 240px !important;
+        padding: 12px !important;
+        font-size: 0.9rem !important;
+        margin-top: 10px !important;
+        pointer-events: auto !important;
     }
 
-    /* Hide extra elements on casino */
-    #casino-rewards-display {
-        display: none !important;
-    }
-
-    .slot-ring {
-        display: none !important;
-    }
-
+    /* Hide decorative elements on mobile */
+    #casino-rewards-display,
+    .slot-ring,
     #casino-light-rays {
         display: none !important;
     }
 
     /* ===========================================
-       GENERAL Z-INDEX HIERARCHY
+       Z-INDEX HIERARCHY
        =========================================== */
     #joystick-area {
         z-index: 1000 !important;
@@ -407,35 +409,36 @@ body {
    ===================================================== */
 @media (max-width: 380px) {
     .menu-box {
-        padding: 12px !important;
+        padding: 10px !important;
         max-width: 95vw !important;
     }
 
     .menu-box h1 {
-        font-size: 1.2rem !important;
+        font-size: 1.1rem !important;
     }
 
     .slot {
-        width: 20px !important;
-        height: 20px !important;
-    }
-
-    .slot-grid {
-        max-width: 65px !important;
+        width: 18px !important;
+        height: 18px !important;
     }
 
     .casino-slot {
-        width: 50px !important;
-        height: 70px !important;
+        width: 45px !important;
+        height: 60px !important;
     }
 
     .slot-item {
-        height: 70px !important;
-        font-size: 20px !important;
+        height: 60px !important;
+        font-size: 18px !important;
     }
 
     .upgrade-icon {
-        width: 32px !important;
-        height: 32px !important;
+        width: 30px !important;
+        height: 30px !important;
+    }
+
+    #casino-container {
+        max-width: 95vw !important;
+        padding: 10px !important;
     }
 }
