@@ -165,26 +165,17 @@ function hideHTMLUI() {
 }
 
 // =============================================================================
-// TOUCH HANDLING
+// TOUCH HANDLING - Floating Joystick
 // =============================================================================
 
 let touchStartPos = { x: 0, y: 0 };
 let joystickTouch = null; // Track joystick touch separately
-let joystickCenter = { x: 0, y: 0 };
+let joystickCenter = { x: 0, y: 0 }; // Dynamic - spawns at touch location
 const JOYSTICK_RADIUS = 50;
 
-function getJoystickCenter() {
-    return {
-        x: safeArea.left + 80,
-        y: window.innerHeight - safeArea.bottom - 100
-    };
-}
-
-function isInJoystickArea(pos) {
-    const center = getJoystickCenter();
-    const dx = pos.x - center.x;
-    const dy = pos.y - center.y;
-    return Math.sqrt(dx * dx + dy * dy) < JOYSTICK_RADIUS * 1.5;
+function isButtonTouch(pos) {
+    // Check if touch is on any button
+    return uiElements.some(el => el.type === 'button' && isPointInRect(pos, el.bounds));
 }
 
 function handleTouchStart(e) {
@@ -194,26 +185,28 @@ function handleTouchStart(e) {
         const touch = e.touches[i];
         const pos = { x: touch.clientX, y: touch.clientY };
 
-        // Check if this is a joystick touch (only during gameplay)
-        if (activeScreen === 'playing' && !joystickTouch && isInJoystickArea(pos)) {
+        // First check for button presses
+        let hitButton = false;
+        uiElements.forEach((el) => {
+            if (el.type === 'button' && isPointInRect(pos, el.bounds)) {
+                el.pressed = true;
+                hitButton = true;
+            }
+        });
+
+        if (hitButton) continue;
+
+        // If not a button and playing, this starts the joystick at touch location
+        if (activeScreen === 'playing' && !joystickTouch) {
             joystickTouch = {
                 id: touch.identifier,
                 startX: pos.x,
                 startY: pos.y
             };
-            joystickCenter = getJoystickCenter();
-            continue;
+            // Joystick center IS where you touched
+            joystickCenter = { x: pos.x, y: pos.y };
+            state.joystickVector = { x: 0, y: 0 };
         }
-
-        // Otherwise check for button presses
-        touchStartPos = pos;
-        uiElements.forEach((el) => {
-            if (el.type === 'button') {
-                if (isPointInRect(pos, el.bounds)) {
-                    el.pressed = true;
-                }
-            }
-        });
     }
 
     render();
@@ -240,6 +233,10 @@ function handleTouchMove(e) {
                 normX = dx / distance;
                 normY = dy / distance;
             }
+
+            // Clamp to -1 to 1
+            normX = Math.max(-1, Math.min(1, normX));
+            normY = Math.max(-1, Math.min(1, normY));
 
             // Update state for movement
             state.joystickVector = { x: normX, y: normY };
@@ -613,37 +610,38 @@ function renderSlots(w, h) {
     }
 }
 
-// Render joystick indicator
+// Render joystick indicator - only shows when touching
 function renderJoystick(w, h) {
-    const joyX = safeArea.left + 80;
-    const joyY = h - safeArea.bottom - 100;
-    const outerRadius = 50;
+    // Only show joystick when actively touching
+    if (!joystickTouch) return;
+
+    const joyX = joystickCenter.x;
+    const joyY = joystickCenter.y;
+    const outerRadius = JOYSTICK_RADIUS;
     const innerRadius = 22;
 
-    // Outer ring
-    ctx.strokeStyle = 'rgba(0, 255, 255, 0.25)';
-    ctx.lineWidth = 2;
+    // Outer ring (base)
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
     ctx.beginPath();
     ctx.arc(joyX, joyY, outerRadius, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = 'rgba(0, 255, 255, 0.4)';
+    ctx.lineWidth = 2;
     ctx.stroke();
 
-    // Inner knob (follow touch if active)
-    let knobX = joyX;
-    let knobY = joyY;
+    // Inner knob (follows finger)
+    const vec = state.joystickVector || { x: 0, y: 0 };
+    const knobX = joyX + vec.x * outerRadius * 0.8;
+    const knobY = joyY + vec.y * outerRadius * 0.8;
 
-    // Get joystick position from state if available
-    if (state.joystickVector) {
-        knobX = joyX + state.joystickVector.x * outerRadius * 0.7;
-        knobY = joyY + state.joystickVector.y * outerRadius * 0.7;
-    }
-
-    ctx.fillStyle = 'rgba(0, 255, 255, 0.5)';
+    ctx.fillStyle = 'rgba(0, 255, 255, 0.7)';
     ctx.beginPath();
     ctx.arc(knobX, knobY, innerRadius, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.strokeStyle = 'rgba(0, 255, 255, 0.8)';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(0, 255, 255, 1)';
+    ctx.lineWidth = 3;
     ctx.stroke();
 }
 
