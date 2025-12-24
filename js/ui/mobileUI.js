@@ -730,30 +730,52 @@ function renderLevelUpScreen(w, h) {
         ctx.arc(cardX + 35, yPos + cardHeight / 2, 22, 0, Math.PI * 2);
         ctx.fill();
 
-        // Icon
+        // Icon (perfectly centered)
         ctx.fillStyle = '#ffffff';
-        ctx.font = '28px sans-serif';
+        ctx.font = '24px sans-serif'; // Slight reduction for better fit
         ctx.textAlign = 'center';
-        ctx.fillText(option.icon || '⬆️', cardX + 35, yPos + cardHeight / 2 + 10);
+        ctx.textBaseline = 'middle'; // Critical for vertical centering
+        ctx.fillText(option.icon || '⬆️', cardX + 35, yPos + cardHeight / 2 + 2); // +2 visual adjustment
+        ctx.textBaseline = 'alphabetic'; // Reset
 
         // Title
         ctx.fillStyle = '#ffffff';
         ctx.font = 'bold 16px sans-serif';
         ctx.textAlign = 'left';
-        ctx.fillText(option.name || 'Upgrade', cardX + 65, yPos + 24);
+        ctx.fillText(option.name || 'Upgrade', cardX + 70, yPos + 24);
 
         // Level indicator
         if (option.level !== undefined && option.maxLevel) {
             ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
             ctx.font = '11px sans-serif';
-            ctx.fillText(`Lvl ${option.level + 1}/${option.maxLevel}`, cardX + cardWidth - 55, yPos + 18);
+            ctx.textAlign = 'right';
+            ctx.fillText(`Lvl ${option.level + 1}/${option.maxLevel}`, cardX + cardWidth - 10, yPos + 24);
+            ctx.textAlign = 'left'; // Reset
         }
 
-        // Description
+        // Description with intelligent truncation
         ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
         ctx.font = '12px sans-serif';
-        const desc = (option.description || '').substring(0, 40);
-        ctx.fillText(desc, cardX + 65, yPos + 42);
+
+        let descText = option.description || '';
+        // Approximate char limit based on width
+        const maxChars = Math.floor((cardWidth - 80) / 7) * 2; // ~2 lines
+        if (descText.length > maxChars) {
+            descText = descText.substring(0, maxChars - 3) + '...';
+        }
+
+        // Split into lines if needed for rough wrapping simulation
+        const midPoint = Math.floor(descText.length / 2);
+        const splitIndex = descText.indexOf(' ', midPoint);
+
+        if (descText.length > 40 && splitIndex !== -1 && splitIndex < descText.length - 5) {
+            const line1 = descText.substring(0, splitIndex);
+            const line2 = descText.substring(splitIndex + 1);
+            ctx.fillText(line1, cardX + 70, yPos + 42);
+            ctx.fillText(line2, cardX + 70, yPos + 56);
+        } else {
+            ctx.fillText(descText, cardX + 70, yPos + 44);
+        }
 
         // Evolution hint
         if (option.evolutionHint) {
@@ -762,7 +784,8 @@ function renderLevelUpScreen(w, h) {
                     'rgba(255, 255, 255, 0.5)';
             ctx.fillStyle = hintColor;
             ctx.font = option.evolutionStatus === 'ready' ? 'bold 11px sans-serif' : '10px sans-serif';
-            ctx.fillText(option.evolutionHint, cardX + 65, yPos + 60);
+            // Pushed down slightly to avoid description overlap
+            ctx.fillText(option.evolutionHint, cardX + 70, yPos + 68);
         }
     });
 }
