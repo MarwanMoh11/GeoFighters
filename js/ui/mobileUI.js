@@ -13,6 +13,7 @@ let canvas = null;
 let ctx = null;
 let uiElements = [];
 let activeScreen = null;
+let manualScreenOverride = false; // Prevents syncWithGameState from resetting manually set screens
 
 // Design tokens
 const COLORS = {
@@ -440,9 +441,16 @@ function renderLevelSelect(w, h) {
 // SCREEN MANAGEMENT
 // =============================================================================
 
-export function showScreen(screenName) {
+export function showScreen(screenName, isManual = false) {
     activeScreen = screenName;
     clearUI();
+
+    // If this is a manual screen change from a button click, prevent auto-sync
+    if (isManual) {
+        manualScreenOverride = true;
+    }
+
+    console.log('[MobileUI] showScreen:', screenName, 'manual:', isManual);
 
     const w = window.innerWidth;
     const h = window.innerHeight;
@@ -452,14 +460,17 @@ export function showScreen(screenName) {
 
     switch (screenName) {
         case 'mainMenu':
+            manualScreenOverride = false; // Reset when going back to main menu
             createButton('START GAME', buttonX, h * 0.4, buttonWidth, 54, () => {
-                showScreen('levelSelect');
+                showScreen('levelSelect', true);
             });
             createButton('UPGRADES', buttonX, h * 0.5, buttonWidth, 54, () => {
-                // Show upgrades menu
+                // Show upgrades menu - for now just log
+                console.log('[MobileUI] Upgrades clicked');
             });
             createButton('SETTINGS', buttonX, h * 0.6, buttonWidth, 54, () => {
-                // Show settings
+                // Show settings - for now just log
+                console.log('[MobileUI] Settings clicked');
             });
             break;
 
@@ -483,10 +494,12 @@ export function showScreen(screenName) {
 
         case 'levelSelect':
             createButton('LEVEL 1', buttonX, h * 0.35, buttonWidth, 50, () => {
+                manualScreenOverride = false; // Allow sync when game starts
                 import('../ui/manager.js').then(m => m.startGame(1));
                 showScreen('playing');
             });
             createButton('LEVEL 2', buttonX, h * 0.45, buttonWidth, 50, () => {
+                manualScreenOverride = false;
                 import('../ui/manager.js').then(m => m.startGame(2));
                 showScreen('playing');
             });
@@ -505,6 +518,15 @@ export function showScreen(screenName) {
 
 export function syncWithGameState() {
     if (!state.isTouchDevice || !canvas) return;
+
+    // Don't override manually set screens
+    if (manualScreenOverride) {
+        // Only re-render if playing
+        if (activeScreen === 'playing') {
+            render();
+        }
+        return;
+    }
 
     switch (state.currentGameState) {
         case GameState.MainMenu:
