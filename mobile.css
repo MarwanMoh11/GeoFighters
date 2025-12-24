@@ -41,6 +41,31 @@ body {
         pointer-events: auto !important;
     }
 
+    /* Fix all popup-overlays (level up, game over, etc) */
+    .popup-overlay {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        transform: none !important;
+        /* Override translate centering */
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        padding: 15px !important;
+        box-sizing: border-box !important;
+        z-index: 2500 !important;
+        background: rgba(0, 0, 0, 0.9) !important;
+    }
+
+    .popup-overlay[style*="display: none"],
+    .popup-overlay[style*="display:none"] {
+        display: none !important;
+    }
+
     .menu-box {
         position: relative !important;
         width: 90vw !important;
