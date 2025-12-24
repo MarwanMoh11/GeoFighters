@@ -596,11 +596,61 @@ function renderLevelUpScreen(w, h) {
     ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
     ctx.fillRect(0, 0, w, h);
 
+    // Golden glow
+    const gradient = ctx.createRadialGradient(w / 2, h * 0.15, 10, w / 2, h * 0.15, 150);
+    gradient.addColorStop(0, 'rgba(255, 215, 0, 0.3)');
+    gradient.addColorStop(1, 'rgba(255, 215, 0, 0)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, w, h);
+
     // Title
     ctx.fillStyle = COLORS.gold;
-    ctx.font = FONTS.title;
+    ctx.font = 'bold 26px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('LEVEL UP!', w / 2, h * 0.15);
+    ctx.fillText('⬆️ LEVEL UP! ⬆️', w / 2, h * 0.12);
+
+    // Subtitle
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.font = '14px sans-serif';
+    ctx.fillText('Choose an upgrade', w / 2, h * 0.18);
+
+    // Render upgrade cards from uiElements (created in showScreen)
+    const options = state.upgradeOptions || [];
+    const buttonWidth = Math.min(260, w * 0.8);
+    const buttonX = (w - buttonWidth - 20) / 2;
+
+    options.forEach((option, i) => {
+        const yPos = h * (0.25 + i * 0.18);
+        const cardHeight = 65;
+        const x = buttonX;
+
+        // Card background
+        ctx.fillStyle = 'rgba(30, 40, 60, 0.95)';
+        ctx.strokeStyle = COLORS.primary;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(x, yPos, buttonWidth + 20, cardHeight, 12);
+        ctx.fill();
+        ctx.stroke();
+
+        // Icon
+        ctx.fillStyle = COLORS.text;
+        ctx.font = '28px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(option.icon || '⬆️', x + 30, yPos + cardHeight / 2 + 10);
+
+        // Title
+        ctx.fillStyle = COLORS.text;
+        ctx.font = 'bold 14px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(option.name || 'Upgrade', x + 55, yPos + 25);
+
+        // Description
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+        ctx.font = '11px sans-serif';
+        const desc = (option.description || '').substring(0, 35);
+        ctx.fillText(desc, x + 55, yPos + 45);
+    });
 }
 
 function renderGameOver(w, h) {
@@ -854,6 +904,57 @@ export function showScreen(screenName, isManual = false) {
             });
             createButton('BACK', buttonX, h * 0.7, buttonWidth, 50, () => {
                 showScreen('mainMenu');
+            });
+            break;
+
+        case 'levelUp':
+            // Get upgrade options from game state
+            const levelUpOptions = state.upgradeOptions || [];
+
+            if (levelUpOptions.length === 0) {
+                // Fallback if no options available
+                createButton('CONTINUE', buttonX, h * 0.5, buttonWidth, 54, () => {
+                    import('../ui/manager.js').then(m => m.resumeFromLevelUp && m.resumeFromLevelUp());
+                    showScreen('playing');
+                });
+            } else {
+                // Create buttons for each upgrade option
+                levelUpOptions.forEach((option, i) => {
+                    const yPos = h * (0.25 + i * 0.18);
+                    const cardHeight = 65;
+
+                    // Custom card-style button
+                    const card = {
+                        type: 'button',
+                        text: '',
+                        bounds: { x: buttonX - 10, y: yPos, width: buttonWidth + 20, height: cardHeight },
+                        onClick: () => {
+                            console.log('[MobileUI] Selected upgrade:', option.name || option.id);
+                            import('../ui/manager.js').then(m => {
+                                if (m.selectUpgrade) m.selectUpgrade(i);
+                            });
+                            manualScreenOverride = false;
+                            showScreen('playing');
+                        },
+                        pressed: false,
+                        // Custom render data
+                        icon: option.icon || '⬆️',
+                        title: option.name || 'Upgrade',
+                        description: option.description || ''
+                    };
+                    uiElements.push(card);
+                });
+            }
+            break;
+
+        case 'casino':
+            // Continue button after animation
+            createButton('CONTINUE', buttonX, h * 0.75, buttonWidth, 54, () => {
+                import('../ui/manager.js').then(m => {
+                    if (m.closeCasino) m.closeCasino();
+                });
+                manualScreenOverride = false;
+                showScreen('playing');
             });
             break;
     }
