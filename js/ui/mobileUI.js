@@ -141,10 +141,17 @@ function handleTouchStart(e) {
     const touch = e.touches[0];
     touchStartPos = { x: touch.clientX, y: touch.clientY };
 
+    console.log('[MobileUI] Touch START at:', touchStartPos);
+    console.log('[MobileUI] UI Elements count:', uiElements.length);
+
     // Highlight pressed buttons
-    uiElements.forEach(el => {
-        if (el.type === 'button' && isPointInRect(touchStartPos, el.bounds)) {
-            el.pressed = true;
+    uiElements.forEach((el, i) => {
+        if (el.type === 'button') {
+            const hit = isPointInRect(touchStartPos, el.bounds);
+            console.log(`[MobileUI] Button ${i} "${el.text}" bounds:`, el.bounds, 'hit:', hit);
+            if (hit) {
+                el.pressed = true;
+            }
         }
     });
 
@@ -156,11 +163,16 @@ function handleTouchEnd(e) {
     const touch = e.changedTouches[0];
     const endPos = { x: touch.clientX, y: touch.clientY };
 
+    console.log('[MobileUI] Touch END at:', endPos);
+
     // Check for button taps
-    uiElements.forEach(el => {
+    uiElements.forEach((el, i) => {
         el.pressed = false;
-        if (el.type === 'button' && isPointInRect(endPos, el.bounds)) {
-            if (el.onClick) {
+        if (el.type === 'button') {
+            const hit = isPointInRect(endPos, el.bounds);
+            console.log(`[MobileUI] Button ${i} "${el.text}" hit:`, hit, 'hasOnClick:', !!el.onClick);
+            if (hit && el.onClick) {
+                console.log('[MobileUI] EXECUTING onClick for:', el.text);
                 triggerHaptic();
                 el.onClick();
             }
@@ -194,6 +206,7 @@ export function createButton(text, x, y, width, height, onClick) {
         pressed: false,
     };
     uiElements.push(button);
+    console.log('[MobileUI] Created button:', text, 'at', { x, y, width, height });
     return button;
 }
 
