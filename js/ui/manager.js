@@ -518,6 +518,14 @@ function presentUpgradeOptions(permanentUpgrades, count = 3) {
 
     const optionsToShow = allAvailableUpgrades.sort(() => 0.5 - Math.random()).slice(0, count);
 
+    // Store in state for mobile UI to access
+    state.upgradeOptions = optionsToShow.map(optionWrapper => ({
+        ...optionWrapper,
+        name: optionWrapper.data?.name || 'Upgrade',
+        icon: optionWrapper.data?.icon || '⬆️',
+        description: optionWrapper.data?.shortDescription || ''
+    }));
+
     optionsToShow.forEach(optionWrapper => {
         const option = optionWrapper.data;
         const button = document.createElement('button');
@@ -579,7 +587,7 @@ function presentUpgradeOptions(permanentUpgrades, count = 3) {
 }
 
 
-function selectUpgrade(selectedOptionWrapper) {
+export function selectUpgrade(selectedOptionWrapper) {
     applyUpgradeLogic(selectedOptionWrapper);
     if (state.currentGameState === GameState.LevelUp) {
         ui.levelUpScreen.style.display = 'none';

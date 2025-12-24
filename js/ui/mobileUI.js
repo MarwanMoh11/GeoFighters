@@ -980,7 +980,9 @@ export function showScreen(screenName, isManual = false) {
             if (levelUpOptions.length === 0) {
                 // Fallback if no options available
                 createButton('CONTINUE', buttonX, h * 0.5, buttonWidth, 54, () => {
-                    import('../ui/manager.js').then(m => m.resumeFromLevelUp && m.resumeFromLevelUp());
+                    state.currentGameState = GameState.Playing;
+                    state.isPaused = false;
+                    manualScreenOverride = false;
                     showScreen('playing');
                 });
             } else {
@@ -995,12 +997,13 @@ export function showScreen(screenName, isManual = false) {
                         text: '',
                         bounds: { x: buttonX - 10, y: yPos, width: buttonWidth + 20, height: cardHeight },
                         onClick: () => {
-                            console.log('[MobileUI] Selected upgrade:', option.name || option.id);
+                            console.log('[MobileUI] Selected upgrade:', option.name);
+                            // Pass the actual option wrapper object (with type and data)
                             import('../ui/manager.js').then(m => {
-                                if (m.selectUpgrade) m.selectUpgrade(i);
+                                if (m.selectUpgrade) {
+                                    m.selectUpgrade(option);
+                                }
                             });
-                            manualScreenOverride = false;
-                            showScreen('playing');
                         },
                         pressed: false,
                         // Custom render data
