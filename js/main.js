@@ -7,6 +7,7 @@ import { initializeAudio } from './utils/audio.js';
 import { bindUIEvents, pauseGame } from './ui/manager.js';
 import { ui } from './ui/dom.js';
 import { initializePools, initializeDamageNumberPool, resetDamageNumberCounter } from './game/spawner.js';
+import { initMobileUI, syncWithGameState } from './ui/mobileUI.js';
 
 // FPS calculation
 let fpsFrameCount = 0;
@@ -58,6 +59,11 @@ function init() {
         const loadingOverlay = document.getElementById('loading-overlay');
         if (loadingOverlay) {
             loadingOverlay.classList.add('hidden');
+        }
+
+        // Initialize canvas-based mobile UI after everything is ready
+        if (state.isTouchDevice) {
+            initMobileUI();
         }
     }, 500);
 
@@ -192,6 +198,11 @@ function animate() {
         } catch (renderError) {
             console.error("A critical error occurred during rendering:", renderError);
         }
+    }
+
+    // Sync canvas UI with game state on mobile
+    if (state.isTouchDevice) {
+        syncWithGameState();
     }
 }
 
