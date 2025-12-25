@@ -14,27 +14,27 @@ import { gameLevels } from '../config/levels.js';
 const HORDE_TIMELINE = [
     // === PHASE 1: The Onslaught Begins (0:00 - 2:00) ===
     // Objective: Teach basic movement and dodging.
-    { startTime: 5, duration: 50, type: 'CUBE_CRUSHER', calmDuration: 15 }, // Standard intro. Ends at 1:10.
-    { startTime: 70, duration: 60, type: 'TETRA_SWARMER', calmDuration: 20 }, // Introduce fast, numerous enemies. Ends at 2:10.
+    { startTime: 5, duration: 50, type: 'MECH_BEAST', calmDuration: 15 }, // Standard intro. Ends at 1:10.
+    { startTime: 70, duration: 60, type: 'SEC_DRONE', calmDuration: 20 }, // Introduce fast, numerous enemies. Ends at 2:10.
 
     // === PHASE 2: New Threats (2:10 - 4:30) ===
     // Objective: Introduce special abilities and armor.
-    { startTime: 150, duration: 10, type: 'SPHERE_SPLITTER', calmDuration: 25 }, // Short, intense wave to manage performance. Ends at 3:35.
-    { startTime: 150, duration: 100, type: 'CUBE_CRUSHER', calmDuration: 15 },
-    { startTime: 215, duration: 60, type: 'TETRA_SWARMER', calmDuration: 25 }, // Introduce the "Tough" enemy type. Ends at 4:20.
+    { startTime: 150, duration: 10, type: 'GLITCH_HORROR', calmDuration: 25 }, // Short, intense wave to manage performance. Ends at 3:35.
+    { startTime: 150, duration: 100, type: 'MECH_BEAST', calmDuration: 15 },
+    { startTime: 215, duration: 60, type: 'SEC_DRONE', calmDuration: 25 }, // Introduce the "Tough" enemy type. Ends at 4:20.
 
     // === PHASE 3: The Gauntlet (4:30 - 7:00) ===
     // Objective: Combine hordes to test player prioritization.
-    { startTime: 275, duration: 65, type: 'SPHERE_SPLITTER', calmDuration: 20 }, // A full wave of easy enemies. Ends at 5:40.
+    { startTime: 275, duration: 65, type: 'SPIDER_TANK', calmDuration: 20 }, // A full wave of easy enemies. Ends at 5:40.
     // ** OVERLAP! ** While dashers are still spawning, swarmers return.
-    { startTime: 275, duration: 80, type: 'TETRA_SWARMER', calmDuration: 0, isMiniHorde: true }, // Swarmers create chaos for the dashers.
+    { startTime: 275, duration: 80, type: 'SEC_DRONE', calmDuration: 0, isMiniHorde: true }, // Swarmers create chaos for the dashers.
 
     // === PHASE 4: The Corrupted Zone (7:00 - 9:45) ===
     // Objective: High-stakes survival with area denial and ranged threats.
-    { startTime: 420, duration: 140, type: 'CYLINDER_CORRUPTER', calmDuration: 25 }, // Introduce area denial. Ends at 8:15.
+    { startTime: 420, duration: 140, type: 'TECH_TENTACLE', calmDuration: 25 }, // Introduce area denial. Ends at 8:15.
 
     // === FINAL CLIMAX (before the boss) ===
-    { startTime: 535, duration: 45, type: 'DODECAHEDRON_DRIFTER', calmDuration: 20 }, // The final, tanky drifters. Ends at 9:40.
+    { startTime: 535, duration: 45, type: 'PLASMA_GOLEM', calmDuration: 20 }, // The final, tanky drifters. Ends at 9:40.
     // The game enters a final "Calm" phase from 580s (9:40) to 600s, allowing the player to prepare for the boss.
 ];
 
@@ -175,7 +175,7 @@ function handleTutorialSpawning(deltaTime) {
                         0,
                         playerPos.z + Math.sin(angle) * spawnDist
                     );
-                    spawnEnemyByType('CUBE_CRUSHER', spawnPos);
+                    spawnEnemyByType('MECH_BEAST', spawnPos);
                 }
                 state.tutorialWaveSpawned = true;
             }
@@ -194,10 +194,8 @@ function handleTutorialSpawning(deltaTime) {
             // Spawn clean XP if none logic
             // Directly spawn a data fragment near player
             if (!state.tutorialXPSpawned && state.tutorialTimer > 0.5 && state.tutorialTimer < 1.0) {
-                // Spawn 5 purple mega shards for very quick level up
-                for (let i = 0; i < 5; i++) {
-                    spawnMegaDataFragment(500);
-                }
+                // Spawn 1 orange mega shard for quick level up
+                spawnMegaDataFragment(500);
                 state.tutorialXPSpawned = true;
             }
 
@@ -218,9 +216,8 @@ function handleTutorialSpawning(deltaTime) {
             if (!state.tutorialChestSpawned && state.tutorialTimer > 1.0) {
                 const playerPos = state.player.position;
                 const spawnPos = new THREE.Vector3(playerPos.x + 8, 0, playerPos.z);
-                // We need to import this function or ensure it's available
-                // It is exported from this file, so we can call it.
-                spawnGeometricCache(spawnPos);
+                // Pass 'COMMON' to ensure the tutorial cache is always common
+                spawnGeometricCache(spawnPos, 'COMMON');
                 state.tutorialChestSpawned = true;
             }
 
@@ -246,7 +243,7 @@ function handleTutorialSpawning(deltaTime) {
                         0,
                         playerPos.z + Math.sin(angle) * spawnDist
                     );
-                    spawnEnemyByType('CUBE_CRUSHER', spawnPos);
+                    spawnEnemyByType('MECH_BEAST', spawnPos);
                 }
                 state.tutorialCombatSpawned = true;
             }
@@ -258,9 +255,10 @@ function handleTutorialSpawning(deltaTime) {
             break;
 
         case 'COMPLETE':
-            state.tutorialMessage = "MISSION READY. STARTING ENGINE...";
-            // The UI will handle the button and state transition now.
-            // We just wait here.
+            // Only set message if not explicitly cleared by the BEGIN MISSION button
+            if (state.tutorialMessage !== "" && state.tutorialStep === 'COMPLETE') {
+                state.tutorialMessage = "MISSION READY. START ENGINE";
+            }
             break;
     }
 }
@@ -322,7 +320,7 @@ function handleCalmPhase(deltaTime) {
         state.eliteSpawnTimer = 0;
         // Spawn elites based on how far into the game we are
         if (state.gameTime > 400 && Math.random() < 0.3) {
-            spawnEnemyByType('OCTAHEDRON_OBSTACLE');
+            spawnEnemyByType('SPIDER_TANK');
         }
     }
 }
@@ -344,9 +342,9 @@ function spawnHordeWave() {
     }
 
     // Always add some basic cubes as filler if there's leftover budget
-    const fillerTypeData = ENEMY_TYPES['CUBE_CRUSHER'];
+    const fillerTypeData = ENEMY_TYPES['MECH_BEAST'];
     while (budget >= fillerTypeData.cost && spawnedCount < maxSpawns) {
-        spawnEnemyByType('CUBE_CRUSHER');
+        spawnEnemyByType('MECH_BEAST');
         budget -= fillerTypeData.cost;
         spawnedCount++;
     }
@@ -358,10 +356,10 @@ function spawnHordeWave() {
 
 function handleBossWave(deltaTime) {
     // We now check for the 'type' property directly on the data object in state.shapes
-    const bossExists = state.shapes.some(s => s.type === 'BOSS_OCTA_PRIME');
+    const bossExists = state.shapes.some(s => s.type === 'TITAN_MECH_KING');
 
     if (!bossExists) {
-        spawnEnemyByType('BOSS_OCTA_PRIME');
+        spawnEnemyByType('TITAN_MECH_KING');
     }
 
     // ... rest of the function is the same ...
@@ -397,55 +395,69 @@ export function initializePools() {
     // Increased for heavy load stress testing.
     const MAX_INSTANCES_PER_TYPE = 500;
 
+    const textureLoader = new THREE.TextureLoader();
+    const enemySheet = textureLoader.load('assets/enemy_sheet.png');
+    enemySheet.colorSpace = THREE.SRGBColorSpace;
+    enemySheet.magFilter = THREE.NearestFilter;
+    enemySheet.minFilter = THREE.NearestFilter;
+
+    // Sprite Sheet has 4 columns and 4 rows
+    const COLS = 4;
+    const ROWS = 4;
+
     Object.keys(ENEMY_TYPES).forEach(typeId => {
         const typeData = ENEMY_TYPES[typeId];
         if (!typeData) return;
 
-        // 1. Create the shared geometry
-        let geometry;
-        const size = typeData.size || [1];
-        switch (typeData.geometryType) {
-            case 'Box': geometry = new THREE.BoxGeometry(...size); break;
-            case 'Sphere': geometry = new THREE.SphereGeometry(...size); break;
-            case 'Cylinder': geometry = new THREE.CylinderGeometry(...size); break;
-            case 'Cone': geometry = new THREE.ConeGeometry(...size); break;
-            case 'Icosahedron': geometry = new THREE.IcosahedronGeometry(...size); break;
-            case 'Octahedron': geometry = new THREE.OctahedronGeometry(...size); break;
-            case 'Dodecahedron': geometry = new THREE.DodecahedronGeometry(...size); break;
-            case 'Tetrahedron': geometry = new THREE.TetrahedronGeometry(...size); break;
-            default: geometry = new THREE.BoxGeometry(1, 1, 1);
-        }
-        geometry.computeBoundingSphere();
-        const color = new THREE.Color();
-        const colorArray = [];
-        for (let i = 0; i < geometry.attributes.position.count; i++) {
-            color.set(0xffffff); // Default to white
-            colorArray.push(color.r, color.g, color.b);
-        }
-        geometry.setAttribute('color', new THREE.Float32BufferAttribute(colorArray, 3));
+        // 1. Create 2D Quad Geometry for Sprites (Sized and Anchored to Ground)
+        const width = typeData.size ? typeData.size[0] : 1;
+        const height = typeData.size ? typeData.size[1] : 1;
+        const geometry = new THREE.PlaneGeometry(width, height);
 
-        // 2. Create the shared material
-        // We MUST enable vertexColors to allow for hit effects.
-        const material = new THREE.MeshStandardMaterial({
+        // Offset the geometry so the bottom edge is at Y=0
+        geometry.translate(0, height / 2, 0);
+
+        // --- CRITICAL FIX: Custom UV mapping for this monster type to avoid texture clones ---
+        const col = typeData.spriteIndex ? typeData.spriteIndex[0] : 0;
+        const row = typeData.spriteIndex ? typeData.spriteIndex[1] : 0;
+
+        const uvAttr = geometry.attributes.uv;
+
+        // Add small padding to prevent bleeding from adjacent sprites
+        const SHEET_SIZE = 512; // Assume 512x512 sheet
+        const padding = 0.5 / SHEET_SIZE; // Half pixel padding
+
+        const uMin = col / COLS + padding;
+        const uMax = (col + 1) / COLS - padding;
+        const vMin = 1 - (row + 1) / ROWS + padding;
+        const vMax = 1 - row / ROWS - padding;
+
+        // Set UVs: [TL, TR, BL, BR] order for PlaneGeometry
+        uvAttr.setXY(0, uMin, vMax); // Top-Left
+        uvAttr.setXY(1, uMax, vMax); // Top-Right
+        uvAttr.setXY(2, uMin, vMin); // Bottom-Left
+        uvAttr.setXY(3, uMax, vMin); // Bottom-Right
+        uvAttr.needsUpdate = true;
+
+        geometry.computeBoundingSphere();
+
+        // 2. Create Material using the shared sheet
+        const material = new THREE.MeshBasicMaterial({
+            map: enemySheet,
+            transparent: true,
+            alphaTest: 0.5, // Crisp edges for pixel art
             color: 0xffffff,
-            roughness: typeData.roughness ?? 0.5,
-            metalness: typeData.metalness ?? 0.0,
-            flatShading: typeData.flatShading ?? false,
-            vertexColors: true // CRITICAL for instanceColor
+            side: THREE.DoubleSide
         });
-        if (typeData.emissive) {
-            material.emissive = new THREE.Color(typeData.emissive);
-            material.emissiveIntensity = typeData.emissiveIntensity ?? 1.0;
-        }
 
         // 3. Create the InstancedMesh
         const instancedMesh = new THREE.InstancedMesh(geometry, material, MAX_INSTANCES_PER_TYPE);
         instancedMesh.frustumCulled = false;
-        instancedMesh.count = 0; // Start with 0 active instances
-        instancedMesh.userData.radius = geometry.boundingSphere.radius; // Store radius
+        instancedMesh.count = 0;
+        instancedMesh.userData.radius = width * 0.5; // Use half-width as horizontal radius 
         instancedMesh.userData.baseColor = new THREE.Color(typeData.color || 0xffffff);
 
-        // 4. Add it to the scene ONCE and store it
+        // 4. Add to scene
         state.scene.add(instancedMesh);
         state.instancedMeshes[typeId] = instancedMesh;
 
@@ -570,7 +582,8 @@ export function spawnEnemyByType(typeId, forcedPosition = null) {
     if (forcedPosition) {
         spawnPosition = forcedPosition;
     } else {
-        const spawnRadius = 35;
+        // Mobile: spawn at screen edge (closer). Desktop: spawn further out.
+        const spawnRadius = state.isTouchDevice ? 18 : 35;
         const angle = Math.random() * Math.PI * 2;
         let x = state.player.position.x + Math.cos(angle) * spawnRadius;
         let z = state.player.position.z + Math.sin(angle) * spawnRadius;
@@ -579,8 +592,7 @@ export function spawnEnemyByType(typeId, forcedPosition = null) {
         spawnPosition = new THREE.Vector3(x, 0, z);
     }
 
-    const baseRadius = instancedMesh.userData.radius;
-    spawnPosition.y = baseRadius;
+    spawnPosition.y = 0;
 
     // 3. Set the instance's transform
     state.dummy.position.copy(spawnPosition);
@@ -601,7 +613,7 @@ export function spawnEnemyByType(typeId, forcedPosition = null) {
         type: typeId,
         instanceId: instanceId, // CRITICAL: Link to the instanced mesh
         position: spawnPosition, // Store its logical position
-        radius: baseRadius,
+        radius: instancedMesh.userData.radius,
         ...typeData,
         health: Math.max(1, finalHealth),
         xpValue: Math.max(1, Math.floor(finalXp)),
@@ -616,7 +628,7 @@ export function spawnEnemyByType(typeId, forcedPosition = null) {
 export function spawnSplitterOffspring(position, generation) {
     if (generation >= 3) return;
 
-    const typeId = 'SPHERE_SPLITTER';
+    const typeId = 'GLITCH_HORROR';
     const typeData = ENEMY_TYPES[typeId];
 
     // 1. Get InstancedMesh and index
@@ -632,9 +644,9 @@ export function spawnSplitterOffspring(position, generation) {
     instancedMesh.count = Math.max(instancedMesh.count, instanceId + 1);
 
     // 2. Calculate new properties
-    const newRadius = Math.max(0.2, (typeData.size[0] / (generation + 1)));
+    const newWidth = Math.max(0.5, (typeData.size[0] / (generation + 1)));
     const originalRadius = instancedMesh.userData.radius;
-    const scale = newRadius / originalRadius;
+    const scale = newWidth / (typeData.size[0] * 0.5);
 
     const health = Math.max(2, (4 + state.playerLevel * 1.2 + state.gameTime * 0.015) * (typeData.healthMultiplier || 1) / (generation * 1.8 + 1));
     const xp = Math.max(1, (3 + state.playerLevel + state.gameTime * 0.005) * typeData.xpMultiplier / (generation * 1.5 + 1));
@@ -642,7 +654,7 @@ export function spawnSplitterOffspring(position, generation) {
 
     // 3. Set transform with new scale
     const spawnPosition = position.clone();
-    spawnPosition.y = newRadius;
+    spawnPosition.y = 0.1;
     spawnPosition.x += (Math.random() - 0.5) * 0.6;
     spawnPosition.z += (Math.random() - 0.5) * 0.6;
 
@@ -661,7 +673,7 @@ export function spawnSplitterOffspring(position, generation) {
         type: typeId,
         instanceId: instanceId,
         position: spawnPosition,
-        radius: newRadius,
+        radius: (typeData.size[0] * 0.5) * scale,
         health,
         xpValue: xp,
         speed,
@@ -720,9 +732,16 @@ function rollChestRarity() {
     return { key: 'COMMON', ...CHEST_RARITIES.COMMON };
 }
 
-export function spawnGeometricCache(position) {
+export function spawnGeometricCache(position, forcedRarityKey = null) {
     const cacheSize = CONSTANTS.CACHE_RADIUS * 1.5;
-    const rarity = rollChestRarity();
+
+    // Determine rarity: use forced key if provided, otherwise roll randomly
+    let rarity;
+    if (forcedRarityKey && CHEST_RARITIES[forcedRarityKey]) {
+        rarity = { key: forcedRarityKey, ...CHEST_RARITIES[forcedRarityKey] };
+    } else {
+        rarity = rollChestRarity();
+    }
 
     // Create a chest group with base and lid
     const chestGroup = new THREE.Group();

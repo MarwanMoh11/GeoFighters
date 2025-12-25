@@ -712,7 +712,7 @@ export function grantCacheRewards(rewardCount = 1, rarityName = 'Rare') {
 
     // Pause the game
     state.previousGameState = state.currentGameState;
-    state.currentGameState = GameState.CasinoChest;
+    state.currentGameState = GameState.CacheOpening;
     state.isPaused = true;
 
     // Build reward pool with WEIGHTED chances
@@ -773,8 +773,9 @@ export function grantCacheRewards(rewardCount = 1, rarityName = 'Rare') {
         }
     }
 
-    // Show casino overlay (Desktop)
+    // Show cache overlay (Desktop)
     ui.chestCasinoOverlay.style.display = 'flex';
+    ui.casinoTitle.textContent = 'CACHE OPENED';
     ui.casinoRarityBanner.textContent = rarityName.toUpperCase();
     ui.casinoRarityBanner.className = rarityName.toLowerCase();
 

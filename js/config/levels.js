@@ -17,54 +17,111 @@ function setupLevel1Map() {
     state.staticLevelObjects.length = 0;
 
     const mapBoundary = CONSTANTS.WORLD_BOUNDARY * 0.95;
-    const obstacleColors = [0x71717a, 0x64748b, 0x4a5568, 0x52525b];
-    const obstacleCount = 30 + Math.floor(Math.random() * 10);
+    const buildingCount = 25 + Math.floor(Math.random() * 5);
+    const textureLoader = new THREE.TextureLoader();
 
-    for (let i = 0; i < obstacleCount; i++) {
-        const sizeBase = Math.random() * 2.5 + 1.5;
-        let geom;
-        const type = Math.random();
-        let obstacleRadius;
+    // 1. Pre-load Multiple Building Styles with sRGB support for HD colors
+    const textures = [
+        textureLoader.load('assets/building_texture.png'),      // Blue Neon
+        textureLoader.load('assets/building_texture_pink.png'), // Pink/Purple Neon
+        textureLoader.load('assets/building_texture_teal.png')  // Teal/Data Stream
+    ];
+    textures.forEach(t => {
+        t.wrapS = THREE.RepeatWrapping;
+        t.wrapT = THREE.RepeatWrapping;
+        t.colorSpace = THREE.SRGBColorSpace; // CRITICAL for HD colors
+        t.anisotropy = 8;
+    });
 
-        if (type < 0.33) {
-            obstacleRadius = sizeBase / 1.8 * (0.9 + Math.random() * 0.2);
-            geom = new THREE.SphereGeometry(obstacleRadius, Math.floor(Math.random() * 2 + 6), Math.floor(Math.random() * 2 + 6));
-        } else if (type < 0.66) {
-            obstacleRadius = sizeBase / 1.7 * (0.9 + Math.random() * 0.2);
-            geom = new THREE.OctahedronGeometry(obstacleRadius, 0);
-        } else {
-            obstacleRadius = sizeBase / 1.7 * (0.9 + Math.random() * 0.2);
-            geom = new THREE.DodecahedronGeometry(obstacleRadius, 0);
+    const placedBuildings = [];
+
+    for (let i = 0; i < buildingCount; i++) {
+        let attempts = 0;
+        let spawnX, spawnZ, width, depth, height, obstacleRadius;
+        let validPos = false;
+
+        // Architectural variation
+        width = 3.0 + Math.random() * 4.0;
+        depth = 3.0 + Math.random() * 4.0;
+        height = 6 + Math.random() * 14;
+        obstacleRadius = (width + depth) / 2.5; // Radius for circular proxy collision
+
+        // 2. Proximity Checking Spawn Loop
+        while (attempts < 40 && !validPos) {
+            attempts++;
+            const angle = Math.random() * Math.PI * 2;
+            const dist = 14 + Math.random() * (mapBoundary * 0.85 - 14);
+            spawnX = Math.cos(angle) * dist;
+            spawnZ = Math.sin(angle) * dist;
+
+            validPos = true;
+            // Check against all previous buildings to avoid overlap
+            for (const other of placedBuildings) {
+                const dx = spawnX - other.x;
+                const dz = spawnZ - other.z;
+                const minDist = obstacleRadius + other.radius + 5; // Clear buffer zone
+                if (dx * dx + dz * dz < minDist * minDist) {
+                    validPos = false;
+                    break;
+                }
+            }
         }
 
+        if (!validPos) continue;
+
+        placedBuildings.push({ x: spawnX, z: spawnZ, radius: obstacleRadius });
+
+        const geom = new THREE.BoxGeometry(width, height, depth);
+
+        // 3. Randomize Texture Type and Scale
+        const textureIndex = Math.floor(Math.random() * textures.length);
+        const texClone = textures[textureIndex].clone();
+        texClone.needsUpdate = true;
+        // Map texture so it doesn't look stretched
+        texClone.repeat.set(Math.max(width, depth) / 3, height / 5);
+
         const mat = new THREE.MeshStandardMaterial({
-            color: obstacleColors[Math.floor(Math.random() * obstacleColors.length)],
-            roughness: 0.5 + Math.random() * 0.2,
-            metalness: 0.1 + Math.random() * 0.2,
-            wireframe: Math.random() < 0.05
+            map: texClone,
+            roughness: 0.1,
+            metalness: 0.9,
+            emissive: textureIndex === 1 ? 0x221122 : (textureIndex === 2 ? 0x112222 : 0x111122),
+            emissiveIntensity: 0.2
         });
-        const mesh = new THREE.Mesh(geom, mat);
 
-        const angle = Math.random() * Math.PI * 2;
-        const minDist = 8;
-        const maxDist = mapBoundary * 0.9;
-        const dist = minDist + Math.random() * (maxDist - minDist);
+        const building = new THREE.Mesh(geom, mat);
+        building.position.set(spawnX, height / 2 - 0.1, spawnZ);
+        building.castShadow = true;
+        building.receiveShadow = true;
 
-        const spawnX = Math.cos(angle) * dist;
-        const spawnZ = Math.sin(angle) * dist;
-        const spawnY = obstacleRadius + 0.05;
+        // 4. Lively Details: Antennas and Rooftop Signal Lights
+        if (height > 9) {
+            const antType = Math.random();
+            if (antType < 0.7) {
+                // High-gain Antenna
+                const antGeom = new THREE.BoxGeometry(0.15, 4.0, 0.15);
+                const antColor = textureIndex === 1 ? 0xff00ff : (textureIndex === 2 ? 0x00ffff : 0x00d4ff);
+                const antMat = new THREE.MeshBasicMaterial({ color: antColor });
+                const antenna = new THREE.Mesh(antGeom, antMat);
+                antenna.position.set((Math.random() - 0.5) * (width - 1), height / 2 + 2.0, (Math.random() - 0.5) * (depth - 1));
+                building.add(antenna);
+            } else {
+                // Rooftop Aviation Signal
+                const lightGeom = new THREE.SphereGeometry(0.4, 8, 8);
+                const lightMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+                const signal = new THREE.Mesh(lightGeom, lightMat);
+                signal.position.set(0, height / 2 + 0.4, 0);
+                building.add(signal);
+            }
+        }
 
-        mesh.position.set(spawnX, spawnY, spawnZ);
-        mesh.rotation.set(Math.random() * 0.1, Math.random() * Math.PI, Math.random() * 0.1);
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
+        // Store geometric data for precise rectangular collision
+        building.userData.isObstacle = true;
+        building.userData.width = width;
+        building.userData.depth = depth;
+        building.userData.obstacleRadius = obstacleRadius; // Fallback for simple systems
 
-        // Mark as an obstacle for collision detection
-        mesh.userData.isObstacle = true;
-        mesh.userData.obstacleRadius = obstacleRadius;
-
-        state.scene.add(mesh);
-        state.staticLevelObjects.push(mesh);
+        state.scene.add(building);
+        state.staticLevelObjects.push(building);
     }
 }
 

@@ -17,13 +17,17 @@ export function initRenderer() {
     state.camera.lookAt(0, 0, 0);
 
     state.renderer = new THREE.WebGLRenderer({
-        antialias: !state.isTouchDevice, // Disable AA on mobile for performance
-        powerPreference: state.isTouchDevice ? 'high-performance' : 'default'
+        antialias: !state.isTouchDevice,
+        powerPreference: 'high-performance'
     });
     state.renderer.setSize(window.innerWidth, window.innerHeight);
-    state.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Cap pixel ratio for performance
+    state.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     state.renderer.shadowMap.enabled = true;
     state.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    // Use sRGB for vivid, high-definition colors matching the generated images
+    state.renderer.outputColorSpace = THREE.SRGBColorSpace;
+
     document.body.appendChild(state.renderer.domElement);
 
     addLights();
@@ -35,40 +39,58 @@ export function initRenderer() {
 }
 
 function addLights() {
-    const hemiLight = new THREE.HemisphereLight(0x88aaff, 0x446644, 0.7);
+    const hemiLight = new THREE.HemisphereLight(0x88aaff, 0x111122, 0.4); // Lowered ground color to reduce wash
     state.scene.add(hemiLight);
-    const ambientLight = new THREE.AmbientLight(0x606080, 0.5);
+    const ambientLight = new THREE.AmbientLight(0x202040, 0.3); // Drastically lowered ambient for contrast
     state.scene.add(ambientLight);
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.9);
-    directionalLight.position.set(15, 20, 18);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2); // Stronger directional for shadows
+    directionalLight.position.set(15, 30, 20);
     directionalLight.castShadow = true;
     directionalLight.shadow.mapSize.width = 2048;
     directionalLight.shadow.mapSize.height = 2048;
     directionalLight.shadow.camera.near = 0.5;
-    directionalLight.shadow.camera.far = 80;
+    directionalLight.shadow.camera.far = 100;
     directionalLight.shadow.camera.left = -CONSTANTS.WORLD_BOUNDARY - 5;
     directionalLight.shadow.camera.right = CONSTANTS.WORLD_BOUNDARY + 5;
     directionalLight.shadow.camera.top = CONSTANTS.WORLD_BOUNDARY + 5;
     directionalLight.shadow.camera.bottom = -CONSTANTS.WORLD_BOUNDARY - 5;
-    directionalLight.shadow.bias = -0.001;
+    directionalLight.shadow.bias = -0.0005;
     state.scene.add(directionalLight);
-    const playerLight = new THREE.PointLight(0xaaaaff, 0.4, 20);
-    playerLight.position.set(0, 3, 0);
-    state.scene.add(playerLight);
 }
 
 function addGround() {
+    // 1. Load the Cyberpunk Floor Texture
+    const textureLoader = new THREE.TextureLoader();
+    const floorTexture = textureLoader.load('assets/floor_texture.png');
+
+    // Set ColorSpace for HD colors
+    floorTexture.colorSpace = THREE.SRGBColorSpace;
+
+    // Configure Tiling
+    const textureScale = (CONSTANTS.WORLD_BOUNDARY * 2.2) / 8;
+    floorTexture.wrapS = THREE.RepeatWrapping;
+    floorTexture.wrapT = THREE.RepeatWrapping;
+    floorTexture.repeat.set(textureScale, textureScale);
+    floorTexture.anisotropy = 16;
+
     const groundGeometry = new THREE.PlaneGeometry(CONSTANTS.WORLD_BOUNDARY * 2.2, CONSTANTS.WORLD_BOUNDARY * 2.2);
-    const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.8, metalness: 0.1 });
+    const groundMaterial = new THREE.MeshStandardMaterial({
+        map: floorTexture,
+        roughness: 0.7,
+        metalness: 0.3,
+        emissive: 0x000000
+    });
+
     state.ground = new THREE.Mesh(groundGeometry, groundMaterial);
     state.ground.rotation.x = -Math.PI / 2;
     state.ground.receiveShadow = true;
     state.scene.add(state.ground);
 
-    state.gridHelper = new THREE.GridHelper(CONSTANTS.WORLD_BOUNDARY * 2.2, Math.floor(CONSTANTS.WORLD_BOUNDARY * 2.2 / 2), 0x4b5563, 0x374151);
-    state.gridHelper.material.opacity = 0.3;
+    // Subtle Grid
+    state.gridHelper = new THREE.GridHelper(CONSTANTS.WORLD_BOUNDARY * 2.2, Math.floor(CONSTANTS.WORLD_BOUNDARY * 2.2 / 4), 0x00d4ff, 0x1a1a2e);
+    state.gridHelper.material.opacity = 0.1;
     state.gridHelper.material.transparent = true;
-    state.gridHelper.position.y = 0.01;
+    state.gridHelper.position.y = 0.02;
     state.scene.add(state.gridHelper);
 }
 

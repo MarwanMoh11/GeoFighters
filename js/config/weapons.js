@@ -3,15 +3,20 @@ import { createHitEffect, createTemporaryVisualEffect, createBurstEffect } from 
 import { getItemModifier } from './items.js';
 import * as THREE from 'three';
 
-function findNearestEnemy(sourcePosition, maxRange = 50) { // Increased default range
+function findNearestEnemy(sourcePosition, maxRange = 50) {
     const nearbyObjects = state.spatialGrid.getObjectsNear(sourcePosition, maxRange);
     let closestEnemy = null;
     let minDistanceSq = Infinity;
 
+    // Use 2D distance for auto-aim
+    const sourcePos2D = new THREE.Vector2(sourcePosition.x, sourcePosition.z);
+    const enemyPos2D = new THREE.Vector2();
+
     for (const gridObject of nearbyObjects) {
         if (gridObject.enemy) {
             const enemyData = gridObject.enemy;
-            const distanceSq = sourcePosition.distanceToSquared(enemyData.position);
+            enemyPos2D.set(enemyData.position.x, enemyData.position.z);
+            const distanceSq = sourcePos2D.distanceToSquared(enemyPos2D);
 
             if (distanceSq < minDistanceSq && distanceSq < maxRange * maxRange) {
                 minDistanceSq = distanceSq;
@@ -23,6 +28,39 @@ function findNearestEnemy(sourcePosition, maxRange = 50) { // Increased default 
 }
 
 // DELETE your old fireGenericProjectile function and REPLACE it with this one.
+
+const textureLoader = new THREE.TextureLoader();
+const projectileTexture = textureLoader.load('assets/projectile_sheet.png');
+projectileTexture.colorSpace = THREE.SRGBColorSpace;
+projectileTexture.magFilter = THREE.NearestFilter;
+projectileTexture.minFilter = THREE.NearestFilter;
+
+// Projectile Sprite Sheet Mapping (8x8 grid)
+const PROJ_MAP = {
+    DEFAULT: { x: 0, y: 0.875 },
+    LANCE: { x: 0, y: 0.75 },
+    RAY: { x: 0, y: 0.625 },
+    BOLT: { x: 0, y: 0.5 },
+    CUBE: { x: 0, y: 0.375 },
+    CONE: { x: 0, y: 0.25 },
+    FLUX: { x: 0, y: 0.125 },
+    PULSE: { x: 0, y: 0 },
+};
+
+function createProjectileMaterial(type) {
+    const map = PROJ_MAP[type] || PROJ_MAP.DEFAULT;
+    const tex = projectileTexture.clone();
+    tex.repeat.set(0.125, 0.125);
+    tex.offset.set(map.x, map.y);
+    tex.needsUpdate = true;
+
+    return new THREE.SpriteMaterial({
+        map: tex,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+    });
+}
 
 function fireGenericProjectile(weapon, options = {}) {
     if (!state.player) return;
@@ -41,63 +79,49 @@ function fireGenericProjectile(weapon, options = {}) {
     let count = weapon.getProjectileCount?.() || options.count || 1;
     if (weapon.tags?.includes('scatter')) count += scatterCountMod.count;
 
-    const projectileRadius = CONSTANTS.PROJECTILE_RADIUS;
+    const projectileRadius = options.radius || (CONSTANTS.PROJECTILE_RADIUS * 1.5);
     const spread = options.spread || 0;
 
-    // --- GLOBAL AUTO-AIM LOGIC ---
     let baseDir;
-    // 1. Check if a direction is manually provided (rare, but good for flexibility).
     if (options.direction) {
-        baseDir = options.direction;
+        baseDir = options.direction.clone().setY(0).normalize();
     } else {
-        // 2. Try to find the nearest enemy to auto-aim at.
-        const target = findNearestEnemy(state.player.position, 50); // Search up to 50 units away
+        const target = findNearestEnemy(state.player.position, 50);
         if (target) {
-            // If a target is found, aim directly at it.
-            baseDir = new THREE.Vector3().subVectors(target.position, state.player.position).normalize();
+            baseDir = new THREE.Vector3().subVectors(target.position, state.player.position).setY(0).normalize();
         } else {
-            // 3. If NO target is in range, fallback to aiming at the mouse cursor.
-            baseDir = new THREE.Vector3().subVectors(state.aimTarget, state.player.position).normalize();
+            baseDir = new THREE.Vector3().subVectors(state.aimTarget, state.player.position).setY(0).normalize();
         }
     }
-    baseDir.y = 0; // Ensure all projectiles fire horizontally.
-    // --- END OF AUTO-AIM LOGIC ---
+
+    const spriteType = options.spriteType || 'DEFAULT';
 
     for (let i = 0; i < count; i++) {
         const currentAngle = (count === 1) ? 0 : (-spread / 2) + (i / (count - 1)) * spread;
         const velocity = baseDir.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), currentAngle).normalize().multiplyScalar(speed);
 
-        const projectileGeometry = options.geometry || new THREE.SphereGeometry(projectileRadius, 6, 6);
-        let projectileMaterial = options.material;
-        if (!projectileMaterial) {
-            if (options.emissiveColor) {
-                projectileMaterial = new THREE.MeshStandardMaterial({
-                    color: options.color || 0xffffff,
-                    emissive: options.emissiveColor,
-                    emissiveIntensity: options.emissiveIntensity || 0.5
-                });
-            } else {
-                projectileMaterial = new THREE.MeshBasicMaterial({ color: options.color || 0xffffff });
-            }
-        }
+        // Individual material per sprite to allow independent rotation
+        const projectileSprite = new THREE.Sprite(createProjectileMaterial(spriteType));
+        projectileSprite.scale.set(projectileRadius * 6, projectileRadius * 6, 1);
 
-        const projectileMesh = new THREE.Mesh(projectileGeometry, projectileMaterial);
         const startOffset = velocity.clone().normalize().multiplyScalar(CONSTANTS.PLAYER_RADIUS + projectileRadius + 0.1);
-        projectileMesh.position.copy(state.player.position).add(startOffset);
-        projectileMesh.position.y = CONSTANTS.PLAYER_HEIGHT * 0.25;
+        projectileSprite.position.copy(state.player.position).add(startOffset);
+        projectileSprite.position.y = state.player.position.y;
 
         const projectileData = {
-            mesh: projectileMesh,
-            velocity: velocity,
+            mesh: projectileSprite,
+            velocity: velocity.clone(),
             damage: damage,
+            radius: projectileRadius, // CRITICAL: Store logical radius for collisions
             weaponId: weapon.id,
             onHit: options.onHit,
             duration: options.duration,
             tags: weapon.tags,
-            hitEnemies: new Set()
+            hitEnemies: new Set(),
+            is2D: true
         };
         state.projectiles.push(projectileData);
-        state.scene.add(projectileData.mesh);
+        state.scene.add(projectileSprite);
     }
 }
 
@@ -108,24 +132,22 @@ export const WEAPONS = {
         fireRadialShards: function (weapon) {
             const count = weapon.getProjectileCount();
             const damage = weapon.getDamage();
-            const shardGeometry = new THREE.TetrahedronGeometry(CONSTANTS.PROJECTILE_RADIUS * 1.5, 0);
-            const shardMaterial = new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x00ffff, emissiveIntensity: 0.6 });
             for (let i = 0; i < count; i++) {
                 const angle = (i / count) * Math.PI * 2;
-                const velocity = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle)).normalize().multiplyScalar(CONSTANTS.BASE_PROJECTILE_SPEED * 0.9);
-                const projectileMesh = new THREE.Mesh(shardGeometry, shardMaterial);
-                const startOffset = velocity.clone().normalize().multiplyScalar(CONSTANTS.PLAYER_RADIUS + CONSTANTS.PROJECTILE_RADIUS + 0.1);
-                projectileMesh.position.copy(state.player.position).add(startOffset);
-                projectileMesh.position.y = state.player.position.y;
-                state.projectiles.push({ mesh: projectileMesh, velocity: velocity, damage: damage, weaponId: weapon.id, tags: weapon.tags, hitEnemies: new Set() });
-                state.scene.add(projectileMesh);
+                const dir = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
+                fireGenericProjectile(this, {
+                    direction: dir,
+                    damage: damage,
+                    spriteType: 'DEFAULT',
+                    radius: CONSTANTS.PROJECTILE_RADIUS * 1.8
+                });
             }
         },
         getFireRate: function () { return this.baseFireRate * Math.pow(0.9, this.level - 1); }, getDamage: function () { return this.baseDamage + (this.level - 1) * 2; }, getProjectileCount: function () { return this.baseProjectileCount + Math.floor((this.level - 1) * 0.5) * 2; }
     },
     VECTOR_LANCE: {
         id: 'VECTOR_LANCE', name: 'Vector Lance', icon: '➤', level: 0, maxLevel: 5, synergyItemId: 'PROJECTILE_BOOSTER', tags: ['single_shot', 'piercing'], shortDescription: "Fires sharp, piercing vector lines forward.", baseFireRate: 0.4, baseDamage: 12, baseProjectileCount: 1, fireTimer: 0, isEvolved: false,
-        fire: function (deltaTime) { const fireRateMod = getItemModifier('GLOBAL_FIRERATE_PERCENT'); this.fireTimer += deltaTime; if (this.fireTimer >= this.getFireRate() / fireRateMod.percent) { this.fireTimer = 0; fireGenericProjectile(this, { count: this.getProjectileCount(), damage: this.getDamage(), color: 0xff8800, emissiveColor: 0xffaa00, emissiveIntensity: 0.4, geometry: new THREE.CylinderGeometry(CONSTANTS.PROJECTILE_RADIUS * 0.2, CONSTANTS.PROJECTILE_RADIUS * 0.2, CONSTANTS.PROJECTILE_RADIUS * 6, 4), spread: Math.PI / 18 * (this.getProjectileCount() - 1), tags: this.tags }); } },
+        fire: function (deltaTime) { const fireRateMod = getItemModifier('GLOBAL_FIRERATE_PERCENT'); this.fireTimer += deltaTime; if (this.fireTimer >= this.getFireRate() / fireRateMod.percent) { this.fireTimer = 0; fireGenericProjectile(this, { count: this.getProjectileCount(), damage: this.getDamage(), spriteType: 'LANCE', spread: Math.PI / 18 * (this.getProjectileCount() - 1), tags: this.tags }); } },
         getFireRate: function () { return this.baseFireRate * Math.pow(0.92, this.level - 1); }, getDamage: function () { return this.baseDamage + (this.level - 1) * 4; }, getProjectileCount: function () { return this.baseProjectileCount + Math.floor((this.level - 1) / 2); }
     },
     ORBITAL_SHIELD: {
@@ -148,32 +170,32 @@ export const WEAPONS = {
     },
     PRISM_RAY: {
         id: 'PRISM_RAY', name: 'Prism Ray', icon: '💎', level: 0, maxLevel: 5, synergyItemId: null, tags: ['single_shot'], shortDescription: "Fires focused light.", baseFireRate: 0.8, baseDamage: 14, fireTimer: 0, isEvolved: false,
-        fire: function (deltaTime) { const fireRateMod = getItemModifier('GLOBAL_FIRERATE_PERCENT'); this.fireTimer += deltaTime; if (this.fireTimer >= this.getFireRate() / fireRateMod.percent) { this.fireTimer = 0; fireGenericProjectile(this, { color: 0xFFFFAA, emissiveColor: 0xFFFFCC, emissiveIntensity: 0.5, damage: this.getDamage(), geometry: new THREE.CylinderGeometry(CONSTANTS.PROJECTILE_RADIUS * 0.3, CONSTANTS.PROJECTILE_RADIUS * 0.3, CONSTANTS.PROJECTILE_RADIUS * 5, 6), speed: CONSTANTS.BASE_PROJECTILE_SPEED * 1.1, tags: this.tags }); } },
+        fire: function (deltaTime) { const fireRateMod = getItemModifier('GLOBAL_FIRERATE_PERCENT'); this.fireTimer += deltaTime; if (this.fireTimer >= this.getFireRate() / fireRateMod.percent) { this.fireTimer = 0; fireGenericProjectile(this, { spriteType: 'RAY', damage: this.getDamage(), speed: CONSTANTS.BASE_PROJECTILE_SPEED * 1.1, tags: this.tags }); } },
         getFireRate: function () { return this.baseFireRate * Math.pow(0.9, this.level - 1); }, getDamage: function () { return this.baseDamage + (this.level - 1) * 3.5; }
     },
     ENERGY_SIPHON: {
         id: 'ENERGY_SIPHON', name: 'Energy Siphon', icon: '⚡', level: 0, maxLevel: 5, synergyItemId: null, tags: [], shortDescription: "Rapid fire bolts. Restores shield on enemy defeat.", baseFireRate: 0.15, baseDamage: 6, fireTimer: 0, isEvolved: false,
-        fire: function (deltaTime) { const fireRateMod = getItemModifier('GLOBAL_FIRERATE_PERCENT'); this.fireTimer += deltaTime; if (this.fireTimer >= this.getFireRate() / fireRateMod.percent) { this.fireTimer = 0; fireGenericProjectile(this, { color: 0xff4444, emissiveColor: 0xff6666, emissiveIntensity: 0.3, damage: this.getDamage(), geometry: new THREE.SphereGeometry(CONSTANTS.PROJECTILE_RADIUS * 0.8, 4, 4), tags: this.tags }); } },
+        fire: function (deltaTime) { const fireRateMod = getItemModifier('GLOBAL_FIRERATE_PERCENT'); this.fireTimer += deltaTime; if (this.fireTimer >= this.getFireRate() / fireRateMod.percent) { this.fireTimer = 0; fireGenericProjectile(this, { spriteType: 'BOLT', damage: this.getDamage(), tags: this.tags, radius: CONSTANTS.PROJECTILE_RADIUS * 1.2 }); } },
         getFireRate: function () { return this.baseFireRate * Math.pow(0.95, this.level - 1); }, getDamage: function () { return this.baseDamage + (this.level - 1) * 1.5; }, getShieldRestore: function () { return 1 + Math.floor((this.level - 1) / 2); }
     },
     CUBE_CANNON: {
         id: 'CUBE_CANNON', name: 'Cube Cannon', icon: '🧊', level: 0, maxLevel: 5, synergyItemId: 'HEAVY_CALIBRATOR', tags: ['heavy', 'aoe_on_evolve'], shortDescription: "Launches slow but powerful cubes.", baseFireRate: 1.6, baseDamage: 45, fireTimer: 0, isEvolved: false,
-        fire: function (deltaTime) { const fireRateMod = getItemModifier('GLOBAL_FIRERATE_PERCENT'); this.fireTimer += deltaTime; if (this.fireTimer >= this.getFireRate() / fireRateMod.percent) { this.fireTimer = 0; fireGenericProjectile(this, { material: new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.6, metalness: 0.2 }), damage: this.getDamage(), geometry: new THREE.BoxGeometry(CONSTANTS.PROJECTILE_RADIUS * 2.5, CONSTANTS.PROJECTILE_RADIUS * 2.5, CONSTANTS.PROJECTILE_RADIUS * 2.5), speed: CONSTANTS.BASE_PROJECTILE_SPEED * 0.8, tags: this.tags }); } },
+        fire: function (deltaTime) { const fireRateMod = getItemModifier('GLOBAL_FIRERATE_PERCENT'); this.fireTimer += deltaTime; if (this.fireTimer >= this.getFireRate() / fireRateMod.percent) { this.fireTimer = 0; fireGenericProjectile(this, { spriteType: 'CUBE', damage: this.getDamage(), speed: CONSTANTS.BASE_PROJECTILE_SPEED * 0.8, tags: this.tags, radius: CONSTANTS.PROJECTILE_RADIUS * 2.5 }); } },
         getFireRate: function () { return this.baseFireRate * Math.pow(0.9, this.level - 1); }, getDamage: function () { return this.baseDamage + (this.level - 1) * 14; }
     },
     SHARD_SCATTER: {
         id: 'SHARD_SCATTER', name: 'Shard Scatter', icon: '✨', level: 0, maxLevel: 5, synergyItemId: 'SCATTER_MODULE', tags: ['scatter'], shortDescription: "Fires a wide spread of sharp shards.", baseFireRate: 1.0, baseDamage: 9, baseProjectileCount: 8, fireTimer: 0, isEvolved: false,
-        fire: function (deltaTime) { const fireRateMod = getItemModifier('GLOBAL_FIRERATE_PERCENT'); this.fireTimer += deltaTime; if (this.fireTimer >= this.getFireRate() / fireRateMod.percent) { this.fireTimer = 0; fireGenericProjectile(this, { count: this.getProjectileCount(), damage: this.getDamage(), color: 0xFFFFDD, emissiveColor: 0xFFFFFF, emissiveIntensity: 0.2, geometry: new THREE.ConeGeometry(CONSTANTS.PROJECTILE_RADIUS * 0.5, CONSTANTS.PROJECTILE_RADIUS * 3, 4), spread: Math.PI / 4.5, speed: CONSTANTS.BASE_PROJECTILE_SPEED * 0.9, tags: this.tags }); } },
+        fire: function (deltaTime) { const fireRateMod = getItemModifier('GLOBAL_FIRERATE_PERCENT'); this.fireTimer += deltaTime; if (this.fireTimer >= this.getFireRate() / fireRateMod.percent) { this.fireTimer = 0; fireGenericProjectile(this, { count: this.getProjectileCount(), damage: this.getDamage(), spriteType: 'CONE', spread: Math.PI / 4.5, speed: CONSTANTS.BASE_PROJECTILE_SPEED * 0.9, tags: this.tags }); } },
         getFireRate: function () { return this.baseFireRate * Math.pow(0.9, this.level - 1); }, getDamage: function () { return this.baseDamage + (this.level - 1) * 2; }, getProjectileCount: function () { return this.baseProjectileCount + (this.level - 1); }
     },
     VERTEX_VOLLEY: {
         id: 'VERTEX_VOLLEY', name: 'Vertex Volley', icon: '▲', level: 0, maxLevel: 5, synergyItemId: null, tags: ['single_shot'], shortDescription: "Fires precise, high-damage vertices.", baseFireRate: 0.7, baseDamage: 22, fireTimer: 0, isEvolved: false,
-        fire: function (deltaTime) { const fireRateMod = getItemModifier('GLOBAL_FIRERATE_PERCENT'); this.fireTimer += deltaTime; if (this.fireTimer >= this.getFireRate() / fireRateMod.percent) { this.fireTimer = 0; fireGenericProjectile(this, { color: 0xC0C0C0, emissiveColor: 0xE0E0E0, emissiveIntensity: 0.3, damage: this.getDamage(), geometry: new THREE.TetrahedronGeometry(CONSTANTS.PROJECTILE_RADIUS * 1.2, 0), speed: CONSTANTS.BASE_PROJECTILE_SPEED * 1.2, tags: this.tags }); } },
+        fire: function (deltaTime) { const fireRateMod = getItemModifier('GLOBAL_FIRERATE_PERCENT'); this.fireTimer += deltaTime; if (this.fireTimer >= this.getFireRate() / fireRateMod.percent) { this.fireTimer = 0; fireGenericProjectile(this, { spriteType: 'DEFAULT', damage: this.getDamage(), speed: CONSTANTS.BASE_PROJECTILE_SPEED * 1.2, tags: this.tags, radius: CONSTANTS.PROJECTILE_RADIUS * 1.5 }); } },
         getFireRate: function () { return this.baseFireRate * Math.pow(0.93, this.level - 1); }, getDamage: function () { return this.baseDamage + (this.level - 1) * 5.5; }
     },
     GEOMETRIC_FLUX: {
         id: 'GEOMETRIC_FLUX', name: 'Geometric Flux', icon: '~', level: 0, maxLevel: 5, synergyItemId: 'DURATION_COIL', tags: ['duration'], shortDescription: "Continuous stream of shifting shapes.", baseFireRate: 0.05, baseDamage: 1.5, fireTimer: 0, isEvolved: false,
-        fire: function (deltaTime) { const fireRateMod = getItemModifier('GLOBAL_FIRERATE_PERCENT'); this.fireTimer += deltaTime; if (this.fireTimer >= this.getFireRate() / fireRateMod.percent) { this.fireTimer = 0; const geometries = [new THREE.TetrahedronGeometry(CONSTANTS.PROJECTILE_RADIUS * 1.5, 0), new THREE.BoxGeometry(CONSTANTS.PROJECTILE_RADIUS * 1.5, CONSTANTS.PROJECTILE_RADIUS * 1.5, CONSTANTS.PROJECTILE_RADIUS * 1.5), new THREE.OctahedronGeometry(CONSTANTS.PROJECTILE_RADIUS * 1.5, 0)]; const fluxGeometry = geometries[Math.floor(Math.random() * geometries.length)]; const durationMod = getItemModifier('DURATION_PERCENT'); fireGenericProjectile(this, { material: new THREE.MeshBasicMaterial({ color: 0x50C878, wireframe: true }), damage: this.getDamage(), speed: CONSTANTS.BASE_PROJECTILE_SPEED * 0.6, spread: Math.PI / 9, duration: (0.65 * durationMod.percent), geometry: fluxGeometry, onHit: (target) => { createHitEffect(target, 0x50C878, 0.3); }, tags: this.tags }); } },
+        fire: function (deltaTime) { const fireRateMod = getItemModifier('GLOBAL_FIRERATE_PERCENT'); this.fireTimer += deltaTime; if (this.fireTimer >= this.getFireRate() / fireRateMod.percent) { this.fireTimer = 0; const durationMod = getItemModifier('DURATION_PERCENT'); fireGenericProjectile(this, { spriteType: 'FLUX', damage: this.getDamage(), speed: CONSTANTS.BASE_PROJECTILE_SPEED * 0.6, spread: Math.PI / 9, duration: (0.65 * durationMod.percent), tags: this.tags }); } },
         getFireRate: function () { return this.baseFireRate; }, getDamage: function () { return this.baseDamage + Math.floor((this.level - 1) / 2.5); }
     },
     REPULSOR_WAVE: {
@@ -183,7 +205,7 @@ export const WEAPONS = {
     },
     AXIS_BOLTER: {
         id: 'AXIS_BOLTER', name: 'Axis Bolter', icon: '+', level: 0, maxLevel: 5, synergyItemId: 'FOCUS_LENS', tags: ['single_shot'], shortDescription: "Fires fast, high-damage bolts along axes.", baseFireRate: 1.2, baseDamage: 35, fireTimer: 0, isEvolved: false,
-        fire: function (deltaTime) { const fireRateMod = getItemModifier('GLOBAL_FIRERATE_PERCENT'); this.fireTimer += deltaTime; if (this.fireTimer >= this.getFireRate() / fireRateMod.percent) { this.fireTimer = 0; fireGenericProjectile(this, { color: 0xFFF8DC, emissiveColor: 0xFFFACD, emissiveIntensity: 0.6, damage: this.getDamage(), geometry: new THREE.CylinderGeometry(CONSTANTS.PROJECTILE_RADIUS * 0.3, CONSTANTS.PROJECTILE_RADIUS * 0.3, CONSTANTS.PROJECTILE_RADIUS * 6, 4), speed: CONSTANTS.BASE_PROJECTILE_SPEED * 1.8, tags: this.tags }); } },
+        fire: function (deltaTime) { const fireRateMod = getItemModifier('GLOBAL_FIRERATE_PERCENT'); this.fireTimer += deltaTime; if (this.fireTimer >= this.getFireRate() / fireRateMod.percent) { this.fireTimer = 0; fireGenericProjectile(this, { spriteType: 'BOLT', damage: this.getDamage(), speed: CONSTANTS.BASE_PROJECTILE_SPEED * 1.8, tags: this.tags, radius: CONSTANTS.PROJECTILE_RADIUS * 1.5 }); } },
         getFireRate: function () { return this.baseFireRate * Math.pow(0.9, this.level - 1); }, getDamage: function () { return this.baseDamage + (this.level - 1) * 9; }
     },
     SONIC_PRISM: {
@@ -193,7 +215,7 @@ export const WEAPONS = {
     },
     SINGULARITY_LAUNCHER: {
         id: 'SINGULARITY_LAUNCHER', name: 'Singularity Launcher', icon: '⚫', level: 0, maxLevel: 5, synergyItemId: null, tags: ['heavy'], shortDescription: "Launches slow, massive damage singularities.", baseFireRate: 2.5, baseDamage: 90, fireTimer: 0, isEvolved: false,
-        fire: function (deltaTime) { const fireRateMod = getItemModifier('GLOBAL_FIRERATE_PERCENT'); this.fireTimer += deltaTime; if (this.fireTimer >= this.getFireRate() / fireRateMod.percent) { this.fireTimer = 0; fireGenericProjectile(this, { material: new THREE.MeshBasicMaterial({ color: 0x111111 }), damage: this.getDamage(), geometry: new THREE.SphereGeometry(CONSTANTS.PROJECTILE_RADIUS * 2.0, 12, 10), speed: CONSTANTS.BASE_PROJECTILE_SPEED * 0.5, tags: this.tags }); } },
+        fire: function (deltaTime) { const fireRateMod = getItemModifier('GLOBAL_FIRERATE_PERCENT'); this.fireTimer += deltaTime; if (this.fireTimer >= this.getFireRate() / fireRateMod.percent) { this.fireTimer = 0; fireGenericProjectile(this, { spriteType: 'PULSE', damage: this.getDamage(), speed: CONSTANTS.BASE_PROJECTILE_SPEED * 0.5, tags: this.tags, radius: CONSTANTS.PROJECTILE_RADIUS * 3.0 }); } },
         getFireRate: function () { return this.baseFireRate * Math.pow(0.95, this.level - 1); }, getDamage: function () { return this.baseDamage + (this.level - 1) * 28; }
     },
     GLYPH_STRIKE: {

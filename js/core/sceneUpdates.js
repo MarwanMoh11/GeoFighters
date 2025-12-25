@@ -11,11 +11,44 @@ import * as THREE from 'three';
 // Initialize spatial grid on state if it doesn't exist.
 if (!state.spatialGrid) {
     class SpatialGrid {
-        constructor(cellSize = 10, worldSize = CONSTANTS.WORLD_BOUNDARY * 2) { this.cellSize = cellSize; this.worldSize = worldSize; this.grid = {}; this.gridSize = Math.ceil(worldSize / cellSize); }
-        clear() { this.grid = {}; }
-        getCellKey(x, z) { const cellX = Math.floor((x + this.worldSize / 2) / this.cellSize); const cellZ = Math.floor((z + this.worldSize / 2) / this.cellSize); return `${cellX},${cellZ}`; }
-        addObject(object, position) { const key = this.getCellKey(position.x, position.z); if (!this.grid[key]) { this.grid[key] = []; } this.grid[key].push(object); }
-        getObjectsNear(position, radius = 0) { const cells = new Set(); const r = Math.ceil(radius / this.cellSize); const cX = Math.floor((position.x + this.worldSize / 2) / this.cellSize); const cZ = Math.floor((position.z + this.worldSize / 2) / this.cellSize); for (let x = cX - r; x <= cX + r; x++) { for (let z = cZ - r; z <= cZ + r; z++) { if (x >= 0 && x < this.gridSize && z >= 0 && z < this.gridSize) cells.add(`${x},${z}`); } } const nearby = []; cells.forEach(key => { if (this.grid[key]) nearby.push(...this.grid[key]); }); return nearby; }
+        constructor(cellSize = 10, worldSize = CONSTANTS.WORLD_BOUNDARY * 2) {
+            this.cellSize = cellSize;
+            this.worldSize = worldSize;
+            this.grid = new Map();
+            this.gridSize = Math.ceil(worldSize / cellSize);
+        }
+        clear() { this.grid.clear(); }
+        getCellKeyNumeric(x, z) {
+            if (isNaN(x) || isNaN(z)) return -1;
+            const cellX = Math.floor((x + this.worldSize / 2) / this.cellSize);
+            const cellZ = Math.floor((z + this.worldSize / 2) / this.cellSize);
+            if (cellX < 0 || cellX >= this.gridSize || cellZ < 0 || cellZ >= this.gridSize) return -1;
+            return cellX + cellZ * this.gridSize;
+        }
+        addObject(object, position) {
+            const key = this.getCellKeyNumeric(position.x, position.z);
+            if (key === -1) return;
+            let cell = this.grid.get(key);
+            if (!cell) { cell = []; this.grid.set(key, cell); }
+            cell.push(object);
+        }
+        getObjectsNear(position, radius = 0) {
+            const r = Math.ceil(radius / this.cellSize);
+            const cX = Math.floor((position.x + this.worldSize / 2) / this.cellSize);
+            const cZ = Math.floor((position.z + this.worldSize / 2) / this.cellSize);
+            const nearby = [];
+            if (isNaN(cX) || isNaN(cZ)) return nearby;
+            for (let x = cX - r; x <= cX + r; x++) {
+                for (let z = cZ - r; z <= cZ + r; z++) {
+                    if (x >= 0 && x < this.gridSize && z >= 0 && z < this.gridSize) {
+                        const key = x + z * this.gridSize;
+                        const cell = this.grid.get(key);
+                        if (cell) nearby.push(...cell);
+                    }
+                }
+            }
+            return nearby;
+        }
     }
     state.spatialGrid = new SpatialGrid(10, CONSTANTS.WORLD_BOUNDARY * 2);
 }
@@ -86,6 +119,12 @@ export function applyFrustumCulling() {
     state.megaDataFragments.forEach(f => { if (f?.mesh?.parent) f.mesh.visible = isVisible(f.mesh); });
 }
 
+// --- PRE-ALLOCATED VECTORS FOR REDUCED GC PRESSURE ---
+const _tempVec0 = new THREE.Vector3();
+const _tempVec1 = new THREE.Vector3();
+const _tempVec2 = new THREE.Vector3();
+const _targetPos = new THREE.Vector3();
+
 // This REPLACES your old 'updateShapes' function
 function updateEnemies(deltaTime) {
     // Track which instance types need matrix updates (batched)
@@ -93,10 +132,8 @@ function updateEnemies(deltaTime) {
 
     // --- Reverse loop to allow for easy removal ---
     for (let i = state.shapes.length - 1; i >= 0; i--) {
-        const enemy = state.shapes[i]; // 'enemy' is now a data object, not a mesh
+        const enemy = state.shapes[i];
 
-        // --- NEW: Health check / Death logic ---
-        // We check for death first.
         if (enemy.health <= 0) {
             // Get enemy color for death effect
             const typeData = ENEMY_TYPES[enemy.type];
@@ -137,12 +174,12 @@ function updateEnemies(deltaTime) {
             continue;
         }
 
-        let targetPosition = state.player.position.clone();
+        _targetPos.copy(state.player.position);
         let currentSpeed = enemy.currentSpeed ?? typeData.speed;
         let executeDefaultMovement = true;
-        let lookAtPosition = null; // --- NEW: Used to tell the instance where to face
+        let lookAtPosition = null;
 
-        // --- REFACTORED: All AI logic now mutates the 'enemy' data object ---
+        // AI logic
         switch (enemy.type) {
             case 'ICOSAHEDRON_INVADER':
                 enemy.distortTimer = (enemy.distortTimer || typeData.distortCooldown) - deltaTime;
@@ -157,7 +194,9 @@ function updateEnemies(deltaTime) {
                 if (!enemy.isDashing && enemy.dashTimer <= 0) {
                     enemy.isDashing = true;
                     enemy.dashTargetPos = state.player.position.clone();
-                    enemy.dashDir = new THREE.Vector3().subVectors(enemy.dashTargetPos, enemy.position).normalize();
+                    enemy.dashDir = new THREE.Vector3().subVectors(enemy.dashTargetPos, enemy.position);
+                    if (enemy.dashDir.lengthSq() > 0.0001) enemy.dashDir.normalize();
+                    else enemy.dashDir.set(0, 0, 1);
                     enemy.dashTimeLeft = typeData.dashDuration;
                     enemy.currentSpeed = typeData.dashSpeed;
                 }
@@ -168,43 +207,46 @@ function updateEnemies(deltaTime) {
                         enemy.dashTimer = typeData.dashCooldown + Math.random();
                         enemy.currentSpeed = typeData.speed;
                     } else {
-                        enemy.position.add(enemy.dashDir.clone().multiplyScalar(enemy.currentSpeed * deltaTime));
+                        enemy.position.add(_tempVec0.copy(enemy.dashDir).multiplyScalar(enemy.currentSpeed * deltaTime));
                     }
                 }
-                lookAtPosition = state.player.position; // Make it face the player
+                lookAtPosition = state.player.position;
                 break;
             case 'CYLINDER_CORRUPTER':
-                const dirToPlayerCorrupt = new THREE.Vector3().subVectors(state.player.position, enemy.position).normalize();
-                const perpendicularDir = new THREE.Vector3(-dirToPlayerCorrupt.z, 0, dirToPlayerCorrupt.x);
-                enemy.weaveTimer = (enemy.weaveTimer || 0) + deltaTime * 5;
-                const weaveOffset = perpendicularDir.multiplyScalar(Math.sin(enemy.weaveTimer));
-                targetPosition = state.player.position.clone().add(weaveOffset);
+                _tempVec0.subVectors(state.player.position, enemy.position);
+                if (_tempVec0.lengthSq() > 0.0001) {
+                    _tempVec0.normalize();
+                    _tempVec1.set(-_tempVec0.z, 0, _tempVec0.x);
+                    enemy.weaveTimer = (enemy.weaveTimer || 0) + deltaTime * 5;
+                    _tempVec1.multiplyScalar(Math.sin(enemy.weaveTimer));
+                    _targetPos.add(_tempVec1);
+                }
                 break;
             case 'SPHERE_SPLITTER':
-                // Note: The scale is handled in the matrix update at the end
                 if (enemy.generation === 1) {
                     enemy.bounceTimer = (enemy.bounceTimer || 0) + deltaTime * 6;
                     enemy.position.y = enemy.radius + Math.abs(Math.sin(enemy.bounceTimer)) * 0.4;
                 }
                 break;
             case 'DODECAHEDRON_DRIFTER':
-                const playerLookDir = new THREE.Vector3();
-                state.player.getWorldDirection(playerLookDir).setY(0).normalize();
+                const playerLookDir = _tempVec0;
+                state.player.getWorldDirection(playerLookDir).setY(0);
                 if (playerLookDir.lengthSq() < 0.01) playerLookDir.set(0, 0, -1);
+                else playerLookDir.normalize();
 
                 enemy.shiftTimer = (enemy.shiftTimer || typeData.shiftCooldown) - deltaTime;
                 if (enemy.shiftTimer <= 0) {
-                    const behindPos = state.player.position.clone().add(playerLookDir.clone().multiplyScalar(-(6 + Math.random() * 4)));
+                    _tempVec1.copy(playerLookDir).multiplyScalar(-(6 + Math.random() * 4));
                     createTemporaryVisualEffect(enemy.position, 1.5, typeData.color, 0.2);
-                    enemy.position.set(behindPos.x, enemy.position.y, behindPos.z);
+                    enemy.position.copy(state.player.position).add(_tempVec1);
                     createTemporaryVisualEffect(enemy.position, 1.5, typeData.color, 0.2);
                     enemy.shiftTimer = typeData.shiftCooldown + Math.random() * 2;
                 }
                 break;
             case 'CONE_CASTER':
                 enemy.shardTimer = (enemy.shardTimer || typeData.shardCooldown) - deltaTime;
-                if (enemy.shardTimer <= 0 && enemy.position.distanceTo(state.player.position) < 18) {
-                    const shardDirection = new THREE.Vector3().subVectors(state.player.position, enemy.position).normalize();
+                if (enemy.shardTimer <= 0 && enemy.position.distanceToSquared(state.player.position) < 324) { // 18^2
+                    const shardDirection = _tempVec0.subVectors(state.player.position, enemy.position).normalize();
                     const enemyProjectile = {
                         velocity: shardDirection.clone().multiplyScalar(CONSTANTS.BASE_PROJECTILE_SPEED * 0.6),
                         damage: typeData.deathBurstDamage || 10,
@@ -212,7 +254,7 @@ function updateEnemies(deltaTime) {
                         radius: CONSTANTS.PROJECTILE_RADIUS * 0.8
                     };
                     const projMesh = new THREE.Mesh(new THREE.ConeGeometry(enemyProjectile.radius, enemyProjectile.radius * 3, 4), new THREE.MeshStandardMaterial({ color: 0xffaa00, emissive: 0xffcc33, emissiveIntensity: 0.5 }));
-                    projMesh.position.copy(enemy.position).add(shardDirection.clone().multiplyScalar(enemy.radius + enemyProjectile.radius));
+                    projMesh.position.copy(enemy.position).add(_tempVec1.copy(shardDirection).multiplyScalar(enemy.radius + enemyProjectile.radius));
                     enemyProjectile.mesh = projMesh;
                     state.projectiles.push(enemyProjectile);
                     state.scene.add(projMesh);
@@ -270,7 +312,7 @@ function updateEnemies(deltaTime) {
                             const fireDirBoss = new THREE.Vector3().subVectors(enemy.rapidFireTargetPos || state.player.position, enemy.position).normalize();
                             const projMeshBoss = new THREE.Mesh(new THREE.SphereGeometry(CONSTANTS.PROJECTILE_RADIUS * 1.2, 6, 4), new THREE.MeshBasicMaterial({ color: 0xffff00 }));
                             projMeshBoss.position.copy(enemy.position).add(fireDirBoss.clone().multiplyScalar(enemy.radius + 0.2));
-                            state.projectiles.push({ mesh: projMeshBoss, velocity: fireDirBoss.multiplyScalar(CONSTANTS.BASE_PROJECTILE_SPEED * 1.5), damage: bossParams.damageMultiplier || 1, isEnemyProjectile: true, radius: CONSTANTS.PROJECTILE_RADIUS * 1.2 });
+                            state.projectiles.push({ mesh: projMeshBoss, velocity: fireDirBoss.multiplyScalar(CONSTANTS.BASE_PROJECTILE_SPEED * 1.5), damage: bossParams.damageMultiplier || 1, isEnemyProjectile: true, radius: CONSTANTS.PROJECTILE_RADIUS * 1.2, is2D: false });
                             state.scene.add(projMeshBoss);
                         }
                         if (enemy.rapidFireBursts <= 0) {
@@ -325,12 +367,11 @@ function updateEnemies(deltaTime) {
         // --- REFACTORED: Default Movement ---
         if (executeDefaultMovement) {
             if (currentSpeed > 0) {
-                const direction = new THREE.Vector3().subVectors(targetPosition, enemy.position).setY(0);
+                const direction = _tempVec0.subVectors(_targetPos, enemy.position).setY(0);
                 if (direction.lengthSq() > 0.01) {
                     direction.normalize();
-                    enemy.position.add(direction.clone().multiplyScalar(currentSpeed * deltaTime));
-                    // --- NEW: Set lookAt for default movement ---
-                    lookAtPosition = enemy.position.clone().add(direction);
+                    enemy.position.add(direction.multiplyScalar(currentSpeed * deltaTime));
+                    lookAtPosition = _tempVec1.copy(enemy.position).add(direction);
                 }
             }
         }
@@ -359,84 +400,20 @@ function updateEnemies(deltaTime) {
                 baseScale = enemy.radius / originalRadius;
             }
 
-            // === PERSONALITY ANIMATIONS ===
-            // Use spawn timestamp for unique phase offset
-            const timeOffset = enemy.spawnTimestamp || 0;
-            const animTime = state.gameTime + timeOffset;
+            // === 2D SPRITE BILLBOARDING & ANIMATIONS ===
+            // 1. Core Billboarding: Face the camera
+            state.dummy.quaternion.copy(state.camera.quaternion);
 
-            // Type-specific animations
-            switch (enemy.type) {
-                case 'CUBE_CRUSHER':
-                    // Tumbling rotation
-                    state.dummy.rotation.x = animTime * 2.5;
-                    state.dummy.rotation.y = animTime * 1.5;
-                    break;
-                case 'TETRA_SWARMER':
-                    // Fast spinning
-                    state.dummy.rotation.y = animTime * 8;
-                    state.dummy.rotation.x = Math.sin(animTime * 3) * 0.5;
-                    break;
-                case 'ICOSAHEDRON_INVADER':
-                    // Slow menacing rotation
-                    state.dummy.rotation.y = animTime * 0.8;
-                    state.dummy.rotation.z = Math.sin(animTime * 2) * 0.2;
-                    break;
-                case 'SPHERE_SPLITTER':
-                    // Pulsing scale
-                    const pulseScale = 1 + Math.sin(animTime * 4) * 0.1;
-                    baseScale *= pulseScale;
-                    break;
-                case 'CYLINDER_CORRUPTER':
-                    // Upright with wobble
-                    state.dummy.rotation.x = Math.PI / 2;
-                    state.dummy.rotation.z = Math.sin(animTime * 5) * 0.3;
-                    break;
-                case 'PRISM_DASHER':
-                    // Tilted forward, spinning when dashing
-                    state.dummy.rotation.x = Math.PI / 4;
-                    state.dummy.rotation.y = enemy.isDashing ? animTime * 15 : animTime * 2;
-                    break;
-                case 'CONE_CASTER':
-                    // Points at player with hover bob
-                    if (lookAtPosition) {
-                        state.dummy.lookAt(lookAtPosition.x, enemy.position.y, lookAtPosition.z);
-                    }
-                    state.dummy.rotation.x -= Math.PI / 2;
-                    state.dummy.position.y += Math.sin(animTime * 3) * 0.15;
-                    break;
-                case 'DODECAHEDRON_DRIFTER':
-                    // Ethereal floating rotation
-                    state.dummy.rotation.x = animTime * 0.5;
-                    state.dummy.rotation.y = animTime * 0.7;
-                    state.dummy.rotation.z = animTime * 0.3;
-                    state.dummy.position.y += Math.sin(animTime * 2) * 0.2;
-                    break;
-                case 'PYRAMID_PIERCER':
-                    // Slow aggressive tilt
-                    state.dummy.rotation.y = animTime * 1.2;
-                    state.dummy.rotation.x = Math.sin(animTime) * 0.3;
-                    break;
-                case 'OCTAHEDRON_OBSTACLE':
-                    // Heavy slow rotation
-                    state.dummy.rotation.y = animTime * 0.4;
-                    state.dummy.rotation.x = animTime * 0.2;
-                    break;
-                case 'BOSS_OCTA_PRIME':
-                    // Epic slow rotation with breathing scale
-                    state.dummy.rotation.y = animTime * 0.3;
-                    state.dummy.rotation.x = Math.sin(animTime * 0.5) * 0.1;
-                    baseScale *= 1 + Math.sin(animTime * 1.5) * 0.05;
-                    break;
-                default:
-                    // Apply lookAt rotation if needed
-                    if (lookAtPosition) {
-                        state.dummy.lookAt(lookAtPosition.x, enemy.position.y, lookAtPosition.z);
-                    } else {
-                        state.dummy.rotation.y = animTime * 2;
-                    }
+            // 2. Horizontal Flipping: Face the direction of movement (towards player)
+            let flipScale = 1;
+            if (state.player.position.x < enemy.position.x - 0.1) {
+                flipScale = -1;
             }
 
-            state.dummy.scale.set(baseScale, baseScale, baseScale);
+            // 3. Perfect Grounding (No Bobbing)
+            state.dummy.position.y = 0.01;
+
+            state.dummy.scale.set(baseScale * flipScale, baseScale, baseScale);
 
             state.dummy.updateMatrix();
             instancedMesh.setMatrixAt(enemy.instanceId, state.dummy.matrix);
@@ -461,10 +438,27 @@ function updateProjectiles(deltaTime) {
     for (let i = state.projectiles.length - 1; i >= 0; i--) {
         const p = state.projectiles[i];
         if (!p || !p.mesh) { state.projectiles.splice(i, 1); continue; }
-        p.mesh.position.add(p.velocity.clone().multiplyScalar(deltaTime));
-        if (p.mesh.position.distanceTo(state.player.position) > CONSTANTS.WORLD_BOUNDARY * 1.5 || (p.duration && (p.duration -= deltaTime) <= 0)) {
+
+        _tempVec0.copy(p.velocity).multiplyScalar(deltaTime);
+        p.mesh.position.add(_tempVec0);
+
+        // Dynamic Sprite Rotation (if enabled or 2D)
+        if (p.is2D && p.mesh instanceof THREE.Sprite) {
+            // Correctly calculate rotation: -atan2(z, x) maps world direction to sprite rotation
+            // assuming the base sprite in the sheet points Right (0 degrees).
+            p.mesh.material.rotation = -Math.atan2(p.velocity.z, p.velocity.x);
+        }
+
+        if (p.mesh.position.distanceToSquared(state.player.position) > (CONSTANTS.WORLD_BOUNDARY * 1.5) ** 2 || (p.duration && (p.duration -= deltaTime) <= 0)) {
             state.scene.remove(p.mesh);
-            returnToPool('projectiles', p.mesh, (mesh) => { mesh.visible = false; });
+            // Return to appropriate pool or dispose
+            if (p.is2D) {
+                // For now, just remove. Sprites are lightweight but poolable in future.
+                if (p.mesh.geometry) p.mesh.geometry.dispose();
+                if (p.mesh.material) p.mesh.material.dispose();
+            } else {
+                returnToPool('projectiles', p.mesh, (mesh) => { mesh.visible = false; });
+            }
             state.projectiles.splice(i, 1);
         }
     }
@@ -475,8 +469,9 @@ function updateDataFragments(deltaTime) {
     for (let i = state.dataFragments.length - 1; i >= 0; i--) {
         const fragment = state.dataFragments[i];
         if (!fragment?.mesh) { state.dataFragments.splice(i, 1); continue; }
-        const distanceToPlayer = fragment.mesh.position.distanceTo(state.player.position);
-        if (distanceToPlayer > CONSTANTS.XP_CONSOLIDATION_DISTANCE) {
+        const distanceToPlayerSq = fragment.mesh.position.distanceToSquared(state.player.position);
+
+        if (distanceToPlayerSq > CONSTANTS.XP_CONSOLIDATION_DISTANCE ** 2) {
             state.accumulatedOffScreenXP += fragment.xpValue;
             state.scene.remove(fragment.mesh);
             fragment.mesh.geometry?.dispose();
@@ -484,10 +479,16 @@ function updateDataFragments(deltaTime) {
             state.dataFragments.splice(i, 1);
             continue;
         }
-        if (distanceToPlayer < state.xpCollectionRadius * 1.8) {
-            const direction = new THREE.Vector3().subVectors(state.player.position, fragment.mesh.position).normalize();
-            const speedMultiplier = Math.max(1, 3 * (1 - distanceToPlayer / (state.xpCollectionRadius * 1.8)));
-            fragment.mesh.position.add(direction.multiplyScalar(CONSTANTS.BASE_DATA_FRAGMENT_SPEED * speedMultiplier * deltaTime));
+
+        const collectionRangeSq = (state.xpCollectionRadius * 1.8) ** 2;
+        if (distanceToPlayerSq < collectionRangeSq) {
+            _tempVec0.subVectors(state.player.position, fragment.mesh.position);
+            const dist = Math.sqrt(distanceToPlayerSq);
+            if (dist > 0.0001) {
+                _tempVec0.multiplyScalar(1 / dist); // normalize optimized
+                const speedMultiplier = Math.max(1, 3 * (1 - dist / (state.xpCollectionRadius * 1.8)));
+                fragment.mesh.position.add(_tempVec0.multiplyScalar(CONSTANTS.BASE_DATA_FRAGMENT_SPEED * speedMultiplier * deltaTime));
+            }
         }
     }
 }
@@ -497,11 +498,17 @@ function updateMegaDataFragments(deltaTime) {
     for (let i = state.megaDataFragments.length - 1; i >= 0; i--) {
         const fragment = state.megaDataFragments[i];
         if (!fragment?.mesh) { state.megaDataFragments.splice(i, 1); continue; }
-        const distanceToPlayer = fragment.mesh.position.distanceTo(state.player.position);
-        if (distanceToPlayer < state.xpCollectionRadius * 2.2) {
-            const direction = new THREE.Vector3().subVectors(state.player.position, fragment.mesh.position).normalize();
-            const speedMultiplier = Math.max(0.7, 3.5 * (1 - distanceToPlayer / (state.xpCollectionRadius * 2.2)));
-            fragment.mesh.position.add(direction.multiplyScalar(CONSTANTS.BASE_DATA_FRAGMENT_SPEED * 0.8 * speedMultiplier * deltaTime));
+        const distSq = fragment.mesh.position.distanceToSquared(state.player.position);
+        const collectionRangeSq = (state.xpCollectionRadius * 2.2) ** 2;
+
+        if (distSq < collectionRangeSq) {
+            _tempVec0.subVectors(state.player.position, fragment.mesh.position);
+            const dist = Math.sqrt(distSq);
+            if (dist > 0.0001) {
+                _tempVec0.multiplyScalar(1 / dist); // normalize
+                const speedMultiplier = Math.max(0.7, 3.5 * (1 - dist / (state.xpCollectionRadius * 2.2)));
+                fragment.mesh.position.add(_tempVec0.multiplyScalar(CONSTANTS.BASE_DATA_FRAGMENT_SPEED * 0.8 * speedMultiplier * deltaTime));
+            }
         }
     }
 }
@@ -531,6 +538,20 @@ function updateWeapons(deltaTime) {
             weapon.updateWeaponSystem?.(weapon, deltaTime);
         }
     });
+}
+
+// --- REUSABLE PARTICLE RESOURCES ---
+const _sharedTetraGeom = new THREE.TetrahedronGeometry(0.12, 0);
+const _sharedSphereGeom = new THREE.SphereGeometry(0.08, 4, 4);
+const _particleMaterialsByColor = new Map();
+
+function getParticleMaterial(color) {
+    let mat = _particleMaterialsByColor.get(color);
+    if (!mat) {
+        mat = new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 1 });
+        _particleMaterialsByColor.set(color, mat);
+    }
+    return mat;
 }
 
 function updatePickups(deltaTime) {
@@ -625,13 +646,7 @@ function updatePickups(deltaTime) {
 
 // Helper function to spawn golden particles from chest
 function spawnChestParticle(position) {
-    const particleGeometry = new THREE.SphereGeometry(0.08, 4, 4);
-    const particleMaterial = new THREE.MeshBasicMaterial({
-        color: 0xFFD700,
-        transparent: true,
-        opacity: 1
-    });
-    const particle = new THREE.Mesh(particleGeometry, particleMaterial);
+    const particle = new THREE.Mesh(_sharedSphereGeom, getParticleMaterial(0xFFD700));
 
     particle.position.set(
         position.x + (Math.random() - 0.5) * 0.5,
@@ -647,20 +662,18 @@ function spawnChestParticle(position) {
 
     particle.userData.velocity = velocity;
     particle.userData.life = 0.8 + Math.random() * 0.4;
+    particle.userData.maxLife = particle.userData.life;
     particle.userData.update = (mesh, dt) => {
         mesh.userData.life -= dt;
         if (mesh.userData.life <= 0) {
             state.scene.remove(mesh);
-            mesh.geometry.dispose();
-            mesh.material.dispose();
             const idx = state.effectsToUpdate.indexOf(mesh);
             if (idx > -1) state.effectsToUpdate.splice(idx, 1);
             return;
         }
-        mesh.userData.velocity.y -= 5 * dt; // Gravity
-        mesh.position.add(mesh.userData.velocity.clone().multiplyScalar(dt));
-        mesh.material.opacity = mesh.userData.life / 1.2;
-        mesh.scale.setScalar(mesh.userData.life);
+        _tempVec0.copy(mesh.userData.velocity).multiplyScalar(dt);
+        mesh.position.add(_tempVec0);
+        mesh.material.opacity = mesh.userData.life / mesh.userData.maxLife;
     };
 
     state.scene.add(particle);
@@ -668,47 +681,35 @@ function spawnChestParticle(position) {
 }
 
 // Enemy death explosion with color-coded particles
-function spawnDeathExplosion(position, color, size = 1) {
-    const particleCount = Math.min(12, Math.floor(6 + size * 3)); // Scale particles with enemy size
+export function spawnDeathExplosion(position, color, size = 1) {
+    const particleCount = Math.min(10, Math.floor(5 + size * 2));
+    const material = getParticleMaterial(color);
 
     for (let i = 0; i < particleCount; i++) {
-        const particleGeometry = new THREE.TetrahedronGeometry(0.1 + Math.random() * 0.1, 0);
-        const particleMaterial = new THREE.MeshBasicMaterial({
-            color: color,
-            transparent: true,
-            opacity: 1
-        });
-        const particle = new THREE.Mesh(particleGeometry, particleMaterial);
+        const particle = new THREE.Mesh(_sharedTetraGeom, material);
 
-        // Random position around death point
         particle.position.set(
-            position.x + (Math.random() - 0.5) * size * 0.5,
-            position.y + (Math.random() - 0.5) * size * 0.5,
-            position.z + (Math.random() - 0.5) * size * 0.5
+            position.x + (Math.random() - 0.5) * size * 0.4,
+            position.y + (Math.random() - 0.5) * size * 0.4,
+            position.z + (Math.random() - 0.5) * size * 0.4
         );
 
-        // Random rotation
-        particle.rotation.set(
-            Math.random() * Math.PI * 2,
-            Math.random() * Math.PI * 2,
-            Math.random() * Math.PI * 2
-        );
+        particle.rotation.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
 
-        // Explode outward
         const angle = Math.random() * Math.PI * 2;
         const upAngle = (Math.random() - 0.3) * Math.PI;
-        const speed = 3 + Math.random() * 4;
+        const speed = 3 + Math.random() * 3;
 
         const velocity = new THREE.Vector3(
             Math.cos(angle) * Math.cos(upAngle) * speed,
-            Math.sin(upAngle) * speed + 2,
+            Math.sin(upAngle) * speed + 1.5,
             Math.sin(angle) * Math.cos(upAngle) * speed
         );
 
         const rotationSpeed = new THREE.Vector3(
-            (Math.random() - 0.5) * 10,
-            (Math.random() - 0.5) * 10,
-            (Math.random() - 0.5) * 10
+            (Math.random() - 0.5) * 8,
+            (Math.random() - 0.5) * 8,
+            (Math.random() - 0.5) * 8
         );
 
         particle.userData.velocity = velocity;
@@ -720,16 +721,15 @@ function spawnDeathExplosion(position, color, size = 1) {
             mesh.userData.life -= dt;
             if (mesh.userData.life <= 0) {
                 state.scene.remove(mesh);
-                mesh.geometry.dispose();
-                mesh.material.dispose();
                 const idx = state.effectsToUpdate.indexOf(mesh);
                 if (idx > -1) state.effectsToUpdate.splice(idx, 1);
                 return;
             }
 
-            // Physics
-            mesh.userData.velocity.y -= 12 * dt; // Gravity
-            mesh.position.add(mesh.userData.velocity.clone().multiplyScalar(dt));
+            // Physics (Optimized)
+            mesh.userData.velocity.y -= 12 * dt;
+            _tempVec0.copy(mesh.userData.velocity).multiplyScalar(dt);
+            mesh.position.add(_tempVec0);
 
             // Rotation
             mesh.rotation.x += mesh.userData.rotationSpeed.x * dt;
@@ -738,8 +738,7 @@ function spawnDeathExplosion(position, color, size = 1) {
 
             // Fade and shrink
             const lifeRatio = mesh.userData.life / mesh.userData.maxLife;
-            mesh.material.opacity = lifeRatio;
-            mesh.scale.setScalar(0.5 + lifeRatio * 0.5);
+            mesh.scale.setScalar(0.4 + lifeRatio * 0.6);
         };
 
         state.scene.add(particle);

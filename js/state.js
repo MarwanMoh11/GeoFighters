@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 // Game States Enum
-export const GameState = { MainMenu: 'MainMenu', LevelSelect: 'LevelSelect', UpgradeMenu: 'UpgradeMenu', Playing: 'Playing', Paused: 'Paused', LevelUp: 'LevelUp', Settings: 'Settings', GameOver: 'GameOver', Win: 'Win', EvolutionBook: 'EvolutionBook', CasinoChest: 'CasinoChest' };
+export const GameState = { MainMenu: 'MainMenu', LevelSelect: 'LevelSelect', UpgradeMenu: 'UpgradeMenu', Playing: 'Playing', Paused: 'Paused', LevelUp: 'LevelUp', Settings: 'Settings', GameOver: 'GameOver', Win: 'Win', EvolutionBook: 'EvolutionBook', CacheOpening: 'CacheOpening' };
 
 // --- Core State Management ---
 export let state = {
@@ -227,8 +227,8 @@ export const CONSTANTS = {
     CORRUPTION_INTERVAL: 0.5,
 
     // Radii
-    PLAYER_RADIUS: 0.6,
-    PLAYER_HEIGHT: 1.0,
+    PLAYER_RADIUS: 0.5,
+    PLAYER_HEIGHT: 0.85,
     PROJECTILE_RADIUS: 0.1,
     DATA_FRAGMENT_RADIUS: 0.15,
     REPAIR_NODE_RADIUS: 0.2,

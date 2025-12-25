@@ -264,30 +264,21 @@ function handleTouchEnd(e) {
             continue;
         }
 
-        // DIRECT handling for Casino (Tap to claim/skip)
-        if (activeScreen === 'casino' && state.casinoState) {
-            const { startTime, spinDuration, count } = state.casinoState;
+        // DIRECT handling for Cache (Tap to claim/skip)
+        if (activeScreen === 'cache' && (state.cacheState || state.casinoState)) {
+            const cache = state.cacheState || state.casinoState;
+            const { startTime, spinDuration, count } = cache;
             const totalDuration = spinDuration + (Math.min(count, 3) - 1) * 500;
             const elapsed = Date.now() - startTime;
 
             if (elapsed < totalDuration) {
-                // Tap to skip animation?
-                // For now, let's just let it play out or speed it up.
-                // Setting startTime back makes it finish instantly
-                state.casinoState.startTime = Date.now() - totalDuration - 100;
+                cache.startTime = Date.now() - totalDuration - 100;
             } else {
-                // Tap to collect
                 triggerHaptic();
                 state.currentGameState = GameState.Playing;
                 state.isPaused = false;
                 manualScreenOverride = false;
                 showScreen('playing');
-
-                // Also ensure manager.js knows about it? 
-                // manager.js has a timeout that applies rewards. 
-                // If we exit early, manager.js logic applies anyway when timeout fires?
-                // Actually manager.js sets state to Playing in its onclick. 
-                // We are doing same here.
             }
             render();
             return;
@@ -415,8 +406,8 @@ export function render() {
         case 'gameOver':
             renderGameOver(w, h);
             break;
-        case 'casino':
-            renderCasino(w, h);
+        case 'cache':
+            renderCacheOpening(w, h);
             break;
         case 'levelSelect':
             renderLevelSelect(w, h);
@@ -498,11 +489,10 @@ function renderMainMenu(w, h) {
 // TUTORIAL OVERLAY
 // =============================================================================
 function renderTutorialOverlay(w, h) {
-    let msg = state.tutorialMessage;
+    // Hide tutorial messages on overlay screens to avoid overlap with their titles/banners
+    if (activeScreen === 'levelUp' || activeScreen === 'cache') return;
 
-    // Override message for specific screens
-    if (activeScreen === 'levelUp') msg = "Select an Upgrade!";
-    // Casino message removed as per request
+    let msg = state.tutorialMessage;
 
     if (state.tutorialStep === 'COMPLETE') {
         // Button Logic
@@ -525,7 +515,7 @@ function renderTutorialOverlay(w, h) {
                     state.gameTime = 0;
                     state.spawnerState = 'CALM';
                     state.hordeIndex = 0; // CRITICAL FIX: Reset horde progression
-                    state.tutorialStep = 'INTRO';
+                    state.tutorialStep = 'NONE'; // Prevent restart
                     state.tutorialMessage = "";
                     state.score = 0;
 
@@ -547,24 +537,29 @@ function renderTutorialOverlay(w, h) {
 
     if (!msg || msg === "") return;
 
-    // Position below XP bar generally
-    const y = safeArea.top + 60;
+    // Position significantly lower on screen to avoid any HUD overlap (above player but below top HUD)
+    const y = safeArea.top + 75; // Pushed down further
 
-    ctx.font = 'bold 20px sans-serif'; // Slightly smaller font
+    ctx.font = 'bold 18px "Roboto Mono", monospace'; // More "data" feel
     const textMetrics = ctx.measureText(msg);
     const textWidth = textMetrics.width;
-    const boxWidth = Math.min(w * 0.95, textWidth + 40);
-    const boxHeight = 50;
+    const boxWidth = Math.min(w * 0.95, textWidth + 50);
+    const boxHeight = 44;
     const x = (w - boxWidth) / 2;
 
-    // Semi-transparent bg
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'; // Darker for readability
-    ctx.strokeStyle = COLORS.gold;
+    // Sleek tech-style box
+    ctx.fillStyle = 'rgba(3, 5, 20, 0.85)';
+    ctx.strokeStyle = COLORS.primary;
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.roundRect(x, y, boxWidth, boxHeight, 10);
+    ctx.roundRect(x, y, boxWidth, boxHeight, 4);
     ctx.fill();
     ctx.stroke();
+
+    // Subtle inner glow
+    ctx.strokeStyle = 'rgba(0, 255, 255, 0.2)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x + 2, y + 2, boxWidth - 4, boxHeight - 4);
 
     // Text
     ctx.fillStyle = '#fff';
@@ -572,13 +567,11 @@ function renderTutorialOverlay(w, h) {
     ctx.textBaseline = 'middle';
     ctx.fillText(msg, w / 2, y + boxHeight / 2);
 
-    // Pulse effect
-    const pulse = (Math.sin(Date.now() / 300) + 1) / 2;
-    ctx.globalAlpha = 0.2 + pulse * 0.2;
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 1;
+    // Pulse effect on border
+    const pulse = (Math.sin(Date.now() / 400) + 1) / 2;
+    ctx.strokeStyle = `rgba(0, 255, 255, ${0.3 + pulse * 0.4})`;
+    ctx.lineWidth = 3;
     ctx.stroke();
-    ctx.globalAlpha = 1.0;
 
     ctx.textBaseline = 'alphabetic'; // Reset
 }
@@ -958,56 +951,66 @@ function renderGameOver(w, h) {
     ctx.fillText(`Score: ${state.score}`, w / 2, h * 0.4);
 }
 
-// Casino slot animation state
-let casinoSlots = [null, null, null];
-let casinoAnimating = false;
-let casinoAnimationProgress = 0;
+// Cache opening state
+let cacheSlots = [null, null, null];
+let cacheAnimating = false;
+let cacheAnimationProgress = 0;
 
-function renderCasino(w, h) {
-    // Safety check - if no state, render placeholder or wait
-    if (!state.casinoState) {
+function renderCacheOpening(w, h) {
+    if (!state.cacheState && !state.casinoState) {
         ctx.fillStyle = 'rgba(0,0,0,0.95)';
         ctx.fillRect(0, 0, w, h);
         return;
     }
 
-    const { rewards, rarity, startTime, spinDuration, count } = state.casinoState;
+    const cache = state.cacheState || state.casinoState;
+    const { rewards, rarity, startTime, spinDuration, count } = cache;
     const now = Date.now();
     const elapsed = now - startTime;
 
     // Background
-    ctx.fillStyle = 'rgba(10, 10, 15, 0.96)';
+    ctx.fillStyle = 'rgba(5, 8, 15, 0.98)';
     ctx.fillRect(0, 0, w, h);
 
-    // Golden glow effect
-    const gradient = ctx.createRadialGradient(w / 2, h * 0.4, 10, w / 2, h * 0.4, 250);
-    const glowColor = rarity === 'Legendary' ? 'rgba(255, 100, 0, 0.3)' :
-        rarity === 'Epic' ? 'rgba(180, 50, 255, 0.3)' : 'rgba(255, 215, 0, 0.25)';
+    // Geometric pattern background (optional, but keeps it techy)
+    ctx.strokeStyle = 'rgba(0, 255, 255, 0.05)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < w; i += 40) {
+        ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, h); ctx.stroke();
+    }
+    for (let i = 0; i < h; i += 40) {
+        ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(w, i); ctx.stroke();
+    }
+
+    // Secondary glow
+    const gradient = ctx.createRadialGradient(w / 2, h * 0.4, 10, w / 2, h * 0.4, 300);
+    let glowColor = 'rgba(0, 255, 255, 0.2)';
+    if (rarity === 'Legendary') glowColor = 'rgba(255, 215, 0, 0.3)';
+    else if (rarity === 'Epic') glowColor = 'rgba(180, 50, 255, 0.3)';
+
     gradient.addColorStop(0, glowColor);
     gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, w, h);
 
     // Title
-    ctx.fillStyle = COLORS.gold;
-    ctx.font = 'bold 28px sans-serif';
+    ctx.fillStyle = COLORS.text;
+    ctx.font = 'bold 24px "Titillium Web", sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
-    ctx.fillText('🎰 CASINO CHEST 🎰', w / 2, h * 0.12);
+    ctx.fillText('GEOMETRIC CACHE', w / 2, h * 0.12);
 
     // Rarity Banner
     const bannerY = h * 0.17;
-    let bannerColor = '#ccc';
-    if (rarity === 'Legendary') bannerColor = '#ff4500';
+    let bannerColor = '#00ffff';
+    if (rarity === 'Legendary') bannerColor = '#ffd700';
     else if (rarity === 'Epic') bannerColor = '#b366ff';
-    else bannerColor = '#4169e1'; // Default to Rare
+    else if (rarity === 'Rare') bannerColor = '#4169e1';
 
     ctx.fillStyle = bannerColor;
-    ctx.font = 'bold 16px sans-serif';
+    ctx.font = 'bold 16px "Roboto Mono", monospace';
     ctx.fillText(rarity.toUpperCase(), w / 2, bannerY);
 
-    // Slot machine container
-    // We display up to 3 slots
     const slotsCount = Math.min(Math.max(count || 1, 1), 5);
     const slotW = 85;
     const slotH = 110;
@@ -1024,74 +1027,64 @@ function renderCasino(w, h) {
 
         if (isSpinning) allStopped = false;
 
-        // Slot Frame
-        ctx.fillStyle = 'rgba(20, 20, 30, 0.9)';
-        ctx.strokeStyle = isSpinning ? '#444' : COLORS.gold;
+        // Pod Frame
+        ctx.fillStyle = 'rgba(15, 25, 45, 0.9)';
+        ctx.strokeStyle = isSpinning ? 'rgba(0, 255, 255, 0.3)' : bannerColor;
         ctx.lineWidth = isSpinning ? 2 : 4;
 
         if (!isSpinning) {
-            ctx.shadowBlur = 15;
+            ctx.shadowBlur = 20;
             ctx.shadowColor = bannerColor;
         }
 
         ctx.beginPath();
-        ctx.roundRect(x, slotY, slotW, slotH, 8);
+        ctx.roundRect(x, slotY, slotW, slotH, 4);
         ctx.fill();
         ctx.stroke();
         ctx.shadowBlur = 0;
 
         // Content
         if (isSpinning) {
-            // Render fast scrolling random icons
-            const randomIcons = ['⚔️', '🛡️', '💎', '🔫', '💣', '⚡', '💊'];
-            const iconIndex = Math.floor(elapsed / 80 + i) % randomIcons.length;
+            const geometricIcons = ['⬡', '⬢', '⬠', '⬟', '⬞', '⬥', '⬦'];
+            const iconIndex = Math.floor(elapsed / 100 + i) % geometricIcons.length;
 
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.fillStyle = 'rgba(0, 255, 255, 0.4)';
             ctx.font = '40px sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            const jitterY = Math.sin(elapsed / 20) * 5;
-            ctx.fillText(randomIcons[iconIndex], x + slotW / 2, slotY + slotH / 2 + jitterY);
+            const offsetY = (elapsed / 2) % slotH;
+            ctx.fillText(geometricIcons[iconIndex], x + slotW / 2, slotY + offsetY);
+            ctx.fillText(geometricIcons[(iconIndex + 1) % geometricIcons.length], x + slotW / 2, slotY + offsetY - slotH);
 
         } else {
-            // Final Reward
             const reward = rewards[i] || rewards[0];
-
-            // Icon
             ctx.fillStyle = '#fff';
             ctx.font = '42px sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(reward.icon || '🎁', x + slotW / 2, slotY + slotH / 2 - 15);
+            ctx.fillText(reward.icon || '📦', x + slotW / 2, slotY + slotH / 2 - 15);
 
-            // Name
             ctx.fillStyle = '#fff';
             ctx.textBaseline = 'alphabetic';
-            ctx.font = 'bold 10px sans-serif';
-            const name = reward.name || 'Reward';
+            ctx.font = 'bold 10px "Roboto Mono", monospace';
+            const name = reward.name || 'DATA';
             const displayName = name.length > 12 ? name.substring(0, 10) + '..' : name;
-            ctx.fillText(displayName, x + slotW / 2, slotY + slotH - 10);
+            ctx.fillText(displayName, x + slotW / 2, slotY + slotH - 12);
         }
     }
 
-    ctx.textBaseline = 'alphabetic';
-
-    // "Tap to Collect" logic
     if (allStopped) {
         const pulse = (Math.sin(now / 300) + 1) / 2;
         ctx.fillStyle = `rgba(255, 255, 255, ${0.5 + pulse * 0.5})`;
-        ctx.font = 'bold 20px sans-serif';
+        ctx.font = 'bold 18px "Titillium Web", sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText('TAP TO COLLECT', w / 2, h * 0.65);
 
-        // Show detailed list below
         const descY = h * 0.72;
-        ctx.fillStyle = '#ccc';
-        ctx.font = '14px sans-serif';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+        ctx.font = '14px "Roboto Mono", monospace';
         rewards.forEach((r, k) => {
-            if (k < 3) {
-                ctx.fillText(`+ ${r.name}`, w / 2, descY + k * 20);
-            }
+            if (k < 3) ctx.fillText(`> ${r.name}`, w / 2, descY + k * 22);
         });
     }
 }
@@ -1257,12 +1250,11 @@ export function showScreen(screenName, isManual = false) {
             // Cards are clickable directly via handleTouchEnd
             break;
 
-        case 'casino':
+        case 'cache':
             // Continue button after animation
             createButton('CONTINUE', buttonX, h * 0.75, buttonWidth, 54, () => {
-                import('../ui/manager.js').then(m => {
-                    if (m.closeCasino) m.closeCasino();
-                });
+                state.currentGameState = GameState.Playing;
+                state.isPaused = false;
                 manualScreenOverride = false;
                 showScreen('playing');
             });
@@ -1306,9 +1298,8 @@ export function syncWithGameState() {
         case GameState.GameOver:
             if (activeScreen !== 'gameOver') showScreen('gameOver');
             break;
-        case GameState.CasinoChest:
-            if (activeScreen !== 'casino') showScreen('casino');
-            // Force re-render for animation
+        case GameState.CacheOpening:
+            if (activeScreen !== 'cache') showScreen('cache');
             render();
             break;
         case GameState.LevelSelect:

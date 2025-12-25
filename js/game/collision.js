@@ -16,8 +16,9 @@ import {
 import { ENEMY_TYPES } from '../config/enemies.js';
 
 
-// Reusable vector to prevent creating new objects in the loop (anti-jank)
 const _knockbackDir = new THREE.Vector3();
+const _tempVec0 = new THREE.Vector3();
+const _tempVec1 = new THREE.Vector3();
 
 // --- OPTIMIZATION: Pooled Sets to prevent GC pressure during heavy load ---
 const _projectilesToRemove = new Set();
@@ -70,8 +71,10 @@ export function checkCollisions() {
             // Skip if projectile is already used up or has already hit this specific enemy.
             if (projectilesConsumedThisFrame.has(pIndex) || projectile.hitEnemies.has(enemyIndex)) continue;
 
-            // OPTIMIZATION: Use squared distances to avoid expensive square root calculations.
-            const distanceSq = enemyData.position.distanceToSquared(projectile.mesh.position);
+            // OPTIMIZATION: Use squared distances. Use 2D distance to support floating player/projectiles.
+            _tempVec0.copy(enemyData.position).setY(0);
+            _tempVec1.copy(projectile.mesh.position).setY(0);
+            const distanceSq = _tempVec0.distanceToSquared(_tempVec1);
             const collisionThreshold = enemyData.radius + (projectile.radius || CONSTANTS.PROJECTILE_RADIUS);
             const collisionThresholdSq = collisionThreshold * collisionThreshold;
 
@@ -98,15 +101,15 @@ export function checkCollisions() {
                     state.score += Math.max(1, Math.floor((enemyData.xpValue || 1) * 0.7));
                     if (enemyData.isBoss) winGame();
 
-                    // Chest drop logic - Only Pyramid Piercer has a chance to drop
+                    // Cache drop logic - Only Cyber-Hydra has a chance to drop
                     let dropChest = false;
-                    if (enemyData.type === 'PYRAMID_PIERCER') {
+                    if (enemyData.type === 'CYBER_HYDRA') {
                         dropChest = Math.random() < 0.5; // 50% chance to drop a cache
                     }
 
                     if (dropChest) {
                         spawnGeometricCache(enemyData.position);
-                    } else if (enemyData.type === 'SPHERE_SPLITTER') {
+                    } else if (enemyData.type === 'GLITCH_HORROR') {
                         spawnSplitterOffspring(enemyData.position, enemyData.generation || 1);
                         spawnSplitterOffspring(enemyData.position, enemyData.generation || 1);
                     } else {
@@ -129,22 +132,28 @@ export function checkCollisions() {
             const typeData = ENEMY_TYPES[enemyData.type];
             const playerCollisionThreshold = CONSTANTS.PLAYER_RADIUS + enemyData.radius;
 
-            if (typeData && state.player.position.distanceToSquared(enemyData.position) < playerCollisionThreshold * playerCollisionThreshold) {
+            // Use 2D distance for robust collision with floating player
+            _tempVec0.copy(state.player.position).setY(0);
+            _tempVec1.copy(enemyData.position).setY(0);
+
+            if (typeData && _tempVec0.distanceToSquared(_tempVec1) < playerCollisionThreshold * playerCollisionThreshold) {
                 state.playerShield -= (typeData.damageMultiplier || 1.0) * (5 + Math.floor(state.gameTime / 60));
                 playSoundSynth('player_hit', 0.6);
-                triggerHaptic('medium'); // Haptic feedback for damage
+                triggerHaptic('medium');
 
-                // Trigger screen effects
                 state.screenShakeIntensity = 0.3;
                 state.screenShakeTime = 0.2;
                 state.vignetteFlashTime = 0.3;
 
-                // OPTIMIZATION: Use the reusable vector for knockback to prevent garbage collection.
-                _knockbackDir.subVectors(state.player.position, enemyData.position).normalize().setY(0);
-                state.player.position.add(_knockbackDir.clone().multiplyScalar(0.3));
-                enemyData.position.add(_knockbackDir.clone().multiplyScalar(-0.8));
+                _knockbackDir.subVectors(state.player.position, enemyData.position).setY(0);
+                const kbDistSq = _knockbackDir.lengthSq();
+                if (kbDistSq > 0.0001) {
+                    _knockbackDir.normalize();
+                    state.player.position.add(_tempVec0.copy(_knockbackDir).multiplyScalar(0.3));
+                    enemyData.position.add(_tempVec0.copy(_knockbackDir).multiplyScalar(-0.8));
+                }
 
-                if (enemyData.type === 'TETRA_SWARMER') shapesToRemove.add(gridObject.index);
+                if (enemyData.type === 'SEC_DRONE') shapesToRemove.add(gridObject.index);
                 if (typeData.specialAbility === 'corrupt_touch') state.corruptionEffectTimer = Math.max(state.corruptionEffectTimer, 5.0);
                 if (state.playerShield <= 0 && state.currentGameState === GameState.Playing) { gameOver(); return; }
             }
@@ -153,7 +162,11 @@ export function checkCollisions() {
         // B. Player vs. Enemy Projectile
         else if (gridObject.projectile && gridObject.projectile.isEnemyProjectile && !projectilesToRemove.has(gridObject.index)) {
             const enemyProjCollisionThreshold = CONSTANTS.PLAYER_RADIUS + (gridObject.projectile.radius || CONSTANTS.PROJECTILE_RADIUS);
-            if (state.player.position.distanceToSquared(gridObject.projectile.mesh.position) < enemyProjCollisionThreshold * enemyProjCollisionThreshold) {
+
+            _tempVec0.copy(state.player.position).setY(0);
+            _tempVec1.copy(gridObject.projectile.mesh.position).setY(0);
+
+            if (_tempVec0.distanceToSquared(_tempVec1) < enemyProjCollisionThreshold * enemyProjCollisionThreshold) {
                 state.playerShield -= gridObject.projectile.damage;
                 playSoundSynth('player_hit', 0.6);
                 projectilesToRemove.add(gridObject.index);
@@ -161,22 +174,42 @@ export function checkCollisions() {
             }
         }
 
-        // C. Player vs. Pickups
-        else if (gridObject.dataFragment && !dataFragmentsToRemove.has(gridObject.index) && state.player.position.distanceToSquared(gridObject.dataFragment.mesh.position) < state.xpCollectionRadius * state.xpCollectionRadius) {
-            dataFragmentsToRemove.add(gridObject.index);
-            collectXP(gridObject.dataFragment.xpValue);
-        } else if (gridObject.megaDataFragment && !megaDataFragmentsToRemove.has(gridObject.index) && state.player.position.distanceToSquared(gridObject.megaDataFragment.mesh.position) < state.xpCollectionRadius * state.xpCollectionRadius) {
-            megaDataFragmentsToRemove.add(gridObject.index);
-            collectXP(gridObject.megaDataFragment.xpValue);
-            createBurstEffect(gridObject.megaDataFragment.mesh.position, 35, 0xFF8C00, 4.5, 0.6);
-        } else if (gridObject.geometricCache && state.player.position.distanceToSquared(gridObject.geometricCache.mesh.position) < Math.pow(CONSTANTS.PICKUP_COLLECTION_RADIUS + CONSTANTS.CACHE_RADIUS, 2)) {
-            openGeometricCache(gridObject.geometricCache.mesh);
-        } else if (gridObject.repairNode && !repairNodesToRemove.has(gridObject.index) && state.player.position.distanceToSquared(gridObject.repairNode.mesh.position) < CONSTANTS.PICKUP_COLLECTION_RADIUS * CONSTANTS.PICKUP_COLLECTION_RADIUS) {
-            repairNodesToRemove.add(gridObject.index);
-            state.playerShield = Math.min(state.MAX_PLAYER_SHIELD, state.playerShield + gridObject.repairNode.shieldValue);
-        } else if (gridObject.energyCore && !energyCoresToRemove.has(gridObject.index) && state.player.position.distanceToSquared(gridObject.energyCore.mesh.position) < CONSTANTS.PICKUP_COLLECTION_RADIUS * CONSTANTS.PICKUP_COLLECTION_RADIUS) {
-            energyCoresToRemove.add(gridObject.index);
-            collectXP(gridObject.energyCore.xpValue);
+        // C. Player vs. Pickups (Ignoring Y for all)
+        else if (gridObject.dataFragment && !dataFragmentsToRemove.has(gridObject.index)) {
+            _tempVec0.copy(state.player.position).setY(0);
+            _tempVec1.copy(gridObject.dataFragment.mesh.position).setY(0);
+            if (_tempVec0.distanceToSquared(_tempVec1) < state.xpCollectionRadius * state.xpCollectionRadius) {
+                dataFragmentsToRemove.add(gridObject.index);
+                collectXP(gridObject.dataFragment.xpValue);
+            }
+        } else if (gridObject.megaDataFragment && !megaDataFragmentsToRemove.has(gridObject.index)) {
+            _tempVec0.copy(state.player.position).setY(0);
+            _tempVec1.copy(gridObject.megaDataFragment.mesh.position).setY(0);
+            if (_tempVec0.distanceToSquared(_tempVec1) < state.xpCollectionRadius * state.xpCollectionRadius) {
+                megaDataFragmentsToRemove.add(gridObject.index);
+                collectXP(gridObject.megaDataFragment.xpValue);
+                createBurstEffect(gridObject.megaDataFragment.mesh.position, 35, 0xFF8C00, 4.5, 0.6);
+            }
+        } else if (gridObject.geometricCache) {
+            _tempVec0.copy(state.player.position).setY(0);
+            _tempVec1.copy(gridObject.geometricCache.mesh.position).setY(0);
+            if (_tempVec0.distanceToSquared(_tempVec1) < Math.pow(CONSTANTS.PICKUP_COLLECTION_RADIUS + CONSTANTS.CACHE_RADIUS, 2)) {
+                openGeometricCache(gridObject.geometricCache.mesh);
+            }
+        } else if (gridObject.repairNode && !repairNodesToRemove.has(gridObject.index)) {
+            _tempVec0.copy(state.player.position).setY(0);
+            _tempVec1.copy(gridObject.repairNode.mesh.position).setY(0);
+            if (_tempVec0.distanceToSquared(_tempVec1) < CONSTANTS.PICKUP_COLLECTION_RADIUS * CONSTANTS.PICKUP_COLLECTION_RADIUS) {
+                repairNodesToRemove.add(gridObject.index);
+                state.playerShield = Math.min(state.MAX_PLAYER_SHIELD, state.playerShield + gridObject.repairNode.shieldValue);
+            }
+        } else if (gridObject.energyCore && !energyCoresToRemove.has(gridObject.index)) {
+            _tempVec0.copy(state.player.position).setY(0);
+            _tempVec1.copy(gridObject.energyCore.mesh.position).setY(0);
+            if (_tempVec0.distanceToSquared(_tempVec1) < CONSTANTS.PICKUP_COLLECTION_RADIUS * CONSTANTS.PICKUP_COLLECTION_RADIUS) {
+                energyCoresToRemove.add(gridObject.index);
+                collectXP(gridObject.energyCore.xpValue);
+            }
         }
     }
 
@@ -199,13 +232,20 @@ export function checkCollisions() {
             const item = array[index];
             if (item) {
                 const mesh = item.mesh || item;
-                if (poolName) { returnToPool(poolName, mesh); }
+                if (poolName && !item.is2D) {
+                    returnToPool(poolName, mesh);
+                }
                 else {
                     state.scene.remove(mesh);
-                    mesh.geometry?.dispose();
-                    if (mesh.material) {
-                        if (Array.isArray(mesh.material)) mesh.material.forEach(m => m?.dispose());
-                        else mesh.material.dispose();
+                    if (item.is2D) {
+                        if (mesh.geometry) mesh.geometry.dispose();
+                        if (mesh.material) mesh.material.dispose();
+                    } else {
+                        mesh.geometry?.dispose();
+                        if (mesh.material) {
+                            if (Array.isArray(mesh.material)) mesh.material.forEach(m => m?.dispose());
+                            else mesh.material.dispose();
+                        }
                     }
                 }
                 array.splice(index, 1);
