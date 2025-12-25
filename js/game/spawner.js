@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { state, CONSTANTS } from '../state.js';
-import { ENEMY_TYPES } from '../config/enemies.js';
+import { ENEMY_TYPES, ELITE_CONFIG, ENEMY_TIERS } from '../config/enemies.js';
 import { playSoundSynth } from '../utils/audio.js';
 import { ui } from '../ui/dom.js';
 import { gameLevels } from '../config/levels.js';
@@ -13,29 +13,29 @@ import { gameLevels } from '../config/levels.js';
 // This timeline introduces overlapping hordes and elite support enemies.
 const HORDE_TIMELINE = [
     // === PHASE 1: The Onslaught Begins (0:00 - 2:00) ===
-    // Objective: Teach basic movement and dodging.
-    { startTime: 5, duration: 50, type: 'MECH_BEAST', calmDuration: 15 }, // Standard intro. Ends at 1:10.
-    { startTime: 70, duration: 60, type: 'SEC_DRONE', calmDuration: 20 }, // Introduce fast, numerous enemies. Ends at 2:10.
+    // Objective: Teach basic movement and dodging with fast swarm enemies.
+    { startTime: 5, duration: 50, type: 'DRONE_EYE', calmDuration: 15 },
+    { startTime: 70, duration: 60, type: 'CYBER_WOLF', calmDuration: 20 },
 
     // === PHASE 2: New Threats (2:10 - 4:30) ===
-    // Objective: Introduce special abilities and armor.
-    { startTime: 150, duration: 10, type: 'GLITCH_HORROR', calmDuration: 25 }, // Short, intense wave to manage performance. Ends at 3:35.
-    { startTime: 150, duration: 100, type: 'MECH_BEAST', calmDuration: 15 },
-    { startTime: 215, duration: 60, type: 'SEC_DRONE', calmDuration: 25 }, // Introduce the "Tough" enemy type. Ends at 4:20.
+    // Objective: Introduce splitting and area denial enemies.
+    { startTime: 150, duration: 50, type: 'GLITCH_SPECTER', calmDuration: 20 },
+    { startTime: 200, duration: 60, type: 'TENTACLE_BEAST', calmDuration: 15 },
+    { startTime: 260, duration: 50, type: 'RAPTOR_STRIKE', calmDuration: 20 },
 
     // === PHASE 3: The Gauntlet (4:30 - 7:00) ===
     // Objective: Combine hordes to test player prioritization.
-    { startTime: 275, duration: 65, type: 'SPIDER_TANK', calmDuration: 20 }, // A full wave of easy enemies. Ends at 5:40.
-    // ** OVERLAP! ** While dashers are still spawning, swarmers return.
-    { startTime: 275, duration: 80, type: 'SEC_DRONE', calmDuration: 0, isMiniHorde: true }, // Swarmers create chaos for the dashers.
+    { startTime: 310, duration: 70, type: 'SPIDER_MECH', calmDuration: 20 },
+    { startTime: 310, duration: 80, type: 'DRONE_EYE', calmDuration: 0, isMiniHorde: true },
+    { startTime: 400, duration: 60, type: 'HEAVY_GOLEM', calmDuration: 25 },
 
-    // === PHASE 4: The Corrupted Zone (7:00 - 9:45) ===
-    // Objective: High-stakes survival with area denial and ranged threats.
-    { startTime: 420, duration: 140, type: 'TECH_TENTACLE', calmDuration: 25 }, // Introduce area denial. Ends at 8:15.
+    // === PHASE 4: Mini-Boss Wave (7:00 - 9:00) ===
+    // Objective: High-stakes survival with ranged mini-boss threats.
+    { startTime: 460, duration: 80, type: 'PLASMA_DRAGON', calmDuration: 20 },
+    { startTime: 460, duration: 100, type: 'CYBER_WOLF', calmDuration: 0, isMiniHorde: true },
 
     // === FINAL CLIMAX (before the boss) ===
-    { startTime: 535, duration: 45, type: 'PLASMA_GOLEM', calmDuration: 20 }, // The final, tanky drifters. Ends at 9:40.
-    // The game enters a final "Calm" phase from 580s (9:40) to 600s, allowing the player to prepare for the boss.
+    { startTime: 560, duration: 40, type: 'HEAVY_GOLEM', calmDuration: 20 },
 ];
 
 export let damageNumbersThisFrame = 0; // Export the counter
@@ -117,13 +117,6 @@ export function handleSpawning(deltaTime) {
 
     handleBossSpawnTrigger(); // Checks if it's time for the boss
 
-    // Pyramid Piercer periodic spawn: every 60s
-    state.pyramidSpawnTimer += deltaTime;
-    if (state.pyramidSpawnTimer >= 60) {
-        state.pyramidSpawnTimer = 0;
-        spawnEnemyByType('PYRAMID_PIERCER');
-    }
-
     // Always check for the next horde, even during a calm phase.
     const nextHorde = HORDE_TIMELINE[state.hordeIndex];
     if (nextHorde && state.gameTime >= nextHorde.startTime) {
@@ -175,7 +168,7 @@ function handleTutorialSpawning(deltaTime) {
                         0,
                         playerPos.z + Math.sin(angle) * spawnDist
                     );
-                    spawnEnemyByType('MECH_BEAST', spawnPos);
+                    spawnEnemyByType('DRONE_EYE', spawnPos);
                 }
                 state.tutorialWaveSpawned = true;
             }
@@ -243,7 +236,7 @@ function handleTutorialSpawning(deltaTime) {
                         0,
                         playerPos.z + Math.sin(angle) * spawnDist
                     );
-                    spawnEnemyByType('MECH_BEAST', spawnPos);
+                    spawnEnemyByType('DRONE_EYE', spawnPos);
                 }
                 state.tutorialCombatSpawned = true;
             }
@@ -341,10 +334,10 @@ function spawnHordeWave() {
         spawnedCount++;
     }
 
-    // Always add some basic cubes as filler if there's leftover budget
-    const fillerTypeData = ENEMY_TYPES['MECH_BEAST'];
+    // Always add some basic drones as filler if there's leftover budget
+    const fillerTypeData = ENEMY_TYPES['DRONE_EYE'];
     while (budget >= fillerTypeData.cost && spawnedCount < maxSpawns) {
-        spawnEnemyByType('MECH_BEAST');
+        spawnEnemyByType('DRONE_EYE');
         budget -= fillerTypeData.cost;
         spawnedCount++;
     }
@@ -356,10 +349,10 @@ function spawnHordeWave() {
 
 function handleBossWave(deltaTime) {
     // We now check for the 'type' property directly on the data object in state.shapes
-    const bossExists = state.shapes.some(s => s.type === 'TITAN_MECH_KING');
+    const bossExists = state.shapes.some(s => s.type === 'TITAN_OVERLORD');
 
     if (!bossExists) {
-        spawnEnemyByType('TITAN_MECH_KING');
+        spawnEnemyByType('TITAN_OVERLORD');
     }
 
     // ... rest of the function is the same ...
@@ -559,9 +552,12 @@ function createEnemyFactory(typeId) {
     };
 }
 
-export function spawnEnemyByType(typeId, forcedPosition = null) {
+export function spawnEnemyByType(typeId, forcedPosition = null, forceElite = false) {
     const typeData = ENEMY_TYPES[typeId];
     if (!typeData) return;
+
+    // Don't make bosses elite
+    const isElite = !typeData.isBoss && (forceElite || Math.random() < ELITE_CONFIG.spawnChance);
 
     // 1. Get the InstancedMesh and an available index from the pool
     const instancedMesh = state.instancedMeshes[typeId];
@@ -570,7 +566,6 @@ export function spawnEnemyByType(typeId, forcedPosition = null) {
 
     if (!instancedMesh || !pool || pool.length === 0) {
         console.warn(`[SPAWN_FAIL] Pool empty for ${typeId}. Pool length: ${pool?.length}`);
-        // console.warn(`No available instances in pool for ${typeId}`);
         return; // Pool is full, cannot spawn this enemy
     }
 
@@ -594,31 +589,40 @@ export function spawnEnemyByType(typeId, forcedPosition = null) {
 
     spawnPosition.y = 0;
 
-    // 3. Set the instance's transform
+    // 3. Set the instance's transform (elites are larger)
+    const sizeMultiplier = isElite ? ELITE_CONFIG.sizeMultiplier : 1;
     state.dummy.position.copy(spawnPosition);
-    state.dummy.scale.set(1, 1, 1); // Make it visible
+    state.dummy.scale.set(sizeMultiplier, sizeMultiplier, sizeMultiplier);
     state.dummy.updateMatrix();
     instancedMesh.setMatrixAt(instanceId, state.dummy.matrix);
     instancedMesh.instanceMatrix.needsUpdate = true;
 
-    // 4. Set the instance's color (reset to default)
-    instancedMesh.setColorAt(instanceId, instancedMesh.userData.baseColor);
+    // 4. Set the instance's color (elites get golden glow)
+    if (isElite) {
+        state.tempColor.setHex(ELITE_CONFIG.glowColor);
+        instancedMesh.setColorAt(instanceId, state.tempColor);
+    } else {
+        instancedMesh.setColorAt(instanceId, instancedMesh.userData.baseColor);
+    }
     instancedMesh.instanceColor.needsUpdate = true;
 
     // 5. Create the ENEMY DATA object
-    let finalHealth = (6 + (state.playerLevel * 2.0) + (state.gameTime * 0.020)) * (typeData.healthMultiplier || 1.0);
-    let finalXp = (4 + state.playerLevel * 1.5 + state.gameTime * 0.012) * (typeData.xpMultiplier || 1.0);
+    const healthMultiplier = isElite ? ELITE_CONFIG.healthMultiplier : 1;
+    let finalHealth = (6 + (state.playerLevel * 2.0) + (state.gameTime * 0.020)) * (typeData.healthMultiplier || 1.0) * healthMultiplier;
+    let finalXp = (4 + state.playerLevel * 1.5 + state.gameTime * 0.012) * (typeData.xpMultiplier || 1.0) * (isElite ? 3 : 1);
 
     const enemyData = {
         type: typeId,
         instanceId: instanceId, // CRITICAL: Link to the instanced mesh
         position: spawnPosition, // Store its logical position
-        radius: instancedMesh.userData.radius,
+        radius: instancedMesh.userData.radius * sizeMultiplier,
         ...typeData,
         health: Math.max(1, finalHealth),
         xpValue: Math.max(1, Math.floor(finalXp)),
         currentSpeed: typeData.speed ?? 1.0,
         spawnTimestamp: state.gameTime,
+        isElite: isElite,
+        dropsCache: isElite ? true : typeData.dropsCache, // Elites always drop cache
     };
 
     // 6. Add the DATA to the main enemy list
@@ -628,7 +632,7 @@ export function spawnEnemyByType(typeId, forcedPosition = null) {
 export function spawnSplitterOffspring(position, generation) {
     if (generation >= 3) return;
 
-    const typeId = 'GLITCH_HORROR';
+    const typeId = 'GLITCH_SPECTER';
     const typeData = ENEMY_TYPES[typeId];
 
     // 1. Get InstancedMesh and index

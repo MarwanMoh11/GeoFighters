@@ -101,15 +101,15 @@ export function checkCollisions() {
                     state.score += Math.max(1, Math.floor((enemyData.xpValue || 1) * 0.7));
                     if (enemyData.isBoss) winGame();
 
-                    // Cache drop logic - Only Cyber-Hydra has a chance to drop
+                    // Cache drop logic - Elites and dropsCache enemies drop chests
                     let dropChest = false;
-                    if (enemyData.type === 'CYBER_HYDRA') {
-                        dropChest = Math.random() < 0.5; // 50% chance to drop a cache
+                    if (enemyData.isElite || enemyData.dropsCache) {
+                        dropChest = enemyData.isElite ? true : Math.random() < 0.5;
                     }
 
                     if (dropChest) {
                         spawnGeometricCache(enemyData.position);
-                    } else if (enemyData.type === 'GLITCH_HORROR') {
+                    } else if (enemyData.type === 'GLITCH_SPECTER' && enemyData.specialAbility === 'split') {
                         spawnSplitterOffspring(enemyData.position, enemyData.generation || 1);
                         spawnSplitterOffspring(enemyData.position, enemyData.generation || 1);
                     } else {
@@ -153,7 +153,7 @@ export function checkCollisions() {
                     enemyData.position.add(_tempVec0.copy(_knockbackDir).multiplyScalar(-0.8));
                 }
 
-                if (enemyData.type === 'SEC_DRONE') shapesToRemove.add(gridObject.index);
+                if (enemyData.type === 'DRONE_EYE') shapesToRemove.add(gridObject.index);
                 if (typeData.specialAbility === 'corrupt_touch') state.corruptionEffectTimer = Math.max(state.corruptionEffectTimer, 5.0);
                 if (state.playerShield <= 0 && state.currentGameState === GameState.Playing) { gameOver(); return; }
             }
